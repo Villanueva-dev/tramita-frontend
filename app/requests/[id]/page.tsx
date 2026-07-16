@@ -128,7 +128,7 @@ export default function RequestDetailPage() {
   }
 
   function runAction(comment: string) {
-    if (!dialog) return
+    if (!dialog || !req) return
     transition(req.id, dialog.action, comment)
     const labels: Record<string, string> = {
       revisar: 'Revisión iniciada.',
