@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Eye,
   EyeOff,
@@ -17,18 +17,42 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Logo } from '@/components/brand'
-import { useTramita } from '@/lib/store'
+import { useAuth } from '@/lib/auth-store'
+import { ApiError } from '@/lib/api'
+
+function loginErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    switch (err.status) {
+      case 401:
+        return 'Credenciales inválidas. Verifique su correo y contraseña.'
+      case 429:
+        return err.retryAfter
+          ? `Demasiados intentos. Reintente en ${err.retryAfter} segundos.`
+          : 'Demasiados intentos. Espere unos minutos e intente de nuevo.'
+      case 400:
+        return 'Solicitud inválida. Revise los datos ingresados.'
+      default:
+        return 'No se pudo iniciar sesión. Intente nuevamente.'
+    }
+  }
+  return 'Sin conexión con el servidor. Intente más tarde.'
+}
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useTramita()
-  const [email, setEmail] = useState('ana.restrepo@remington.edu.co')
-  const [password, setPassword] = useState('Coord2025!')
+  const { login, status } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(e: React.FormEvent) {
+  // Si ya hay sesión (p. ej. F5 estando logueado), no mostrar el login.
+  useEffect(() => {
+    if (status === 'authenticated') router.replace('/dashboard')
+  }, [status, router])
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!email.trim() || !password.trim()) {
@@ -36,10 +60,14 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    setTimeout(() => {
-      login(email)
+    try {
+      await login(email, password)
       router.push('/dashboard')
-    }, 900)
+    } catch (err) {
+      setError(loginErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -177,12 +205,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          <p className="mt-6 rounded-lg bg-muted px-3 py-2.5 text-center text-xs text-muted-foreground">
-            Entorno de demostración. Presione{' '}
-            <span className="font-medium text-foreground">Ingresar</span> para
-            continuar con datos de ejemplo.
-          </p>
         </div>
       </section>
     </main>

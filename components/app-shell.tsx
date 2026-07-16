@@ -12,11 +12,14 @@ import {
   X,
   Bell,
   Search,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/lib/auth-store'
 import { useTramita } from '@/lib/store'
+import { displayNameFromEmail, initialsFromEmail } from '@/lib/identity'
 
 const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
@@ -33,28 +36,25 @@ export function AppShell({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isAuthenticated, coordinatorName, logout, requests } = useTramita()
+  const { status, user, logout } = useAuth()
+  const { requests } = useTramita()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/')
-  }, [isAuthenticated, router])
+    if (status === 'unauthenticated') router.replace('/')
+  }, [status, router])
 
   const urgentCount = requests.filter(
     (r) => r.priority === 'urgente' && r.status !== 'finalizado',
   ).length
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     router.replace('/')
   }
 
-  const initials = coordinatorName
-    .replace(/^Coord\.\s*/, '')
-    .split(' ')
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
+  const displayName = user ? displayNameFromEmail(user.email) : ''
+  const initials = user ? initialsFromEmail(user.email) : ''
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <nav className="flex flex-col gap-1">
@@ -98,7 +98,7 @@ export function AppShell({
           </span>
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-medium text-primary-foreground">
-              {coordinatorName}
+              {displayName}
             </p>
             <p className="truncate text-xs text-sidebar-foreground/60">
               Coordinación · Sede Cali
@@ -116,7 +116,15 @@ export function AppShell({
     </div>
   )
 
-  if (!isAuthenticated) return null
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (status !== 'authenticated' || !user) return null
 
   return (
     <div className="flex min-h-screen bg-background">

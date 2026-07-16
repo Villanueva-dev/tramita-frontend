@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
+import { useAuth } from '@/lib/auth-store'
+import { displayNameFromEmail } from '@/lib/identity'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/mock-data'
 import { isOverdue } from '@/lib/format'
 import type { RequestStatus, RequestType } from '@/lib/types'
@@ -23,7 +25,8 @@ type CardFilter =
   | 'urgente'
 
 export default function DashboardPage() {
-  const { requests, coordinatorName } = useTramita()
+  const { requests } = useTramita()
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
@@ -89,7 +92,7 @@ export default function DashboardPage() {
     setQuery('')
   }
 
-  const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
+  const firstName = user ? displayNameFromEmail(user.email).split(' ')[0] : ''
 
   return (
     <AppShell title="Bandeja de trabajo">

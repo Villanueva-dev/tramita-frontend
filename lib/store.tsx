@@ -37,12 +37,8 @@ export interface NewRequestInput {
 }
 
 interface TramitaContextValue {
-  isAuthenticated: boolean
-  coordinatorName: string
   requests: AcademicRequest[]
   workflowConfig: RequestTypeConfig[]
-  login: (email: string) => void
-  logout: () => void
   getRequest: (id: string) => AcademicRequest | undefined
   createRequest: (input: NewRequestInput) => AcademicRequest
   transition: (
@@ -86,14 +82,10 @@ function stageForStatus(status: RequestStatus, type: RequestType): string {
 }
 
 export function TramitaProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [requests, setRequests] = useState<AcademicRequest[]>(mockRequests)
   const [workflowConfig, setWorkflowConfig] = useState<RequestTypeConfig[]>(
     defaultWorkflowConfig,
   )
-
-  const login = useCallback(() => setIsAuthenticated(true), [])
-  const logout = useCallback(() => setIsAuthenticated(false), [])
 
   const getRequest = useCallback(
     (id: string) => requests.find((r) => r.id === id),
@@ -180,23 +172,16 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TramitaContextValue>(
     () => ({
-      isAuthenticated,
-      coordinatorName: COORDINATOR_NAME,
       requests,
       workflowConfig,
-      login,
-      logout,
       getRequest,
       createRequest,
       transition,
       updateWorkflowConfig,
     }),
     [
-      isAuthenticated,
       requests,
       workflowConfig,
-      login,
-      logout,
       getRequest,
       createRequest,
       transition,
