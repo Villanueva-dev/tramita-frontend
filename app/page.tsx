@@ -143,15 +143,7 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  ¿Olvidó su contraseña?
-                </button>
-              </div>
+              <Label htmlFor="password">Contraseña</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -205,6 +197,11 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            ¿Olvidó su contraseña? Comuníquese con el área de soporte para
+            restablecerla.
+          </p>
         </div>
       </section>
     </main>
