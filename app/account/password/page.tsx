@@ -16,26 +16,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth-store'
 import { ApiError } from '@/lib/api'
+import { apiErrorMessages } from '@/lib/api-errors'
 import { validateNewPassword } from '@/lib/password-policy'
-
-function changeErrorMessages(err: unknown): string[] {
-  if (err instanceof ApiError) {
-    if (err.status === 422 && err.detail) return err.detail.split('; ')
-    switch (err.status) {
-      case 401:
-        return ['Tu sesión expiró. Iniciá sesión de nuevo.']
-      case 429:
-        return [
-          err.retryAfter
-            ? `Demasiados intentos. Reintente en ${err.retryAfter} segundos.`
-            : 'Demasiados intentos. Espere unos minutos e intente de nuevo.',
-        ]
-      default:
-        return [err.title || 'No se pudo cambiar la contraseña.']
-    }
-  }
-  return ['Sin conexión con el servidor. Intente más tarde.']
-}
 
 export default function ChangePasswordPage() {
   const router = useRouter()
@@ -71,7 +53,12 @@ export default function ChangePasswordPage() {
       setNext('')
       setConfirm('')
     } catch (err) {
-      setErrors(changeErrorMessages(err))
+      setErrors(
+        apiErrorMessages(err, {
+          unauthorized: 'Tu sesión expiró. Iniciá sesión de nuevo.',
+          fallback: 'No se pudo cambiar la contraseña.',
+        }),
+      )
       if (err instanceof ApiError && err.status === 401) {
         router.replace('/')
       }

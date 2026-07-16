@@ -18,25 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Logo } from '@/components/brand'
 import { useAuth } from '@/lib/auth-store'
-import { ApiError } from '@/lib/api'
-
-function loginErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) {
-    switch (err.status) {
-      case 401:
-        return 'Credenciales inválidas. Verifique su correo y contraseña.'
-      case 429:
-        return err.retryAfter
-          ? `Demasiados intentos. Reintente en ${err.retryAfter} segundos.`
-          : 'Demasiados intentos. Espere unos minutos e intente de nuevo.'
-      case 400:
-        return 'Solicitud inválida. Revise los datos ingresados.'
-      default:
-        return 'No se pudo iniciar sesión. Intente nuevamente.'
-    }
-  }
-  return 'Sin conexión con el servidor. Intente más tarde.'
-}
+import { apiErrorMessages } from '@/lib/api-errors'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -64,7 +46,12 @@ export default function LoginPage() {
       await login(email, password)
       // La navegación la dispara el useEffect cuando status pasa a 'authenticated'.
     } catch (err) {
-      setError(loginErrorMessage(err))
+      setError(
+        apiErrorMessages(err, {
+          unauthorized: 'Credenciales inválidas. Verifique su correo y contraseña.',
+          fallback: 'No se pudo iniciar sesión. Intente nuevamente.',
+        }).join(' '),
+      )
     } finally {
       setLoading(false)
     }
