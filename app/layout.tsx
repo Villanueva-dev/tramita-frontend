@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Source_Sans_3, Source_Serif_4 } from 'next/font/google'
+import { AuthProvider } from '@/lib/auth-store'
 import { TramitaProvider } from '@/lib/store'
 import './globals.css'
 
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body
         className={`${sourceSans.variable} ${sourceSerif.variable} font-sans antialiased`}
       >
-        <TramitaProvider>{children}</TramitaProvider>
+        <AuthProvider>
+          <TramitaProvider>{children}</TramitaProvider>
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
