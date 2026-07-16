@@ -13,6 +13,7 @@ import {
   Bell,
   Search,
   Loader2,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
@@ -105,6 +106,14 @@ export function AppShell({
             </p>
           </div>
         </div>
+        <Link
+          href="/account/password"
+          onClick={onClick}
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/60 hover:text-primary-foreground"
+        >
+          <KeyRound className="size-4.5" />
+          Cambiar contraseña
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/60 hover:text-primary-foreground"

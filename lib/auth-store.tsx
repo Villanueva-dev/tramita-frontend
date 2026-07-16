@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  ApiError,
+  changePassword as apiChangePassword,
   getMe,
   login as apiLogin,
   logout as apiLogout,
@@ -23,6 +25,7 @@ interface AuthContextValue {
   user: SessionUser | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  changePassword: (current: string, next: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -69,9 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const changePassword = useCallback(async (current: string, next: string) => {
+    try {
+      await apiChangePassword(current, next)
+    } catch (err) {
+      // Si la sesión expiró en el intento, reflejarlo para que el gate redirija.
+      if (err instanceof ApiError && err.status === 401) {
+        setUser(null)
+        setStatus('unauthenticated')
+      }
+      throw err
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, logout }),
-    [status, user, login, logout],
+    () => ({ status, user, login, logout, changePassword }),
+    [status, user, login, logout, changePassword],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
