@@ -57,8 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     await apiLogin(email, password)
     const me = await getMe()
+    if (!me) {
+      // Login 204 pero la sesión no se confirmó (caso raro): no dejamos el estado a medias.
+      setUser(null)
+      setStatus('unauthenticated')
+      throw new ApiError(0, 'No se pudo iniciar sesión')
+    }
     setUser(me)
-    setStatus(me ? 'authenticated' : 'unauthenticated')
+    setStatus('authenticated')
   }, [])
 
   const logout = useCallback(async () => {
@@ -68,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setStatus('unauthenticated')
       // logout borra ambas cookies; re-sembramos el CSRF para el próximo login.
-      void getMe()
+      void getMe().catch(() => {})
     }
   }, [])
 

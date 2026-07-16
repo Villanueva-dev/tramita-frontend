@@ -62,7 +62,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      router.push('/dashboard')
+      // La navegación la dispara el useEffect cuando status pasa a 'authenticated'.
     } catch (err) {
       setError(loginErrorMessage(err))
     } finally {
