@@ -17,4 +17,5 @@ node_modules
 # Local tooling artifacts (not part of the delivery)
 .codegraph/
 .atl/
+openspec/
 *.tsbuildinfo
