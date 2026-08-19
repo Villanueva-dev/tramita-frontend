@@ -1,0 +1,63 @@
+
+# ─────────────────────────────────────────────────────────────────────────
+# <tipo>(<alcance>): <resumen en imperativo, máximo 72 caracteres>
+#
+# El alcance es opcional. Ejemplos: auth, dashboard, requests, account,
+# ui, lib, docs, build.
+# ─────────────────────────────────────────────────────────────────────────
+#
+# CUERPO — envolver a 72 columnas, separar párrafos con línea en blanco.
+#
+# El diff ya muestra QUÉ cambió. El cuerpo existe para explicar POR QUÉ:
+# qué problema resuelve, qué alternativa se descartó y con qué costo.
+# Un commit cuyo cuerpo repite el diff no aporta nada.
+#
+# Si el cambio se defiende ante el jurado, el porqué va acá: dentro de
+# seis meses este texto es la única fuente de la decisión.
+#
+# ─────────────────────────────────────────────────────────────────────────
+#
+# PIE — opcional, una clave por línea:
+#
+#   Refs: Tramita/specs/002-workflow-engine/contracts/openapi.yaml
+#   Verificado: pnpm test — 27 en verde; pnpm exec tsc --noEmit sin errores
+#   BREAKING CHANGE: <qué se rompe y cómo adaptarse>
+#
+#   El contrato OpenAPI del backend es la autoridad del cableado: todo
+#   commit que toque la integración lo referencia con archivo:línea.
+#   Los artefactos de openspec/ están gitignorados — citarlos sirve como
+#   traza local, pero quien clone el repo no los va a ver.
+#
+# ─────────────────────────────────────────────────────────────────────────
+#
+# TIPOS
+#
+#   feat      funcionalidad nueva visible para quien usa el sistema
+#   fix       corrección de un defecto
+#   refactor  cambia la estructura sin cambiar el comportamiento
+#   perf      mejora de rendimiento
+#   style     formato y estilos que no alteran la lógica
+#   docs      documentación
+#   test      tests (agregar, corregir o reorganizar)
+#   build     build, dependencias, pnpm, configuración de Next
+#   ci        integración continua
+#   chore     tooling y configuración que no entra en las anteriores
+#
+# ─────────────────────────────────────────────────────────────────────────
+#
+# REGLAS
+#
+#   · Imperativo y en presente: "agrega", no "agregado" ni "agregando".
+#   · El resumen no lleva punto final ni mayúscula inicial tras los dos puntos.
+#   · Un commit = un propósito. Si el cuerpo necesita "y además", partilo.
+#   · Todo cambio de comportamiento lleva línea "Verificado:" con el comando
+#     y su resultado. Sin evidencia, el commit afirma algo que nadie comprobó.
+#     Usar "pnpm test" y "pnpm exec tsc --noEmit": el script "pnpm lint" está
+#     roto (declara "eslint ." y ESLint no está instalado).
+#   · Un refactor NO cambia comportamiento: si lo cambia, no es refactor.
+#   · Español, igual que el resto de la documentación del proyecto.
+#     Los identificadores de código y la copy de la interfaz siguen en inglés.
+#   · Nunca incluir secretos, credenciales ni rutas absolutas del equipo.
+#     Este repositorio es PÚBLICO: lo que se publica no se borra del historial.
+#
+# ─────────────────────────────────────────────────────────────────────────
