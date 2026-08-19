@@ -1,16 +1,17 @@
 // Cliente HTTP central para la sesión de la Coordinación.
-// Fuente de verdad del contrato: docs/integracion-auth.md.
+// Autoridad del contrato: specs/<feature>/contracts/openapi.yaml en el repo del backend, y
+// el código que lo implementa. docs/integracion-auth.md es guía narrativa, no autoridad.
 //
 // Reglas del backend que este módulo encapsula:
 // - Sesión por cookie HttpOnly (el JS no la ve): "¿hay sesión?" solo lo sabe GET /auth/me.
 // - CSRF double-submit: cookie XSRF-TOKEN (legible) -> header X-XSRF-TOKEN en cada POST.
-// - Errores en application/problem+json (RFC 7807): { title, status, detail? }.
+// - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
 const BASE = '/api'
 const XSRF_COOKIE = 'XSRF-TOKEN'
 const XSRF_HEADER = 'X-XSRF-TOKEN'
 
-/** Error tipado que espeja el formato problem+json (RFC 7807) del backend. */
+/** Error tipado que espeja el formato problem+json (RFC 9457) del backend. */
 export class ApiError extends Error {
   readonly status: number
   readonly title: string
