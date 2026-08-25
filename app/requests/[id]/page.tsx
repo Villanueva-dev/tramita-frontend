@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -20,7 +20,6 @@ import { AppShell } from '@/components/app-shell'
 import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
-import { WorkflowStepper } from '@/components/workflow-stepper'
 import { ActionDialog, type ActionConfig } from '@/components/action-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -86,7 +85,7 @@ export default function RequestDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { getRequest, transition, workflowConfig } = useTramita()
+  const { getRequest, transition } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
   const [toast, setToast] = useState<string>('')
 
@@ -100,11 +99,6 @@ export default function RequestDetailPage() {
     const t = setTimeout(() => setToast(''), 3500)
     return () => clearTimeout(t)
   }, [toast])
-
-  const stages = useMemo(
-    () => workflowConfig.find((w) => w.id === req?.type)?.stages ?? [],
-    [workflowConfig, req?.type],
-  )
 
   if (!req) {
     return (
@@ -249,20 +243,6 @@ export default function RequestDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* Workflow stepper */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Etapa del flujo de trabajo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowStepper
-              stages={stages}
-              currentStageId={req.currentStage}
-              returned={req.status === 'devuelto'}
-            />
-          </CardContent>
-        </Card>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left column */}
