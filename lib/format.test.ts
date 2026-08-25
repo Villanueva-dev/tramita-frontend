@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { parseServerDateTime, daysSince } from './format'
+import { parseServerDateTime, daysSince, formatDate, formatDateTime } from './format'
 
 describe('parseServerDateTime', () => {
   it('interpreta un valor sin offset como UTC (bug: el backend serializa LocalDateTime UTC sin offset)', () => {
@@ -61,5 +61,37 @@ describe('corrimiento de TZ con America/Bogota fija (documentación del bug, no 
     // parseServerDateTime evita el bug: interpreta el mismo string como UTC.
     const fixed = parseServerDateTime('2026-08-14T15:00:00')
     expect(fixed.getUTCHours()).toBe(15)
+  })
+})
+
+describe('formatDate/formatDateTime parsean con parseServerDateTime (regresión)', () => {
+  const originalTz = process.env.TZ
+
+  afterEach(() => {
+    // Reasignar `undefined` escribiría la cadena literal "undefined" y dejaría
+    // el proceso en UTC en silencio: hay que borrar la clave.
+    if (originalTz === undefined) delete process.env.TZ
+    else process.env.TZ = originalTz
+  })
+
+  // 02:30 UTC del 14 son las 21:30 del 13 en Bogotá: si estas funciones
+  // interpretan el valor sin offset como hora local, adelantan la fecha un día
+  // y arruinan la bitácora de auditoría (FR-008) 5 de cada 24 horas.
+  const SIN_OFFSET = '2026-08-14T02:30:00'
+
+  it('formatDate no adelanta la fecha un día en America/Bogota', () => {
+    process.env.TZ = 'America/Bogota'
+    expect(formatDate(SIN_OFFSET)).toBe('13 de ago de 2026')
+  })
+
+  it('formatDateTime no adelanta la fecha un día en America/Bogota', () => {
+    process.env.TZ = 'America/Bogota'
+    expect(formatDateTime(SIN_OFFSET)).toBe('13 de ago de 2026, 09:30 p. m.')
+  })
+
+  it('trata un valor sin offset igual que el mismo instante con Z explícita', () => {
+    process.env.TZ = 'America/Bogota'
+    expect(formatDate(SIN_OFFSET)).toBe(formatDate(`${SIN_OFFSET}Z`))
+    expect(formatDateTime(SIN_OFFSET)).toBe(formatDateTime(`${SIN_OFFSET}Z`))
   })
 })

@@ -25,7 +25,7 @@ export function daysSince(value: string, now: Date = new Date()): number {
 }
 
 export function formatDate(iso: string) {
-  const d = new Date(iso)
+  const d = parseServerDateTime(iso)
   return d.toLocaleDateString('es-CO', {
     day: '2-digit',
     month: 'short',
@@ -34,7 +34,7 @@ export function formatDate(iso: string) {
 }
 
 export function formatDateTime(iso: string) {
-  const d = new Date(iso)
+  const d = parseServerDateTime(iso)
   return d.toLocaleString('es-CO', {
     day: '2-digit',
     month: 'short',
