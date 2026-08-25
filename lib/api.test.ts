@@ -246,6 +246,11 @@ describe('getRequestTimeline', () => {
         fromState: null,
         toState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
         actorEmail: 'coordinacion@example.edu.co',
+        // La entrada de registro no trae responsable ni nota. El backend las
+        // manda como `null` explícito, no ausentes: omitirlas aquí hacía que
+        // el test corriera contra una forma que el servidor nunca produce.
+        responsible: null,
+        note: null,
         occurredAt: '2026-08-14T15:00:00Z',
       },
     ]

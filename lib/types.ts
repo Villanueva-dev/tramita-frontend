@@ -130,7 +130,12 @@ export interface TimelineEntry {
   fromState: State | null
   toState: State
   actorEmail: string
-  responsible?: string
-  note?: string
+  // Jackson serializa con `ALWAYS` (no hay @JsonInclude ni
+  // default-property-inclusion en el backend): la clave viaja presente con
+  // `null`, nunca ausente. Tiparlo `?: string` habilitaría `!== undefined` y
+  // el default de destructuring, que sólo cubren `undefined` y dejarían pasar
+  // el `null` a la UI.
+  responsible: string | null
+  note: string | null
   occurredAt: string
 }
