@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   FilePlus2,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -25,7 +24,6 @@ import { displayNameFromEmail, initialsFromEmail } from '@/lib/identity'
 const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
   { href: '/requests/new', label: 'Nueva solicitud', icon: FilePlus2 },
-  { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 
 function NavLinks({
