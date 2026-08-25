@@ -234,9 +234,9 @@ export default function RequestDetailPage() {
               )}
               {isFinalized && (
                 <Link href={`/requests/${req.id}/documento`}>
-                  <Button className="gap-2">
-                    <Download className="size-4" />
-                    Ver documento PDF
+                  <Button variant="outline" className="gap-2">
+                    <FileText className="size-4" />
+                    Documento formal
                   </Button>
                 </Link>
               )}
