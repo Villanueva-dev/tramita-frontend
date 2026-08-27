@@ -7,10 +7,28 @@ Clasificación Low/Medium/High de abajo se evalúa contra esos 800.
 
 | Field | Value |
 |---|---|
-| Estimated changed lines | ~2.700 (S1 ~200 · S2 ~550 · S3 ~800 · S4 ~1.120) |
-| 800-line budget risk | High — S3 al borde, S4 lo duplica |
+| Estimated changed lines | ~2.700 (S1 ~200 · S2 ~550 · S3 ~1.660 medido · S4 ~1.120) |
+| 800-line budget risk | High — S3 duplicaba el presupuesto, S4 también |
 | Chained PRs recommended | Yes |
-| Suggested split | PR1 → PR2 → PR3 → **PR4a → PR4b** (S4 partido). S3 queda como *watch-item*: se parte en 3a/3b **solo si al implementarlo supera 800** |
+| Suggested split | PR1 → PR2 → **PR3a → PR3b** → **PR4a → PR4b** (S3 y S4 partidos) |
+
+#### El watch-item de S3 se disparó (medido 2026-08-27)
+
+La estimación original de ~800 se hizo sin medir los archivos. Medición re-ejecutable con
+`wc -l app/requests/new/page.tsx app/dashboard/page.tsx components/dashboard/summary-cards.tsx components/dashboard/requests-table.tsx`:
+
+| Tarea | Archivo | Hoy | Tras la tarea | Diff |
+|---|---|---|---|---|
+| 3.2 → **3a.1** | `app/requests/new/page.tsx` | **660** | ~150 | ~810 |
+| 3.1 → 3b.1 | `lib/use-request-search.ts` | — | nuevo | ~120 |
+| 3.3 → 3b.2 | `app/dashboard/page.tsx` | 239 | ~120 | ~360 |
+| 3.4 → 3b.3 | `components/dashboard/summary-cards.tsx` | 132 | borrado | ~132 |
+| 3.5 → 3b.4 | `components/dashboard/requests-table.tsx` | 161 | ~90 | ~250 |
+| | | | | **~1.660** |
+
+El criterio de conteo es **borrados + inserciones**, igual que se midió la Fase 2 (727 + 56 = 783,
+dentro del presupuesto). `new/page.tsx` sola consume el presupuesto entero, así que el corte
+natural la deja sola en 3a.
 | Delivery strategy | ask-on-risk |
 | Chain strategy | **`feature-branch-chain`** — decidido 2026-08-23 |
 
@@ -29,10 +47,11 @@ la PR anterior; **solo la tracker mergea a `main`**. Así `main` nunca ve el mod
 
     main
      └── feature/fase-b        (tracker, única que mergea a main)
-          └── PR1 → PR2 → PR3 → PR4a → PR4b
+          └── PR1 → PR2 → PR3a → PR3b → PR4a → PR4b
 
-⚠️ **Profundidad 5**: un cambio en PR1 obliga a rebasear las cuatro siguientes. Es el costo
-aceptado del Parallel Change, no un descuido del plan.
+⚠️ **Profundidad 6** (era 5 antes del split de S3 del 2026-08-27): un cambio en PR1 obliga a
+rebasear las cinco siguientes. Es el costo aceptado del Parallel Change, no un descuido del plan.
+Por eso el review corre al cerrar **cada** PR, antes de abrir la siguiente.
 
 ### Suggested Work Units
 
@@ -42,8 +61,9 @@ Runtime harness común (sin runner e2e, `project.md:64`): `pnpm dev` + flujo man
 |---|---|---|---|---|
 | 1 | Fundación: tipos aditivos, funciones de dominio, `parseServerDateTime`/`daysSince` | PR1 (base `feature/fase-b`) | `pnpm test lib/format.test.ts lib/api.test.ts` | Revert PR1: nada más lo usa aún |
 | 2 | Poda: borra stepper/settings, stub documento, badge app-shell | PR2 | `pnpm test` | Revert PR2 restaura las 3 pantallas |
-| 3 | Registro + buscador puro | PR3 (split 3a form / 3b dashboard si supera 800) | `pnpm test` (incl. `use-request-search`) | Revert PR3: new/dashboard vuelven a mocks |
-| 4a | Detalle solo-lectura: hook, timeline, responsable, antigüedad | PR4a | `pnpm test` + `tsc --noEmit` | Revert 4a: detalle vuelve a mocks (store aún vive) |
+| 3a | Registro: formulario de 3 campos contra `POST /requests` | PR3a (base PR2) | `pnpm test` + `tsc --noEmit` | Revert 3a: el formulario vuelve a mocks |
+| 3b | Buscador puro: hook de búsqueda, dashboard y tabla | PR3b (base PR3a) | `pnpm test` (incl. `use-request-search`) | Revert 3b: dashboard vuelve a mocks |
+| 4a | Detalle solo-lectura: hook, timeline, responsable, antigüedad | PR4a (base PR3b) | `pnpm test` + `tsc --noEmit` | Revert 4a: detalle vuelve a mocks (store aún vive) |
 | 4b | Transiciones + errores 422/409/400/404 + borra store/mock-data/tipos viejos | PR4b (base PR4a) | `pnpm test` completo + `tsc --noEmit`; runtime: forzar 409 con dos pestañas | Revert 4b exige revertir también 4a |
 
 Códigos de spec: **[WR]** workflow-requests · **[RT]** request-transitions · **[TL]** request-timeline.
@@ -69,16 +89,48 @@ Códigos de spec: **[WR]** workflow-requests · **[RT]** request-transitions · 
 > `.next/dev/types/`, que el `tsconfig.json:31-37` incluye. `tsc --noEmit` da un `TS2307` falso hasta
 > limpiar. Verificar siempre con `rm -rf .next && pnpm exec tsc --noEmit && pnpm test`.
 
-## Fase 3: Registro y búsqueda (Slice 3, PR3 — evaluar split 3a/3b si supera 800 líneas)
+## Fase 3a: Formulario de registro (Slice 3a, PR3a, base PR2)
 
-- [ ] 3.1 RED+GREEN crear `lib/use-request-search.ts`: sin fetch con <2 caracteres. [WR — Localización, US3/FR-011]
-- [ ] 3.2 Reescribir `app/requests/new/page.tsx`: solo `definitionCode`+`studentName`+`studentDocument`; selector desde `listWorkflowDefinitions()`; 422 → error en el selector; sin `priority`/adjuntos/asignaturas/programa/semestre. [WR — Registro US1]
-- [ ] 3.3 Reescribir `app/dashboard/page.tsx` como buscador puro: input con guardia de 2 caracteres, estado vacío antes de buscar, "sin resultados" en 200 vacío; quitar filtros tipo/estado/fecha y `cardFilter`.
-- [ ] 3.4 Borrar `components/dashboard/summary-cards.tsx` (conteos exigen listar todo, diferido a SP5) y su import en `dashboard/page.tsx`.
-- [ ] 3.5 Reescribir `components/dashboard/requests-table.tsx` para `RequestSummary[]`: `definition.name`/`currentState.name` en `Badge` genérico (no `TypeBadge`/`StatusBadge`, migran en Fase 4); quitar columna de vencimiento y punto de urgente.
-- [ ] 3.6 Verificar `rg -l "from '@/lib/types'"` y `"from '@/lib/mock-data'"` bajan a 3 archivos cada uno.
+- [ ] 3a.1 Reescribir `app/requests/new/page.tsx`: solo `definitionCode`+`studentName`(≤120)+`studentDocument`(≤20); selector desde `listWorkflowDefinitions()`; `POST /requests` real vía `createRequest` **de `lib/api.ts`**; 422 → error en el campo del selector (`CREATE_REQUEST_422_FIELD`); sin `priority`/adjuntos/asignaturas/programa/semestre/email/código. [WR — Registro US1]
+- [ ] 3a.2 Gate de 3a — medido el 2026-08-27, antes de empezar: `rg -l "from '@/lib/types'" app components lib` baja de **7 a 6**; `rg -l "from '@/lib/mock-data'" app components lib` baja de **5 a 4**. (El gate de «3 y 3» es de 3b, no de aquí.)
 
-## Fase 4: Detalle — solo lectura (Slice 4a, PR4a, base PR3)
+### Estado intermedio deliberado de 3a — declararlo en la PR
+
+Tras 3a el formulario escribe en el **backend real**, pero `app/requests/[id]/page.tsx:88-92`
+sigue leyendo del **store en memoria** hasta la tarea 4.1. Crear una solicitud navegará a
+**"Solicitud no encontrada"**.
+
+**No es un bug y no rompe la app**: `[id]/page.tsx:103` maneja el caso con una pantalla
+controlada, verificado. Y la spec US1 (`workflow-requests/spec.md:50-52`) **manda** navegar al
+detalle, así que cumplirla produce exactamente este estado. Es el medio inconsistente del
+Parallel Change, y lo cierra la Fase 4. Sin esta nota, el revisor lo reporta como defecto.
+
+### Dos gotchas de 3a
+
+1. **Colisión de nombres `createRequest`**: hoy la línea 29 importa el del **store**
+   (`@/lib/store`); la Fase 1 creó otro en `lib/api.ts`. Uno escribe en memoria, el otro va al
+   backend. Con el import mal, `tsc` **no se queja** y el formulario sigue corriendo contra mocks
+   sin que nadie lo note. Verificar el import explícitamente.
+2. **Las `typeCards` con iconos se van**: `WorkflowDefinition` es `{code, name, version}`
+   (`lib/types.ts:83-87`) — sin icono ni descripción. El motor es configurable: un trámite nuevo
+   no tendría icono. Queda un `<Select>` alimentado por `listWorkflowDefinitions()`. Es una
+   pérdida visual deliberada; la UI no puede conocer más trámites que el motor.
+
+## Fase 3b: Buscador (Slice 3b, PR3b, base PR3a)
+
+- [ ] 3b.1 RED+GREEN crear `lib/use-request-search.ts`: sin fetch con <2 caracteres. [WR — Localización, US3/FR-011]
+- [ ] 3b.2 Reescribir `app/dashboard/page.tsx` como buscador puro: input con guardia de 2 caracteres, estado vacío antes de buscar, "sin resultados" en 200 vacío; quitar filtros tipo/estado/fecha y `cardFilter`.
+- [ ] 3b.3 Borrar `components/dashboard/summary-cards.tsx` (conteos exigen listar todo, diferido a SP5) y su import en `dashboard/page.tsx`.
+- [ ] 3b.4 Reescribir `components/dashboard/requests-table.tsx` para `RequestSummary[]`: `definition.name`/`currentState.name` en `Badge` genérico (no `TypeBadge`/`StatusBadge`, migran en Fase 4); quitar columna de vencimiento y punto de urgente.
+- [ ] 3b.5 Verificar `rg -l "from '@/lib/types'"` y `"from '@/lib/mock-data'"` bajan a 3 archivos cada uno. **Verificado alcanzable el 2026-08-27**: con el patrón literal hay 7 consumidores de `types` y 5 de `mock-data`; entre 3a y 3b salen 4 y 2 respectivamente. Los 3 que sobran en cada caso (`brand.tsx`, `type-badge.tsx`, `workflow-timeline.tsx` / `[id]/page.tsx`) migran en Fase 4.
+
+> ⚠️ **El alias no alcanza para contar consumidores reales** (misma trampa que documenta la 5.5):
+> los módulos de `lib/` se importan entre sí con la forma relativa (`from './types'`), invisible
+> para `rg "from '@/lib/types'"`. Con el patrón completo `"from '(@/lib|\.)/types'"` hay **12**
+> consumidores, no 7. El gate de «3 y 3» mide `app/` y `components/`, que es su objetivo — pero
+> **no significa que queden solo 3 en el repo**.
+
+## Fase 4: Detalle — solo lectura (Slice 4a, PR4a, base PR3b)
 
 - [ ] 4.1 RED+GREEN crear `lib/use-request-detail.ts`: `request`, `timeline`, `loading`, `error`, `reload()` — dos GET en paralelo (D-C), incluye caso 404.
 - [ ] 4.2 Reescribir `components/workflow-timeline.tsx` para `TimelineEntry[]`: orden ascendente, "registrado por {actorEmail}" + "· en nombre de {responsible}" si presente, nota visible, sin badge de urgencia por antigüedad. [TL]
@@ -95,5 +147,5 @@ Códigos de spec: **[WR]** workflow-requests · **[RT]** request-transitions · 
 
 ## Verificación por fase
 
-Cada fase (1 a 5) cierra en verde con `pnpm test` y `pnpm exec tsc --noEmit`. `pnpm lint` está roto
+Cada fase (1, 2, 3a, 3b, 4 y 5) cierra en verde con `pnpm test` y `pnpm exec tsc --noEmit`. `pnpm lint` está roto
 (`eslint .` sin ESLint instalado) — **no es criterio de verificación de ninguna tarea**.
