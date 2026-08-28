@@ -2,42 +2,22 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ChevronRight, Inbox, Search } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { StatusBadge } from '@/components/brand'
-import { TypeBadge } from '@/components/type-badge'
+import { ChevronRight, Inbox } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { AcademicRequest } from '@/lib/types'
-import { formatDate, daysUntil, isOverdue } from '@/lib/format'
+import type { RequestSummary } from '@/lib/types'
+import { formatDate } from '@/lib/format'
 
-function DueCell({ req }: { req: AcademicRequest }) {
-  if (req.status === 'finalizado') {
-    return <span className="text-muted-foreground">—</span>
-  }
-  const days = daysUntil(req.dueDate)
-  const overdue = isOverdue(req.dueDate, req.status)
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 text-sm',
-        overdue
-          ? 'font-medium text-destructive'
-          : days <= 1
-            ? 'font-medium text-warning-foreground'
-            : 'text-muted-foreground',
-      )}
-    >
-      {overdue && <AlertTriangle className="size-3.5" />}
-      {overdue
-        ? `Vencida (${Math.abs(days)}d)`
-        : days === 0
-          ? 'Vence hoy'
-          : `${days} día${days === 1 ? '' : 's'}`}
-    </span>
-  )
-}
+// `RequestSummary` (openapi.yaml :237-246) trae seis campos: id, definition,
+// studentName, studentDocument, currentState y createdAt. Las columnas de
+// radicado, programa, vencimiento y urgencia salieron con la migración porque
+// el motor no las produce — no son un recorte visual, son datos sin fuente.
+//
+// Los badges son genéricos a propósito: TypeBadge y StatusBadge siguen atados
+// al modelo viejo con un Record por union type, y migran en la Fase 4. Un
+// motor configurable no puede tener un color por estado fijado en el cliente.
 
-export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
+export function RequestsTable({ requests }: { requests: RequestSummary[] }) {
   const router = useRouter()
 
   if (requests.length === 0) {
@@ -49,12 +29,12 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
         <div>
           <p className="font-medium">No hay solicitudes que coincidan</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ajuste los filtros o la búsqueda para ver más resultados.
+            Revise el nombre o la cédula e intente de nuevo.
           </p>
         </div>
         <Link href="/requests/new">
           <Button variant="outline" size="sm">
-            Crear nueva solicitud
+            Registrar nueva solicitud
           </Button>
         </Link>
       </div>
@@ -68,12 +48,10 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-semibold">Radicado</th>
               <th className="px-4 py-3 font-semibold">Estudiante</th>
-              <th className="px-4 py-3 font-semibold">Tipo</th>
+              <th className="px-4 py-3 font-semibold">Trámite</th>
               <th className="px-4 py-3 font-semibold">Estado</th>
-              <th className="px-4 py-3 font-semibold">Radicado el</th>
-              <th className="px-4 py-3 font-semibold">Vencimiento</th>
+              <th className="px-4 py-3 font-semibold">Registrado el</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -85,37 +63,21 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
                 className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40"
               >
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {req.priority === 'urgente' && (
-                      <span
-                        className="size-2 shrink-0 rounded-full bg-brand-red"
-                        aria-label="Urgente"
-                      />
-                    )}
-                    <span className="font-medium text-primary">
-                      {req.radicado}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
                   <div className="flex flex-col">
                     <span className="font-medium">{req.studentName}</span>
                     <span className="text-xs text-muted-foreground">
-                      C.C. {req.studentCedula} · {req.program}
+                      C.C. {req.studentDocument}
                     </span>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <TypeBadge type={req.type} />
+                  <Badge variant="outline">{req.definition.name}</Badge>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={req.status} />
+                  <Badge variant="info">{req.currentState.name}</Badge>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatDate(req.createdAt)}
-                </td>
-                <td className="px-4 py-3">
-                  <DueCell req={req} />
                 </td>
                 <td className="px-4 py-3 text-right">
                   <ChevronRight className="ml-auto size-4 text-muted-foreground" />
@@ -135,21 +97,17 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
             className="flex flex-col gap-2 p-4 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {req.priority === 'urgente' && (
-                  <span className="size-2 rounded-full bg-brand-red" />
-                )}
-                <span className="font-medium text-primary">{req.radicado}</span>
-              </div>
-              <StatusBadge status={req.status} />
+              <span className="font-medium">{req.studentName}</span>
+              <Badge variant="info">{req.currentState.name}</Badge>
             </div>
-            <p className="font-medium">{req.studentName}</p>
             <p className="text-xs text-muted-foreground">
-              C.C. {req.studentCedula} · {req.program}
+              C.C. {req.studentDocument}
             </p>
             <div className="flex items-center justify-between gap-2 pt-1">
-              <TypeBadge type={req.type} />
-              <DueCell req={req} />
+              <Badge variant="outline">{req.definition.name}</Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(req.createdAt)}
+              </span>
             </div>
           </Link>
         ))}
@@ -157,5 +115,3 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
     </div>
   )
 }
-
-export { Search }

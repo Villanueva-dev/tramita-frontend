@@ -164,11 +164,14 @@ sigue sin haber render de campo para el 400.
 
 ## Fase 3b: Buscador (Slice 3b, PR3b, base PR3a)
 
-- [ ] 3b.1 RED+GREEN crear `lib/use-request-search.ts`: sin fetch con <2 caracteres. [WR — Localización, US3/FR-011]
-- [ ] 3b.2 Reescribir `app/dashboard/page.tsx` como buscador puro: input con guardia de 2 caracteres, estado vacío antes de buscar, "sin resultados" en 200 vacío; quitar filtros tipo/estado/fecha y `cardFilter`.
-- [ ] 3b.3 Borrar `components/dashboard/summary-cards.tsx` (conteos exigen listar todo, diferido a SP5) y su import en `dashboard/page.tsx`.
-- [ ] 3b.4 Reescribir `components/dashboard/requests-table.tsx` para `RequestSummary[]`: `definition.name`/`currentState.name` en `Badge` genérico (no `TypeBadge`/`StatusBadge`, migran en Fase 4); quitar columna de vencimiento y punto de urgente.
-- [ ] 3b.5 Verificar `rg -l "from '@/lib/types'"` y `"from '@/lib/mock-data'"` bajan a 3 archivos cada uno. **Verificado alcanzable el 2026-08-27**: con el patrón literal hay 7 consumidores de `types` y 5 de `mock-data`; entre 3a y 3b salen 4 y 2 respectivamente. Los 3 que sobran en cada caso (`brand.tsx`, `type-badge.tsx`, `workflow-timeline.tsx` / `[id]/page.tsx`) migran en Fase 4.
+- [x] 3b.1 RED+GREEN crear `lib/use-request-search.ts`: sin fetch con <2 caracteres. [WR — Localización, US3/FR-011]
+- [x] 3b.2 Reescribir `app/dashboard/page.tsx` como buscador puro: input con guardia de 2 caracteres, estado vacío antes de buscar, "sin resultados" en 200 vacío; quitar filtros tipo/estado/fecha y `cardFilter`.
+- [x] 3b.3 Borrar `components/dashboard/summary-cards.tsx` (conteos exigen listar todo, diferido a SP5) y su import en `dashboard/page.tsx`.
+- [x] 3b.4 Reescribir `components/dashboard/requests-table.tsx` para `RequestSummary[]`: `definition.name`/`currentState.name` en `Badge` genérico (no `TypeBadge`/`StatusBadge`, migran en Fase 4); quitar columna de vencimiento y punto de urgente.
+- [x] 3b.5 Gate de 3b. **Hereda la corrección de métrica de la 3a**: se mide el modelo viejo, no el módulo — `lib/types.ts` aloja los tipos viejos y los nuevos, así que contar imports de `@/lib/types` cuenta también a los ya migrados (hoy da **5**, y el gate pedía 3).
+  - **Modelo viejo**: `rg -l "import type \{[^}]*(RequestType|RequestStatus|AcademicRequest|TimelineEvent|SubjectInfo|WorkflowStageConfig|RequestTypeConfig)" app components lib` → **7 antes, 4 después** ✔. Quedan `lib/format.ts`, `components/brand.tsx`, `components/type-badge.tsx` y `components/workflow-timeline.tsx`, los cuatro previstos para la Fase 4.
+  - **`mock-data`**: `rg -l "from '@/lib/mock-data'" app components lib` → **4 antes, 3 después** ✔ — exactamente `type-badge.tsx`, `brand.tsx` y `[id]/page.tsx`, que es lo que esta tarea predijo el 2026-08-27.
+  - ⚠️ **La predicción de `types` falló donde el propio documento avisaba que fallaría.** Nombraba tres supervivientes (`brand`, `type-badge`, `workflow-timeline`) y son **cuatro**: falta `lib/format.ts`, invisible para el patrón `@/lib/types` porque los módulos de `lib/` se importan entre sí con forma relativa (`from './types'`). Es la trampa que la nota de abajo y la tarea 5.5 ya documentaban; se documentó y aun así se usó el patrón incompleto para predecir.
 
 > ⚠️ **El alias no alcanza para contar consumidores reales** (misma trampa que documenta la 5.5):
 > los módulos de `lib/` se importan entre sí con la forma relativa (`from './types'`), invisible
