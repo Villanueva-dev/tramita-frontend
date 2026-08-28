@@ -1,8 +1,4 @@
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { STATUS_LABELS } from '@/lib/mock-data'
-import { statusVariant } from '@/lib/format'
-import type { RequestStatus } from '@/lib/types'
 
 export function Logo({
   className,
@@ -45,8 +41,4 @@ export function Logo({
       </div>
     </div>
   )
-}
-
-export function StatusBadge({ status }: { status: RequestStatus }) {
-  return <Badge variant={statusVariant[status]}>{STATUS_LABELS[status]}</Badge>
 }

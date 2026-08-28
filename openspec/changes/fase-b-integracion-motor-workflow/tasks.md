@@ -181,10 +181,14 @@ sigue sin haber render de campo para el 400.
 
 ## Fase 4: Detalle — solo lectura (Slice 4a, PR4a, base PR3b)
 
-- [ ] 4.1 RED+GREEN crear `lib/use-request-detail.ts`: `request`, `timeline`, `loading`, `error`, `reload()` — dos GET en paralelo (D-C), incluye caso 404.
-- [ ] 4.2 Reescribir `components/workflow-timeline.tsx` para `TimelineEntry[]`: orden ascendente, "registrado por {actorEmail}" + "· en nombre de {responsible}" si presente, nota visible, sin badge de urgencia por antigüedad. [TL]
-- [ ] 4.3 Reescribir `components/brand.tsx` (`StatusBadge`→`State`) y `components/type-badge.tsx` (`TypeBadge`→`WorkflowDefinition`), sin `Record` por union type.
-- [ ] 4.4 `app/requests/[id]/page.tsx`: responsable único si coincide en todas las transiciones salientes, por-acción si difieren, ninguno si `currentState.isFinal`; "lleva N días" con `daysSince` sobre la última entrada del timeline. [WR — Responsable del estado actual; TL — Antigüedad]
+- [x] 4.1 RED+GREEN crear `lib/use-request-detail.ts`: `request`, `timeline`, `loading`, `error`, `reload()` — dos GET en paralelo (D-C), incluye caso 404.
+- [x] 4.2 Reescribir `components/workflow-timeline.tsx` para `TimelineEntry[]`: orden ascendente, "registrado por {actorEmail}" + "· en nombre de {responsible}" si presente, nota visible, sin badge de urgencia por antigüedad. [TL]
+- [x] 4.3 **Se eliminaron en vez de reescribirse** (desviación deliberada, 2026-08-28). Reescritos, `StatusBadge` y `TypeBadge` quedaban en `<Badge variant="info">{state.name}</Badge>`: un envoltorio de una línea sin decisión adentro. La tabla de la 3b ya había resuelto lo mismo con `<Badge>` directo, así que conservarlos dejaba **dos criterios para el mismo problema**. `components/type-badge.tsx` se borra; `components/brand.tsx` conserva `Logo`, que no depende del modelo viejo y lo usa `app-shell`.
+  - **Efecto colateral favorable**: eran los dos últimos consumidores de `mock-data` (`STATUS_LABELS`, `REQUEST_TYPE_LABELS`), así que el gate de `mock-data` llegó a **0** en 4a en lugar de en la Fase 5.
+- [x] 4.5 Gate de 4a — **modelo viejo 4 → 1** (queda solo `lib/format.ts`, que limpia la 5.3); **`mock-data` 3 → 0**; `store` solo en `app/layout.tsx` (lo quita la 5.4).
+
+> ⚠️ **`components/action-dialog.tsx` queda huérfano tras 4a** (0 consumidores, verificado con `rg`). No rompe `tsc` y no importa tipos viejos, pero **hay que sumarlo al alcance de 4b**: no figura en ningún artefacto SDD —ni proposal, ni spec, ni design, ni este archivo— y su `ActionConfig` fija las acciones en un union type `'revisar' | 'aprobar' | 'devolver' | 'finalizar'`, que contradice el escenario «Ausencia de códigos y etiquetas de transición o estado». Mismo descuido que tuvo la Fase 2 con el stepper.
+- [x] 4.4 `app/requests/[id]/page.tsx`: responsable único si coincide en todas las transiciones salientes, por-acción si difieren, ninguno si `currentState.isFinal`; "lleva N días" con `daysSince` sobre la última entrada del timeline. [WR — Responsable del estado actual; TL — Antigüedad]
 
 ## Fase 5: Transiciones y contrato (Slice 4b, PR4b, base PR4a)
 
