@@ -91,8 +91,13 @@ Códigos de spec: **[WR]** workflow-requests · **[RT]** request-transitions · 
 
 ## Fase 3a: Formulario de registro (Slice 3a, PR3a, base PR2)
 
-- [ ] 3a.1 Reescribir `app/requests/new/page.tsx`: solo `definitionCode`+`studentName`(≤120)+`studentDocument`(≤20); selector desde `listWorkflowDefinitions()`; `POST /requests` real vía `createRequest` **de `lib/api.ts`**; 422 → error en el campo del selector (`CREATE_REQUEST_422_FIELD`); sin `priority`/adjuntos/asignaturas/programa/semestre/email/código. [WR — Registro US1]
-- [ ] 3a.2 Gate de 3a — medido el 2026-08-27, antes de empezar: `rg -l "from '@/lib/types'" app components lib` baja de **7 a 6**; `rg -l "from '@/lib/mock-data'" app components lib` baja de **5 a 4**. (El gate de «3 y 3» es de 3b, no de aquí.)
+- [x] 3a.1 Reescribir `app/requests/new/page.tsx`: solo `definitionCode`+`studentName`(≤120)+`studentDocument`(≤20); selector desde `listWorkflowDefinitions()`; `POST /requests` real vía `createRequest` **de `lib/api.ts`**; 422 → error en el campo del selector (`CREATE_REQUEST_422_FIELD`); sin `priority`/adjuntos/asignaturas/programa/semestre/email/código. [WR — Registro US1]
+- [x] 3a.1b Validación de cliente antes de enviar, en el mismo archivo: los dos campos de texto se rechazan si `trim()` queda vacío, y se rechazan si exceden 120 / 20. Envía el valor ya recortado. **Cierra el hueco del 400** (ver la nota de abajo) — sin esto, un nombre de solo espacios llega al backend y vuelve como error genérico sin campo asociado. [WR — Registro US1, escenarios «Campo de solo espacios rechazado sin llamar al backend» y «Los valores viajan recortados»]
+- [x] 3a.2 Gate de 3a. ⚠️ **La métrica de `types` estaba mal formulada y se corrigió al ejecutarla** (2026-08-28). Decía: `rg -l "from '@/lib/types'" app components lib` baja de **7 a 6**. No bajó, y el slice igual cumplió: `lib/types.ts` aloja los tipos **viejos y los nuevos**, así que un archivo migrado sigue contando — `new/page.tsx` pasó de importar `RequestType`/`SubjectInfo` a importar `WorkflowDefinition`, y el número no se movió. Es la trampa de la 5.5 en otra variante: allá el patrón no ve los imports relativos, acá **el módulo no distingue modelo viejo de modelo nuevo**.
+  - **Métrica correcta — consumidores del modelo viejo**: `rg -l "import type \{[^}]*(RequestType|RequestStatus|AcademicRequest|TimelineEvent|SubjectInfo|WorkflowStageConfig|RequestTypeConfig)" app components lib` → **8 antes, 7 después** ✔. Incluye `lib/format.ts`, que el patrón viejo no veía por importarse con forma relativa.
+  - **`mock-data`**: `rg -l "from '@/lib/mock-data'" app components lib` → **5 → 4** ✔. Esa medición sí era correcta: `mock-data` no tiene contraparte nueva.
+  - **Desacople verificado en el archivo**: `rg -n "RequestType|RequestStatus|AcademicRequest|TimelineEvent|SubjectInfo|useTramita|mock-data" app/requests/new/page.tsx` → **0 ocurrencias**.
+  - (El gate de «3 y 3» es de 3b, no de aquí. **Hereda esta corrección**: debe medirse sobre el modelo viejo, no sobre el módulo.)
 
 ### Estado intermedio deliberado de 3a — declararlo en la PR
 
@@ -105,12 +110,32 @@ controlada, verificado. Y la spec US1 (`workflow-requests/spec.md:50-52`) **mand
 detalle, así que cumplirla produce exactamente este estado. Es el medio inconsistente del
 Parallel Change, y lo cierra la Fase 4. Sin esta nota, el revisor lo reporta como defecto.
 
+### Por qué 3a valida en cliente aunque el manejo del 400 sea de la Fase 5
+
+Verificado contra el backend el 2026-08-28 (código, no solo el `openapi.yaml`). `POST /requests`
+devuelve **dos** errores distintos, y 3a solo tiene mapeo para uno:
+
+| Causa | Status | Origen en el backend |
+|---|---|---|
+| `definitionCode` inexistente | **422** | `RequestServiceImpl:50-54` lanza `UnprocessableRequestException` → `GlobalExceptionHandler:27-30` → `UNPROCESSABLE_CONTENT` |
+| `@NotBlank`/`@Size` violados | **400** | `CreateRequestBody` + `GlobalExceptionHandler extends ResponseEntityExceptionHandler` (su javadoc lo nombra: «el 400 de @Valid») |
+
+La tarea **5.2** planifica el 400 con `detail`; hasta entonces cae en el `ApiError` genérico. El
+único camino que lo dispara desde un formulario bien hecho es `@NotBlank` con espacios: `"   "`
+no es vacío para el front y sí lo es para el backend. La tarea **3a.1b** lo cierra en el origen,
+así el 400 queda como red de seguridad y no como camino esperado. No adelanta trabajo de la 5.2:
+sigue sin haber render de campo para el 400.
+
 ### Dos gotchas de 3a
 
-1. **Colisión de nombres `createRequest`**: hoy la línea 29 importa el del **store**
-   (`@/lib/store`); la Fase 1 creó otro en `lib/api.ts`. Uno escribe en memoria, el otro va al
-   backend. Con el import mal, `tsc` **no se queja** y el formulario sigue corriendo contra mocks
-   sin que nadie lo note. Verificar el import explícitamente.
+1. **Colisión de nombres `createRequest`**: el formulario obtiene hoy el del **store** vía hook —
+   `new/page.tsx:29` importa `useTramita` de `@/lib/store`, la línea **54** destructura
+   `const { createRequest } = useTramita()` y la **136** lo llama. La Fase 1 creó otro
+   `createRequest` en `lib/api.ts`: uno escribe en memoria, el otro va al backend. Lo que se
+   elimina no es un import mal escrito sino **el hook completo**. Con el import mal, `tsc` **no se
+   queja** y el formulario sigue corriendo contra mocks sin que nadie lo note. *(Cita corregida el
+   2026-08-28: la redacción anterior decía que la línea 29 importaba `createRequest`, y lo que
+   importa es `useTramita`.)*
 2. **Las `typeCards` con iconos se van**: `WorkflowDefinition` es `{code, name, version}`
    (`lib/types.ts:83-87`) — sin icono ni descripción. El motor es configurable: un trámite nuevo
    no tendría icono. Queda un `<Select>` alimentado por `listWorkflowDefinitions()`. Es una
