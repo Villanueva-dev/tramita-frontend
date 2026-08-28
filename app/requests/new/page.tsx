@@ -51,7 +51,6 @@ export default function NewRequestPage() {
       .then((list) => {
         if (!active) return
         setDefinitions(list)
-        setDefinitionCode(list[0]?.code ?? '')
       })
       .catch((err) => {
         if (!active) return
@@ -167,6 +166,7 @@ export default function NewRequestPage() {
                   disabled={definitions.length === 0}
                   aria-invalid={!!errors[CREATE_REQUEST_422_FIELD]}
                 >
+                  <option value="">Seleccione un trámite…</option>
                   {definitions.map((d) => (
                     <option key={d.code} value={d.code}>
                       {d.name}

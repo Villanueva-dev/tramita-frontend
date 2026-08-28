@@ -59,6 +59,23 @@ async function renderLoaded() {
   })
 }
 
+/** Elige trámite y llena los dos campos. Los valores se pasan crudos a propósito. */
+function fill({
+  definition = 'ADICION_CREDITOS',
+  name = 'Ana Pérez',
+  document = '1000000001',
+}: { definition?: string | null; name?: string; document?: string } = {}) {
+  if (definition !== null) {
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), { target: { value: definition } })
+  }
+  fireEvent.change(screen.getByLabelText(/nombre completo/i), { target: { value: name } })
+  fireEvent.change(screen.getByLabelText(/cédula/i), { target: { value: document } })
+}
+
+function submit() {
+  fireEvent.click(screen.getByRole('button', { name: /registrar solicitud/i }))
+}
+
 function postCalls(spy: ReturnType<typeof stubFetch>) {
   return spy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'POST')
 }
@@ -82,21 +99,22 @@ describe('formulario de registro (US1)', () => {
     await renderLoaded()
 
     expect(screen.getByRole('option', { name: 'Novedad de notas' })).toBeDefined()
-    // Exactamente las definiciones del servidor: ningún trámite hardcodeado.
-    expect(screen.getAllByRole('option')).toHaveLength(DEFINITIONS.length)
+    // Exactamente las definiciones del servidor, sin contar el placeholder:
+    // ningún trámite hardcodeado.
+    const real = screen
+      .getAllByRole<HTMLOptionElement>('option')
+      .filter((o) => o.value !== '')
+    expect(real.map((o) => o.value)).toEqual(DEFINITIONS.map((d) => d.code))
+    // No se preselecciona ninguno: elegir el trámite es un acto deliberado.
+    expect(screen.getByLabelText<HTMLSelectElement>(/tipo de trámite/i).value).toBe('')
   })
 
   it('rechaza un nombre de solo espacios sin llamar al backend', async () => {
     const spy = stubFetch()
     await renderLoaded()
 
-    fireEvent.change(screen.getByLabelText(/nombre completo/i), {
-      target: { value: '   ' },
-    })
-    fireEvent.change(screen.getByLabelText(/cédula/i), {
-      target: { value: '1000000001' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /registrar solicitud/i }))
+    fill({ name: '   ' })
+    submit()
 
     await waitFor(() => {
       expect(screen.getByLabelText(/nombre completo/i).getAttribute('aria-invalid')).toBe('true')
@@ -108,13 +126,8 @@ describe('formulario de registro (US1)', () => {
     const spy = stubFetch()
     await renderLoaded()
 
-    fireEvent.change(screen.getByLabelText(/nombre completo/i), {
-      target: { value: 'a'.repeat(121) },
-    })
-    fireEvent.change(screen.getByLabelText(/cédula/i), {
-      target: { value: '1000000001' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /registrar solicitud/i }))
+    fill({ name: 'a'.repeat(121) })
+    submit()
 
     await waitFor(() => {
       expect(screen.getByLabelText(/nombre completo/i).getAttribute('aria-invalid')).toBe('true')
@@ -126,13 +139,8 @@ describe('formulario de registro (US1)', () => {
     const spy = stubFetch()
     await renderLoaded()
 
-    fireEvent.change(screen.getByLabelText(/nombre completo/i), {
-      target: { value: '  Ana Pérez  ' },
-    })
-    fireEvent.change(screen.getByLabelText(/cédula/i), {
-      target: { value: '  1000000001  ' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /registrar solicitud/i }))
+    fill({ name: '  Ana Pérez  ', document: '  1000000001  ' })
+    submit()
 
     await waitFor(() => expect(postCalls(spy)).toHaveLength(1))
     const [, init] = postCalls(spy)[0]
@@ -141,6 +149,48 @@ describe('formulario de registro (US1)', () => {
       studentName: 'Ana Pérez',
       studentDocument: '1000000001',
     })
+    // La spec US1 manda navegar al detalle de la solicitud creada, y el
+    // `created=1` lo consume `[id]/page.tsx` para el aviso de alta.
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/requests/req-1?created=1'))
+  })
+
+  it('rechaza una cédula de solo espacios sin llamar al backend', async () => {
+    const spy = stubFetch()
+    await renderLoaded()
+
+    fill({ document: '   ' })
+    submit()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/cédula/i).getAttribute('aria-invalid')).toBe('true')
+    })
+    expect(postCalls(spy)).toHaveLength(0)
+  })
+
+  it('rechaza una cédula de 21 caracteres sin llamar al backend', async () => {
+    const spy = stubFetch()
+    await renderLoaded()
+
+    fill({ document: '9'.repeat(21) })
+    submit()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/cédula/i).getAttribute('aria-invalid')).toBe('true')
+    })
+    expect(postCalls(spy)).toHaveLength(0)
+  })
+
+  it('exige elegir el trámite: sin selección no se emite el POST', async () => {
+    const spy = stubFetch()
+    await renderLoaded()
+
+    fill({ definition: null })
+    submit()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tipo de trámite/i).getAttribute('aria-invalid')).toBe('true')
+    })
+    expect(postCalls(spy)).toHaveLength(0)
   })
 
   it('ata el 422 al campo del selector, no a un banner genérico', async () => {
@@ -149,13 +199,8 @@ describe('formulario de registro (US1)', () => {
     )
     await renderLoaded()
 
-    fireEvent.change(screen.getByLabelText(/nombre completo/i), {
-      target: { value: 'Ana Pérez' },
-    })
-    fireEvent.change(screen.getByLabelText(/cédula/i), {
-      target: { value: '1000000001' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /registrar solicitud/i }))
+    fill()
+    submit()
 
     await waitFor(() => {
       expect(screen.getByLabelText(/tipo de trámite/i).getAttribute('aria-invalid')).toBe('true')
