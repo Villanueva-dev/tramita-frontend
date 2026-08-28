@@ -39,19 +39,40 @@ Chain strategy: feature-branch-chain
 400-line budget risk: High
 ```
 
-### Estrategia de cadena (decidida 2026-08-23)
+### Estrategia de cadena (decidida 2026-08-23, **corregida el 2026-08-28**)
 
-**`feature-branch-chain`**: PR1 apunta a la rama tracker `feature/fase-b`; cada PR hija apunta a
-la PR anterior; **solo la tracker mergea a `main`**. Así `main` nunca ve el modelo a medio migrar
-— que es el estado intermedio inevitable del Parallel Change.
+> ⚠️ **Esta sección describía un proceso que no estaba ocurriendo.** Declaraba
+> `feature-branch-chain` con seis pull requests de GitHub, cada una apuntando a la anterior.
+> Medido el 2026-08-28 con `gh pr list --state all`: **cero PRs**, abiertas o cerradas, y ninguna
+> rama hija — solo `feature/fase-b`, `main` y un backup. Las Fases 1, 2 y 3a se commitearon
+> directo sobre la tracker. Se corrige la descripción, no la práctica: lo que da valor ya se está
+> cumpliendo, y un documento que afirma un proceso inexistente es la misma clase de defecto que
+> este `tasks.md` viene corrigiendo en sus gates y sus citas.
+
+**Cómo se trabaja realmente**: cada slice se commitea agrupado sobre la rama tracker
+`feature/fase-b`, en orden, y **solo la tracker mergea a `main`**. Así `main` nunca ve el modelo a
+medio migrar — que es el estado intermedio inevitable del Parallel Change.
 
     main
      └── feature/fase-b        (tracker, única que mergea a main)
-          └── PR1 → PR2 → PR3a → PR3b → PR4a → PR4b
+          └── S1 → S2 → S3a → S3b → S4a → S4b   (slices, en orden)
 
-⚠️ **Profundidad 6** (era 5 antes del split de S3 del 2026-08-27): un cambio en PR1 obliga a
-rebasear las cinco siguientes. Es el costo aceptado del Parallel Change, no un descuido del plan.
-Por eso el review corre al cerrar **cada** PR, antes de abrir la siguiente.
+**«PR3a» nombra un slice, no un pull request.** El nombre se conserva porque está en todo el
+proyecto y en el registro de decisiones; lo que no existe es el objeto de GitHub.
+
+**Lo que sí se cumple, y es lo que sostiene el argumento**:
+
+- **Presupuesto de revisión por slice.** El corte de la Fase 3 en 3a/3b se decidió por medición
+  (~1.660 líneas contra 800), y el criterio sigue vigente aunque el diff no viaje en una PR.
+- **Review adversarial al cerrar cada slice, antes de empezar el siguiente.** Lo corre un agente
+  sin contexto de la sesión, con el contrato y las specs como única autoridad. S2 el 2026-08-24;
+  S3a el 2026-08-28 (0 críticos, 5 medios; M1/M2/M4 aplicados en `a07ab1d`).
+- **El orden sigue siendo vinculante.** Cada slice asume el anterior aplicado: 3b parte de 3a, 4a
+  de 3b. Un defecto encontrado tarde obliga a rehacer trabajo de los cinco siguientes — que es la
+  razón real de revisar slice por slice, y no depende de que haya PRs.
+
+Si en algún momento se quiere la traza en GitHub, el camino barato es abrir la PR de la tracker
+contra `main` al final y que el historial de commits por slice haga de índice.
 
 ### Suggested Work Units
 
