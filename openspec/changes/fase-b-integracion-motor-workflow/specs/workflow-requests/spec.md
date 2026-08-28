@@ -45,6 +45,13 @@ el contrato (`attachments`, `subjectInfo`, `priority`, `dueDate`, `radicado`,
 `assignedTo`, `program`, `semester`, `studentEmail`, `studentCode`). Un 422 **MUST**
 renderizarse como error de campo, no como fallo genérico (`Problem` :165-176).
 
+El sistema **MUST** validar en el cliente, antes de llamar al backend, que `studentName`
+y `studentDocument` no quedan vacíos tras `trim()`, y **MUST** enviar los valores ya
+recortados. Motivo: el backend los declara `@NotBlank` y una cadena de solo espacios es
+no-vacía para el cliente y vacía para el servidor, de modo que sin esta validación el
+formulario produce un **400** de bean validation — un error sin campo asociado, cuyo
+render solo llega en la Fase 5.
+
 #### Scenario: Registro exitoso
 
 - GIVEN un trámite del catálogo y datos de estudiante válidos
@@ -56,6 +63,24 @@ renderizarse como error de campo, no como fallo genérico (`Problem` :165-176).
 - GIVEN un `definitionCode` que el backend rechaza
 - WHEN se envía el formulario
 - THEN el backend responde 422 y la UI muestra el error asociado al campo del selector
+
+#### Scenario: Campo de solo espacios rechazado sin llamar al backend
+
+- GIVEN `studentName` o `studentDocument` con únicamente espacios en blanco
+- WHEN se envía el formulario
+- THEN la UI marca ese campo como inválido y **no** se emite `POST /requests`
+
+#### Scenario: Los valores viajan recortados
+
+- GIVEN `studentName` o `studentDocument` con espacios al principio o al final
+- WHEN se envía el formulario
+- THEN el payload lleva el valor sin esos espacios
+
+#### Scenario: Longitud por encima del límite rechazada en el cliente
+
+- GIVEN `studentName` de 121 caracteres o `studentDocument` de 21
+- WHEN se intenta enviar el formulario
+- THEN la UI marca ese campo como inválido y **no** se emite `POST /requests`
 
 #### Scenario: Formulario sin campos sin fuente
 
@@ -75,6 +100,12 @@ emitir la consulta con menos de 2 caracteres (`minLength: 2`, :67).
 - GIVEN una solicitud existente con `studentDocument = "1000000001"`
 - WHEN se busca `"1000000001"`
 - THEN la respuesta incluye esa solicitud (`RequestSummary` :237-246)
+
+#### Scenario: Búsqueda por fragmento del nombre, sin distinguir mayúsculas
+
+- GIVEN una solicitud cuyo `studentName` contiene un nombre en mayúscula inicial
+- WHEN se busca un fragmento de ese nombre escrito en minúsculas
+- THEN la respuesta incluye esa solicitud (:63-66)
 
 #### Scenario: Menos de 2 caracteres no dispara la petición
 
@@ -101,6 +132,12 @@ registrables.
 - GIVEN una solicitud en un estado no final con transiciones definidas
 - WHEN se abre su detalle
 - THEN se muestran `currentState.name` y las acciones derivadas de `availableTransitions`
+
+#### Scenario: El detalle muestra los datos de identificación de la solicitud
+
+- GIVEN una solicitud cualquiera
+- WHEN se abre su detalle
+- THEN se muestran `definition.name`, `studentName`, `studentDocument` y `createdAt`
 
 #### Scenario: Trámite en estado final sin acciones
 

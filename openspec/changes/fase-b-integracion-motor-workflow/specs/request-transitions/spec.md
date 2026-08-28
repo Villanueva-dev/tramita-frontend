@@ -15,7 +15,8 @@ abajo se refieren a ese archivo).
 ### Requirement: Composición de acciones desde `availableTransitions`
 
 El sistema **MUST** derivar cada acción registrable exclusivamente de
-`currentState.availableTransitions` (`AvailableTransition` :210-219): texto desde
+`availableTransitions` (`AvailableTransition` :210-219) — campo **hermano** de
+`currentState` dentro de `Request` (:221-235), no anidado bajo él: texto desde
 `targetState.name`, redactado como acto de registro (p. ej. "Registrar:
 {targetState.name}"). El **verbo** de la acción **MUST** ser de registro; el nombre del
 estado se cita como dato, no como acto del sistema, aunque contenga palabras de
@@ -43,6 +44,20 @@ fixtures.
   (registrar) y el nombre del estado aparece citado como el hecho que se asienta
 - AND ninguna acción presenta al sistema como quien aprueba, rechaza o decide
 
+#### Scenario: El `targetStateCode` enviado sale de la opción elegida
+
+- GIVEN una solicitud con varias transiciones disponibles
+- WHEN se selecciona una y se confirma
+- THEN el `targetStateCode` del `AdvanceRequestBody` es el de esa transición y no un
+  valor construido por el cliente
+
+#### Scenario: Ausencia de códigos y etiquetas de transición o estado
+
+- GIVEN el código fuente en `app/`, `components/`, `lib/` (excluyendo fixtures)
+- WHEN se busca cualquier `code` literal de estado o de transición (p. ej.
+  `APROBADA_FACULTAD`) o su etiqueta redactada a mano
+- THEN la búsqueda devuelve 0 ocurrencias
+
 ### Requirement: Responsable declarado por transición (no inferido)
 
 El sistema **MUST** mostrar el `responsible` (:215-218) de cada opción de transición
@@ -69,6 +84,13 @@ opcional.
 - GIVEN una transición con `requiresNote = false`
 - WHEN se envía sin nota
 - THEN la transición se aplica (200) sin bloqueo por nota
+
+#### Scenario: La nota se exige antes de enviar cuando la transición la requiere
+
+- GIVEN una transición con `requiresNote = true` y el campo de nota vacío
+- WHEN se intenta confirmar la acción
+- THEN el envío queda deshabilitado y la nota se señala como requerida (SHOULD de UX:
+  la validación autoritativa sigue siendo el 422 del backend)
 
 #### Scenario: Nota faltante en transición que la exige
 

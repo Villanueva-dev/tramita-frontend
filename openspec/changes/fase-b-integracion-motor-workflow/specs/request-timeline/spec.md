@@ -20,6 +20,12 @@ entradas en el orden ascendente devuelto. Cada entrada **MUST** mostrar `actorEm
 (`fromState = null`, :253-257) no trae `responsible` (:267-268); el sistema
 **MUST NOT** mostrar la cláusula "en nombre de" para esa entrada.
 
+#### Scenario: Entradas renderizadas en orden ascendente
+
+- GIVEN un timeline de tres entradas devueltas por el backend en orden ascendente
+- WHEN se renderiza
+- THEN aparecen en ese mismo orden, la más antigua primero, sin reordenar en el cliente
+
 #### Scenario: Entrada de transición con actor y responsable
 
 - GIVEN una entrada con `actorEmail = "coord@uniremington.edu.co"` y
