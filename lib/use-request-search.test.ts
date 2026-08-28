@@ -126,4 +126,116 @@ describe('useRequestSearch', () => {
     expect(result.current.results).toBeNull()
     expect(result.current.loading).toBe(false)
   })
+
+  // --- Los tres casos de abajo existen porque su ausencia dejaba vivos otros
+  // tantos mutantes: se podía borrar setLoading(true), setErrors([]) y el
+  // setResults(null) del catch sin que ningún test se pusiera en rojo.
+
+  it('expone loading mientras la petición está en vuelo', async () => {
+    let release!: (r: Response) => void
+    const pending = new Promise<Response>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => pending),
+    )
+
+    const { result } = renderHook(() => useRequestSearch())
+    act(() => result.current.setTerm('Ana'))
+
+    let inFlight!: Promise<void>
+    act(() => {
+      inFlight = result.current.search()
+    })
+
+    // El botón de la pantalla se deshabilita con este flag: es la única
+    // protección contra el doble envío, así que tiene que estar verificada.
+    expect(result.current.loading).toBe(true)
+
+    await act(async () => {
+      release(
+        new Response(JSON.stringify([MATCH]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      await inFlight
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.results).toEqual([MATCH])
+  })
+
+  it('limpia el error anterior cuando una búsqueda posterior tiene éxito', async () => {
+    const spy = stubFetch({ title: 'Error interno', status: 500 }, 500)
+    const { result } = renderHook(() => useRequestSearch())
+
+    act(() => result.current.setTerm('Ana'))
+    await act(async () => {
+      await result.current.search()
+    })
+    expect(result.current.errors.length).toBeGreaterThan(0)
+
+    spy.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify([MATCH]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    )
+    await act(async () => {
+      await result.current.search()
+    })
+
+    expect(result.current.errors).toHaveLength(0)
+    expect(result.current.results).toEqual([MATCH])
+  })
+
+  it('descarta los resultados vigentes cuando la búsqueda siguiente falla', async () => {
+    const spy = stubFetch()
+    const { result } = renderHook(() => useRequestSearch())
+
+    act(() => result.current.setTerm('Ana'))
+    await act(async () => {
+      await result.current.search()
+    })
+    expect(result.current.results).toEqual([MATCH])
+
+    spy.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ title: 'Error interno', status: 500 }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
+      ),
+    )
+    await act(async () => {
+      await result.current.search()
+    })
+
+    // Pertenecían al término anterior; mostrarlos junto al error los daría
+    // por vigentes.
+    expect(result.current.results).toBeNull()
+  })
+
+  it('la guardia de 2 caracteres también descarta los resultados vigentes', async () => {
+    stubFetch()
+    const { result } = renderHook(() => useRequestSearch())
+
+    act(() => result.current.setTerm('Ana'))
+    await act(async () => {
+      await result.current.search()
+    })
+    expect(result.current.results).toEqual([MATCH])
+
+    act(() => result.current.setTerm('A'))
+    await act(async () => {
+      await result.current.search()
+    })
+
+    expect(result.current.results).toBeNull()
+    expect(result.current.errors.length).toBeGreaterThan(0)
+  })
 })

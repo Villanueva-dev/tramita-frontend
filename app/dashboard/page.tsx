@@ -107,10 +107,12 @@ export default function DashboardPage() {
             </span>
             <div>
               <p className="font-medium">Busque una solicitud para empezar</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Escriba al menos {canSearch ? '' : 'dos '}caracteres del nombre o
-                la cédula del estudiante.
-              </p>
+              {!canSearch && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Escriba al menos dos caracteres del nombre o la cédula del
+                  estudiante.
+                </p>
+              )}
             </div>
           </div>
         ) : (

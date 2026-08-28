@@ -32,8 +32,13 @@ export function useRequestSearch() {
   async function search() {
     // Bloquear en silencio no es informar: sin este mensaje, pulsar "Buscar"
     // con un carácter no produce ningún efecto visible y parece un fallo.
+    //
+    // Se descartan los resultados previos por la misma razón que en el catch:
+    // pertenecen al término anterior y dejarlos en pantalla junto al aviso
+    // sugiere que siguen vigentes para lo que hay escrito ahora.
     if (!canSearch) {
       setErrors([`Escriba al menos ${MIN_SEARCH_LENGTH} caracteres para buscar.`])
+      setResults(null)
       return
     }
 
