@@ -1,118 +1,44 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { FilePlus2, Search, SlidersHorizontal, X } from 'lucide-react'
+import { FilePlus2, Info, Loader2, Search } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { RequestsTable } from '@/components/dashboard/requests-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { useTramita } from '@/lib/store'
 import { useAuth } from '@/lib/auth-store'
 import { displayNameFromEmail } from '@/lib/identity'
-import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/mock-data'
-import { isOverdue } from '@/lib/format'
-import type { RequestStatus, RequestType } from '@/lib/types'
+import { useRequestSearch } from '@/lib/use-request-search'
 
-type CardFilter =
-  | 'todos'
-  | 'pendiente'
-  | 'en_proceso'
-  | 'completado'
-  | 'urgente'
+// La bandeja pasó de filtrar una lista completa en memoria a consultar al
+// servidor. El motor no expone "listar todo" —solo GET /requests?search= con
+// mínimo 2 caracteres—, así que no hay nada que mostrar hasta que alguien
+// busque. Los filtros por tipo, estado y fecha y las tarjetas de conteo salen
+// por la misma razón: todos exigían tener el universo de solicitudes cargado.
 
 export default function DashboardPage() {
-  const { requests } = useTramita()
   const { user } = useAuth()
-  const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
-  const [dateFilter, setDateFilter] = useState<'all' | '7' | '30'>('all')
-  const [cardFilter, setCardFilter] = useState<CardFilter>('todos')
-
-  const filtered = useMemo(() => {
-    return requests.filter((r) => {
-      // Card quick filter
-      if (cardFilter === 'pendiente' && r.status !== 'pendiente') return false
-      if (
-        cardFilter === 'en_proceso' &&
-        !(r.status === 'en_revision' || r.status === 'devuelto')
-      )
-        return false
-      if (
-        cardFilter === 'completado' &&
-        !(r.status === 'aprobado' || r.status === 'finalizado')
-      )
-        return false
-      if (
-        cardFilter === 'urgente' &&
-        !(
-          (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-          r.status !== 'finalizado'
-        )
-      )
-        return false
-
-      if (typeFilter !== 'all' && r.type !== typeFilter) return false
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false
-
-      if (dateFilter !== 'all') {
-        const days = (Date.now() - new Date(r.createdAt).getTime()) / 86400000
-        if (days > Number(dateFilter)) return false
-      }
-
-      if (query.trim()) {
-        const q = query.toLowerCase()
-        const hay =
-          r.studentName.toLowerCase().includes(q) ||
-          r.studentCedula.includes(q) ||
-          r.studentCode.includes(q) ||
-          r.radicado.toLowerCase().includes(q)
-        if (!hay) return false
-      }
-      return true
-    })
-  }, [requests, cardFilter, typeFilter, statusFilter, dateFilter, query])
-
-  const hasActiveFilters =
-    typeFilter !== 'all' ||
-    statusFilter !== 'all' ||
-    dateFilter !== 'all' ||
-    cardFilter !== 'todos' ||
-    query.trim() !== ''
-
-  function clearFilters() {
-    setTypeFilter('all')
-    setStatusFilter('all')
-    setDateFilter('all')
-    setCardFilter('todos')
-    setQuery('')
-  }
+  const { term, setTerm, results, loading, errors, canSearch, search } =
+    useRequestSearch()
 
   const firstName = user ? displayNameFromEmail(user.email).split(' ')[0] : ''
 
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    void search()
+  }
+
   return (
     <AppShell title="Bandeja de trabajo">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        {/* Header */}
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-serif text-2xl font-bold tracking-tight">
               Buenos días, {firstName}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tiene {requests.filter((r) => r.status === 'pendiente').length}{' '}
-              solicitudes pendientes y{' '}
-              {
-                requests.filter(
-                  (r) =>
-                    r.priority === 'urgente' && r.status !== 'finalizado',
-                ).length
-              }{' '}
-              con atención prioritaria.
+              Busque una solicitud por el nombre o la cédula del estudiante.
             </p>
           </div>
           <Link href="/requests/new">
@@ -123,116 +49,81 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Summary cards */}
-        <SummaryCards
-          requests={requests}
-          active={cardFilter}
-          onSelect={(k) => setCardFilter(k as CardFilter)}
-        />
-
-        {/* Filters */}
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <SlidersHorizontal className="size-4 text-primary" />
-            Filtros y búsqueda
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={clearFilters}
-                className="ml-auto gap-1 text-muted-foreground"
-              >
-                <X className="size-3" />
-                Limpiar
-              </Button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="flex flex-col gap-1.5 xl:col-span-1 md:col-span-2">
-              <Label htmlFor="search" className="text-xs text-muted-foreground">
-                Buscar
-              </Label>
-              <div className="relative">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+          noValidate
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="search">Nombre o cédula del estudiante</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="search"
                   className="pl-9"
-                  placeholder="Nombre, cédula o radicado…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Ej. Pérez o 1000000001"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  aria-invalid={errors.length > 0}
                 />
               </div>
+              <Button type="submit" className="h-10 gap-2 sm:w-36" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Buscando…
+                  </>
+                ) : (
+                  'Buscar'
+                )}
+              </Button>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="type" className="text-xs text-muted-foreground">
-                Tipo de trámite
-              </Label>
-              <Select
-                id="type"
-                value={typeFilter}
-                onChange={(e) =>
-                  setTypeFilter(e.target.value as RequestType | 'all')
-                }
-              >
-                <option value="all">Todos los tipos</option>
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="status" className="text-xs text-muted-foreground">
-                Estado
-              </Label>
-              <Select
-                id="status"
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as RequestStatus | 'all')
-                }
-              >
-                <option value="all">Todos los estados</option>
-                {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="date" className="text-xs text-muted-foreground">
-                Fecha de radicación
-              </Label>
-              <Select
-                id="date"
-                value={dateFilter}
-                onChange={(e) =>
-                  setDateFilter(e.target.value as 'all' | '7' | '30')
-                }
-              >
-                <option value="all">Cualquier fecha</option>
-                <option value="7">Últimos 7 días</option>
-                <option value="30">Últimos 30 días</option>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando{' '}
-              <span className="font-medium text-foreground">
-                {filtered.length}
-              </span>{' '}
-              de {requests.length} solicitudes
+            <p className="text-xs text-muted-foreground">
+              La cédula se busca completa; del nombre alcanza un fragmento.
             </p>
           </div>
-          <RequestsTable requests={filtered} />
-        </div>
+
+          {errors.length > 0 && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            >
+              <Info className="mt-0.5 size-4 shrink-0" />
+              <div className="flex flex-col gap-1">
+                {errors.map((msg) => (
+                  <span key={msg}>{msg}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
+
+        {results === null ? (
+          // Estado inicial: no es "sin resultados". Todavía no se consultó nada.
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card py-16 text-center">
+            <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
+              <Search className="size-6" />
+            </span>
+            <div>
+              <p className="font-medium">Busque una solicitud para empezar</p>
+              {!canSearch && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Escriba al menos dos caracteres del nombre o la cédula del
+                  estudiante.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{results.length}</span>{' '}
+              {results.length === 1 ? 'solicitud encontrada' : 'solicitudes encontradas'}
+            </p>
+            <RequestsTable requests={results} />
+          </div>
+        )}
       </div>
     </AppShell>
   )

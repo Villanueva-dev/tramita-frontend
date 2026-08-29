@@ -1,0 +1,91 @@
+# openspec/config.yaml — tramita-frontend
+schema: spec-driven
+
+context: |
+  Stack: Next.js 16.2.6 (App Router) + React 19 + TS 5.7.3 strict + Tailwind 4.
+  Arquitectura: estructura idiomática del App Router (app/, components/, lib/), atomic
+  design + container/presentational.
+  Testing: Vitest 4 con entorno jsdom y @testing-library/react ya configurados; los tests
+  escritos son solo de lógica (lib/*.test.ts). Sin tests de componentes, E2E ni coverage aún.
+  Estilo: español en docs/commits/comentarios; identificadores en inglés.
+  Backend hermano: Spring Boot 4 en ../Tramita, motor de workflow (002) ya mergeado.
+  Detalle completo y brechas de tooling: ver openspec/project.md.
+
+strict_tdd: true
+
+testing:
+  strict_tdd_source: "marker (Strict TDD Mode: enabled en CLAUDE.md global) + runner detectado (vitest)"
+  detected: "2026-08-15"
+  test_runner:
+    command: "pnpm test"
+    framework: "vitest ^4.1.10 (vitest run)"
+  layers:
+    unit:
+      available: true
+      tool: "vitest"
+      note: "lib/*.test.ts — lógica pura (api, api-errors, identity, password-policy). Entorno jsdom configurado en vitest.config.mts; aún sin tests de componentes escritos."
+    integration:
+      available: true
+      tool: "vitest + @testing-library/react (entorno jsdom)"
+      note: "@testing-library/react ^16.3.2, @testing-library/dom ^10.4.1, jsdom ^30.0.1 y @vitejs/plugin-react ^6.0.5 instalados y commiteados en 4e63077 (2026-08-15); vitest.config.mts declara environment jsdom. El tooling está listo. Lo que falta son archivos *.test.tsx escritos — hoy hay 0. Corregido el 2026-08-23 tras auditoría; este bloque afirmaba lo contrario desde antes de la instalación."
+    e2e:
+      available: false
+      tool: null
+      note: "No hay Playwright/Cypress en el proyecto."
+  coverage:
+    available: false
+    command: null
+    note: "No hay @vitest/coverage-v8 (ni equivalente) instalado."
+  quality_tools:
+    linter:
+      available: false
+      command: "pnpm lint (eslint .)"
+      note: "El script existe pero ESLint NO está en package.json ni instalado (node_modules/.bin/eslint ausente) y no hay archivo de config (eslint.config.*/.eslintrc*). El script falla tal cual está hoy."
+    type_checker:
+      available: true
+      command: "pnpm exec tsc --noEmit"
+      note: "typescript 5.7.3 instalado, tsconfig.json con strict:true y noEmit:true. Sin script npm dedicado — hay que invocar tsc directo."
+    formatter:
+      available: false
+      command: null
+      note: "No hay Prettier, Biome ni config de formato en el repo."
+
+rules:
+  proposal:
+    - Incluir plan de rollback para cambios riesgosos.
+    - Si el cambio toca lib/types.ts, lib/mock-data.ts o lib/store.tsx, declarar explícitamente
+      qué recorte de campos/estados se acepta frente al modelo real del backend (motor
+      configurable vs. union types literales hoy congelados).
+    - components/workflow-stepper.tsx SE BORRA (decidido en la proposal de la Fase B, tarea 2.1).
+      La cadena lineal no es derivable ni agregando endpoint; el grafo es cíclico por las
+      devoluciones y workflow_state no tiene columna de orden. NO tratarlo como alcance abierto.
+  specs:
+    - Usar Given/When/Then para los escenarios.
+    - Usar keywords RFC 2119 (MUST, SHALL, SHOULD, MAY).
+    - Los contratos de error deben espejar el formato real del backend — verificar contra el
+      contrato OpenAPI de la feature, que es la autoridad. El formato vigente es RFC 9457
+      (application/problem+json), que obsoleta a la RFC 7807.
+  design:
+    - Mantener la estructura idiomática del App Router (app/ rutas, components/ UI compartida,
+      lib/ dominio y datos) — principio 2 de CLAUDE.md y §3 de docs/constitucion.md. No se copia
+      el "package-by-layer" del backend, porque su rationale (formación en Spring) no se transfiere.
+    - Aplicar atomic design + patrón container/presentational para UI nueva.
+    - Documentar decisiones con su trade-off explícito ("elegí X frente a Y, sabiendo que Z").
+  tasks:
+    - Agrupar por fase, numeración jerárquica.
+    - Tareas completables en una sesión.
+    - El TDD de componentes React ya es posible; @testing-library/react y jsdom están
+      instalados y configurados desde 4e63077. NO marcar esas tareas como bloqueadas.
+  apply:
+    guidelines:
+      - Seguir los patrones existentes del repo (container/presentational, atomic design).
+      - Conventional commits en español, sin atribución de IA.
+      - La validación del frontend es solo UX; la autoritativa es siempre el backend.
+    tdd: true
+    test_command: "pnpm test"
+  verify:
+    test_command: "pnpm test"
+    build_command: "pnpm build"
+    coverage_threshold: 0
+  archive:
+    - Avisar antes de mergear deltas destructivos.

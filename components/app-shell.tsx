@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   FilePlus2,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -19,13 +18,11 @@ import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-store'
-import { useTramita } from '@/lib/store'
 import { displayNameFromEmail, initialsFromEmail } from '@/lib/identity'
 
 const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
   { href: '/requests/new', label: 'Nueva solicitud', icon: FilePlus2 },
-  { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 
 function NavLinks({
@@ -128,16 +125,11 @@ export function AppShell({
   const pathname = usePathname()
   const router = useRouter()
   const { status, user, logout } = useAuth()
-  const { requests } = useTramita()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/')
   }, [status, router])
-
-  const urgentCount = requests.filter(
-    (r) => r.priority === 'urgente' && r.status !== 'finalizado',
-  ).length
 
   async function handleLogout() {
     await logout()
@@ -213,16 +205,9 @@ export function AppShell({
                 <Search className="size-4.5" />
               </Button>
             </Link>
-            <div className="relative">
-              <Button variant="ghost" size="icon" aria-label="Notificaciones">
-                <Bell className="size-4.5" />
-              </Button>
-              {urgentCount > 0 && (
-                <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-brand-red text-[9px] font-bold text-brand-red-foreground">
-                  {urgentCount}
-                </span>
-              )}
-            </div>
+            <Button variant="ghost" size="icon" aria-label="Notificaciones">
+              <Bell className="size-4.5" />
+            </Button>
             <span className="ml-1 hidden size-9 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground sm:grid">
               {initials}
             </span>

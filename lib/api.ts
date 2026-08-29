@@ -7,6 +7,8 @@
 // - CSRF double-submit: cookie XSRF-TOKEN (legible) -> header X-XSRF-TOKEN en cada POST.
 // - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
+import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+
 const BASE = '/api'
 const XSRF_COOKIE = 'XSRF-TOKEN'
 const XSRF_HEADER = 'X-XSRF-TOKEN'
@@ -140,4 +142,82 @@ export async function changePassword(
     body: { currentPassword, newPassword },
   })
   if (!res.ok) throw await parseProblem(res)
+}
+
+// --- Motor de workflow (Fase B) ---
+// Autoridad: Tramita/specs/002-workflow-engine/contracts/openapi.yaml.
+// El mapa 422→campo (D-E) es estático por operación: cada operación tiene una
+// sola causa de 422 (los datos inválidos por Bean Validation salen 400). Nunca
+// se inspecciona el texto de `detail` para adivinar el campo.
+
+/** Catálogo de trámites vigentes (US1) — insumo del selector de registro. */
+export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
+  const res = await apiFetch('/workflow-definitions')
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as WorkflowDefinition[]
+}
+
+/** Campo del formulario al que se ata el 422 de `createRequest` (definición inexistente). */
+export const CREATE_REQUEST_422_FIELD = 'definitionCode'
+
+export interface CreateRequestBody {
+  definitionCode: string
+  studentName: string
+  studentDocument: string
+}
+
+/** Registra una solicitud de trámite (US1). */
+export async function createRequest(body: CreateRequestBody): Promise<Request> {
+  const { definitionCode, studentName, studentDocument } = body
+  const res = await apiFetch('/requests', {
+    method: 'POST',
+    body: { definitionCode, studentName, studentDocument },
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as Request
+}
+
+/** Localiza solicitudes por nombre o cédula (US3, FR-011). El backend exige `minLength: 2`. */
+export async function searchRequests(term: string): Promise<RequestSummary[]> {
+  const res = await apiFetch(`/requests?search=${encodeURIComponent(term)}`)
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as RequestSummary[]
+}
+
+/** Detalle de una solicitud con sus transiciones disponibles. */
+export async function getRequest(id: string): Promise<Request> {
+  const res = await apiFetch(`/requests/${encodeURIComponent(id)}`)
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as Request
+}
+
+/** Timeline de auditoría completo, en orden cronológico ascendente (US3, FR-008). */
+export async function getRequestTimeline(id: string): Promise<TimelineEntry[]> {
+  const res = await apiFetch(`/requests/${encodeURIComponent(id)}/timeline`)
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as TimelineEntry[]
+}
+
+/** Campo del formulario al que se ata el 422 de `advanceRequest` (nota obligatoria faltante). */
+export const ADVANCE_REQUEST_422_FIELD = 'note'
+
+/**
+ * Avanza o devuelve una solicitud por una transición definida (US2, US5). `note`
+ * solo viaja en el body cuando se pasa: es obligatoria únicamente si la
+ * transición la exige (devoluciones, FR-014) y el backend valida eso, no el front.
+ */
+export async function advanceRequest(
+  id: string,
+  targetStateCode: string,
+  note?: string,
+): Promise<Request> {
+  const body: Record<string, unknown> = { targetStateCode }
+  if (note !== undefined) body.note = note
+
+  const res = await apiFetch(`/requests/${encodeURIComponent(id)}/transitions`, {
+    method: 'POST',
+    body,
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as Request
 }
