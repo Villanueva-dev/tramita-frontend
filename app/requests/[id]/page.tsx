@@ -117,15 +117,16 @@ export default function RequestDetailPage() {
         // Ni transición no vigente ni conflicto de concurrencia se distinguen
         // desde acá, y en ambos casos el estado no cambió: se ofrece releer.
         setPending(null)
-        setConflict(apiErrorMessages(err).join(' '))
+        setConflict(apiErrorMessages(err, { fallback: err.detail }).join(' '))
       } else if (err instanceof ApiError && err.status === 401) {
         sessionExpired()
       } else {
         setPending(null)
-        // El 400 del backend explica qué campo rechazó en `detail`; el mensaje
-        // por defecto de apiErrorMessages es genérico y lo perdería.
-        const badRequest = err instanceof ApiError ? err.detail : undefined
-        setFormErrors(apiErrorMessages(err, badRequest ? { badRequest } : {}))
+        // Sin override para el 400: Spring devuelve el literal
+        // "Invalid request content." (MethodArgumentNotValidException:57) y el
+        // backend no define messages.properties, así que ese `detail` no nombra
+        // ningún campo y llega en inglés. El default en español es mejor.
+        setFormErrors(apiErrorMessages(err))
       }
     } finally {
       setSubmitting(false)
@@ -144,6 +145,20 @@ export default function RequestDetailPage() {
   }
 
   if (notFound) return <NotFound />
+
+  // El 401 no deja mensaje en `errors` — su respuesta es terminar la sesión.
+  // Sin esta guarda, la rama de abajo pinta un role="alert" vacío mientras el
+  // gate de AppShell completa la redirección.
+  if (unauthorized) {
+    return (
+      <AppShell title="Detalle de solicitud">
+        <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Su sesión expiró. Volviendo al inicio de sesión…
+        </div>
+      </AppShell>
+    )
+  }
 
   if (!request) {
     return (
@@ -193,7 +208,15 @@ export default function RequestDetailPage() {
           >
             <AlertTriangle className="size-5 shrink-0" />
             <span className="flex-1">{conflict}</span>
-            <Button size="sm" variant="outline" onClick={reload}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setConflict('')
+                setFormErrors([])
+                reload()
+              }}
+            >
               Actualizar estado vigente
             </Button>
           </div>

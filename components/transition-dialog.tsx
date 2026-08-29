@@ -101,6 +101,10 @@ export function TransitionDialog({
           <Textarea
             id="transition-note"
             rows={3}
+            // Mismo tope que `@Size(max = 2000)` en AdvanceRequestBody: sin
+            // esto el POST sale, el backend lo rechaza con un 400 y el diálogo
+            // se cierra perdiendo la observación recién escrita.
+            maxLength={2000}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Agregue una observación para el historial…"

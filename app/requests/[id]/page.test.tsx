@@ -69,6 +69,9 @@ function stubFetch(request: Request | null = BASE, timeline: TimelineEntry[] = [
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  // Sin esto el spy acumula las llamadas de los tests anteriores y cualquier
+  // aserción `toHaveBeenCalled()` pasa sin que este test la haya provocado.
+  sessionExpired.mockClear()
 })
 
 describe('detalle de solicitud', () => {
@@ -108,8 +111,11 @@ describe('detalle de solicitud', () => {
     render(<RequestDetailPage />)
 
     await waitFor(() => expect(screen.getByText(/depende de la acción/i)).toBeDefined())
-    expect(screen.queryByText('COORDINACION')).toBeNull()
-    expect(screen.queryByText('REGISTRO')).toBeNull()
+
+    // La spec exige que cada acción muestre SU responsable: la aserción
+    // anterior decía que no estaban en pantalla, que es lo contrario.
+    expect(screen.getByText(/en nombre de COORDINACION/i)).toBeDefined()
+    expect(screen.getByText(/en nombre de REGISTRO/i)).toBeDefined()
   })
 
   it('un trámite cerrado no muestra responsable ni antigüedad', async () => {
@@ -365,18 +371,20 @@ describe('registrar una transición (US2/US5)', () => {
     await waitFor(() => expect(spy.mock.calls.length).toBe(antes + 2))
   })
 
-  it('un 400 se muestra con el detalle que manda el backend', async () => {
+  it('un 400 se muestra en español, sin el literal del framework', async () => {
+    // Éste es el 400 que el backend produce de verdad: Spring devuelve
+    // "Invalid request content." desde MethodArgumentNotValidException:57 y no
+    // hay messages.properties que lo traduzca ni que nombre el campo.
     stubWithPost(() =>
-      json(400, { title: 'Bad Request', status: 400, detail: 'targetStateCode no puede ser vacío' }, true),
+      json(400, { title: 'Bad Request', status: 400, detail: 'Invalid request content.' }, true),
     )
     render(<RequestDetailPage />)
     await abrirDialogo()
 
     fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
 
-    await waitFor(() =>
-      expect(screen.getByText(/targetStateCode no puede ser vacío/i)).toBeDefined(),
-    )
+    await waitFor(() => expect(screen.getByText(/solicitud inválida/i)).toBeDefined())
+    expect(screen.queryByText(/Invalid request content/i)).toBeNull()
   })
 
   it('un 401 marca la sesión como expirada para que el guard redirija', async () => {
@@ -387,5 +395,153 @@ describe('registrar una transición (US2/US5)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
 
     await waitFor(() => expect(sessionExpired).toHaveBeenCalled())
+  })
+})
+
+describe('lo que los tests afirmaban y no verificaban', () => {
+  function stubWithPost(onPost: () => Response, request: Request = BASE) {
+    const spy = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') return Promise.resolve(onPost())
+      if (url.includes('/timeline')) return Promise.resolve(json(200, [REGISTRO]))
+      return Promise.resolve(json(200, request))
+    })
+    vi.stubGlobal('fetch', spy)
+    return spy
+  }
+
+  async function abrirYConfirmar() {
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /registrar: en facultad/i })).toBeDefined(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /registrar: en facultad/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+  }
+
+  it('A3 — tras registrar, la pantalla muestra el estado nuevo', async () => {
+    let vigente = BASE
+    stubWithPost(() => {
+      vigente = { ...BASE, currentState: EN_FACULTAD, availableTransitions: [] }
+      return json(200, vigente)
+    })
+    // El stub lee `vigente` en cada GET, así que el reload trae el estado nuevo.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (init?.method === 'POST') {
+          vigente = { ...BASE, currentState: EN_FACULTAD, availableTransitions: [] }
+          return Promise.resolve(json(200, vigente))
+        }
+        if (url.includes('/timeline')) return Promise.resolve(json(200, [REGISTRO]))
+        return Promise.resolve(json(200, vigente))
+      }),
+    )
+    render(<RequestDetailPage />)
+    await abrirYConfirmar()
+
+    // Sin reload(), la pantalla seguiría mostrando "Registrada".
+    await waitFor(() => expect(screen.getAllByText('En facultad').length).toBeGreaterThan(0))
+  })
+
+  it('A4 — la observación escrita viaja en el body del POST', async () => {
+    const spy = stubWithPost(() => json(200, BASE), {
+      ...BASE,
+      availableTransitions: [
+        { targetState: EN_FACULTAD, responsible: 'COORDINACION', requiresNote: true },
+      ],
+    })
+    render(<RequestDetailPage />)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /registrar: en facultad/i })).toBeDefined(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /registrar: en facultad/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
+    fireEvent.change(screen.getByLabelText(/observación/i), {
+      target: { value: 'Falta la firma del decano' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() => {
+      const posts = spy.mock.calls.filter(([, i]) => (i as RequestInit)?.method === 'POST')
+      expect(posts).toHaveLength(1)
+      expect(JSON.parse((posts[0][1] as RequestInit).body as string)).toEqual({
+        targetStateCode: 'EN_FACULTAD',
+        note: 'Falta la firma del decano',
+      })
+    })
+  })
+
+  it('A1 — el campo de observación topa en el mismo largo que el backend', async () => {
+    stubWithPost(() => json(200, BASE))
+    render(<RequestDetailPage />)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /registrar: en facultad/i })).toBeDefined(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /registrar: en facultad/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
+
+    // @Size(max = 2000) en AdvanceRequestBody. Sin tope en el cliente, el POST
+    // sale y vuelve un 400 en inglés que además borra lo escrito.
+    expect(screen.getByLabelText(/observación/i).getAttribute('maxlength')).toBe('2000')
+  })
+
+  it('A2 — un 401 en la lectura reconcilia la sesión y no pinta una alerta vacía', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json(401, { title: 'Unauthorized', status: 401 }, true))),
+    )
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(sessionExpired).toHaveBeenCalled())
+    // Una caja de error sin texto adentro es peor que no mostrarla: mientras
+    // el gate redirige, la pantalla dice qué está pasando.
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(/sesión expiró/i)).toBeDefined()
+  })
+
+  it('M1 — el banner de conflicto desaparece al actualizar el estado vigente', async () => {
+    stubWithPost(() => json(409, { title: 'Transición no permitida', status: 409 }, true))
+    render(<RequestDetailPage />)
+    await abrirYConfirmar()
+
+    const refrescar = await screen.findByRole('button', { name: /actualizar estado vigente/i })
+    fireEvent.click(refrescar)
+
+    // Hay que esperar a que la recarga TERMINE: mientras carga, la página
+    // muestra el spinner y el banner no está en el DOM por un instante. Sin
+    // esta espera el test da verde por la ventana de carga, no por el arreglo.
+    await waitFor(() => expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0))
+
+    // Tras releer, el conflicto quedó resuelto: sostener el banner afirma algo falso.
+    expect(screen.queryByRole('button', { name: /actualizar estado vigente/i })).toBeNull()
+  })
+
+  it('M4 — tras un 409 el diálogo cierra y el estado sigue siendo el viejo', async () => {
+    stubWithPost(() => json(409, { title: 'Transición no permitida', status: 409 }, true))
+    render(<RequestDetailPage />)
+    await abrirYConfirmar()
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getAllByText('Registrada').length).toBeGreaterThan(0)
+  })
+
+  it('M2 — el 409 muestra el motivo que manda el backend, no sólo el título', async () => {
+    stubWithPost(() =>
+      json(
+        409,
+        {
+          title: 'Transición no permitida',
+          status: 409,
+          detail: 'La transición REGISTRADA → RECHAZADA no está definida para este trámite',
+        },
+        true,
+      ),
+    )
+    render(<RequestDetailPage />)
+    await abrirYConfirmar()
+
+    await waitFor(() => expect(screen.getByText(/no está definida para este trámite/i)).toBeDefined())
   })
 })

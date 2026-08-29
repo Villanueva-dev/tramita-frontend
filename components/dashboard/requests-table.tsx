@@ -13,9 +13,9 @@ import { formatDate } from '@/lib/format'
 // radicado, programa, vencimiento y urgencia salieron con la migración porque
 // el motor no las produce — no son un recorte visual, son datos sin fuente.
 //
-// Los badges son genéricos a propósito: TypeBadge y StatusBadge siguen atados
-// al modelo viejo con un Record por union type, y migran en la Fase 4. Un
-// motor configurable no puede tener un color por estado fijado en el cliente.
+// Los badges son genéricos a propósito: un motor configurable no puede tener
+// un color ni un icono por estado fijado en el cliente, porque un trámite que
+// se configure mañana no tendría entrada en ese mapa.
 
 export function RequestsTable({ requests }: { requests: RequestSummary[] }) {
   const router = useRouter()
