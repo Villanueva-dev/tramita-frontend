@@ -25,6 +25,8 @@ export function useRequestDetail(id: string) {
   const [errors, setErrors] = useState<string[]>([])
   // Un 404 es una pantalla propia, no un banner sobre un detalle vacío.
   const [notFound, setNotFound] = useState(false)
+  // Un 401 tampoco es un mensaje: la sesión murió y hay que reconciliarla.
+  const [unauthorized, setUnauthorized] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   /** Vuelve a leer del servidor. La Fase 4b lo usa para resolver el 409. */
@@ -37,6 +39,7 @@ export function useRequestDetail(id: string) {
       setLoading(true)
       setErrors([])
       setNotFound(false)
+      setUnauthorized(false)
       try {
         const [detail, entries] = await Promise.all([
           getRequest(id),
@@ -51,6 +54,8 @@ export function useRequestDetail(id: string) {
         setTimeline([])
         if (err instanceof ApiError && err.status === 404) {
           setNotFound(true)
+        } else if (err instanceof ApiError && err.status === 401) {
+          setUnauthorized(true)
         } else {
           setErrors(apiErrorMessages(err))
         }
@@ -65,5 +70,5 @@ export function useRequestDetail(id: string) {
     }
   }, [id, reloadToken])
 
-  return { request, timeline, loading, errors, notFound, reload }
+  return { request, timeline, loading, errors, notFound, unauthorized, reload }
 }

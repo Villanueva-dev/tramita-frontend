@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, within, fireEvent } from '@testing-library/react'
 import RequestDetailPage, { currentResponsibility } from './page'
 import type { Request, TimelineEntry } from '@/lib/types'
 
@@ -10,6 +10,11 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'req-1' }),
   useSearchParams: () => new URLSearchParams(''),
   useRouter: () => ({ push: vi.fn() }),
+}))
+
+const sessionExpired = vi.fn()
+vi.mock('@/lib/auth-store', () => ({
+  useAuth: () => ({ sessionExpired }),
 }))
 
 const EN_FACULTAD = { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false }
@@ -141,9 +146,11 @@ describe('detalle de solicitud', () => {
     render(<RequestDetailPage />)
 
     await waitFor(() => expect(screen.getByText(/en nombre de FACULTAD/i)).toBeDefined())
-    // Sólo la segunda entrada la trae: la de registro (fromState null) no.
-    expect(screen.getAllByText(/en nombre de/i)).toHaveLength(1)
-    expect(screen.getAllByText(/registrado por/i)).toHaveLength(2)
+    // Se mira dentro de la bitácora: las acciones disponibles también declaran
+    // "en nombre de", y esta prueba es sobre las entradas del historial.
+    const bitacora = within(screen.getByRole('list'))
+    expect(bitacora.getAllByText(/en nombre de/i)).toHaveLength(1)
+    expect(bitacora.getAllByText(/registrado por/i)).toHaveLength(2)
   })
 
   it('muestra la nota cuando la entrada la trae', async () => {
@@ -212,5 +219,173 @@ describe('currentResponsibility', () => {
         ],
       }),
     ).toEqual({ kind: 'single', who: 'FACULTAD' })
+  })
+})
+
+describe('registrar una transición (US2/US5)', () => {
+  /** Responde al detalle y al timeline; el POST se configura por prueba. */
+  function stubWithPost(onPost: () => Response, request: Request = BASE) {
+    const spy = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') return Promise.resolve(onPost())
+      if (url.includes('/timeline')) return Promise.resolve(json(200, [REGISTRO]))
+      return Promise.resolve(json(200, request))
+    })
+    vi.stubGlobal('fetch', spy)
+    return spy
+  }
+
+  function postCalls(spy: ReturnType<typeof stubWithPost>) {
+    return spy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'POST')
+  }
+
+  async function abrirDialogo() {
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /registrar: en facultad/i })).toBeDefined(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /registrar: en facultad/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
+  }
+
+  it('lista una acción por transición disponible, con el verbo de registro', async () => {
+    stubWithPost(() => json(200, BASE))
+    render(<RequestDetailPage />)
+
+    // El verbo es del sistema; el nombre del estado se cita como el hecho que
+    // se asienta. El sistema no aprueba: registra que alguien aprobó.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /registrar: en facultad/i })).toBeDefined(),
+    )
+  })
+
+  it('un trámite cerrado no ofrece ninguna acción', async () => {
+    stubWithPost(() => json(200, BASE), {
+      ...BASE,
+      currentState: FINALIZADA,
+      availableTransitions: [],
+    })
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText(/trámite cerrado/i)).toBeDefined())
+    expect(screen.queryByRole('button', { name: /^registrar:/i })).toBeNull()
+  })
+
+  it('envía targetStateCode y refresca el detalle al confirmar', async () => {
+    const spy = stubWithPost(() => json(200, BASE))
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() => expect(postCalls(spy)).toHaveLength(1))
+    const [url, init] = postCalls(spy)[0]
+    expect(String(url)).toContain('/requests/req-1/transitions')
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      targetStateCode: 'EN_FACULTAD',
+    })
+  })
+
+  it('exige la nota antes de enviar cuando la transición la requiere', async () => {
+    const spy = stubWithPost(() => json(200, BASE), {
+      ...BASE,
+      availableTransitions: [
+        { targetState: EN_FACULTAD, responsible: 'COORDINACION', requiresNote: true },
+      ],
+    })
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/observación/i).getAttribute('aria-invalid')).toBe('true'),
+    )
+    expect(postCalls(spy)).toHaveLength(0)
+  })
+
+  it('una nota de solo espacios no cuenta como nota', async () => {
+    const spy = stubWithPost(() => json(200, BASE), {
+      ...BASE,
+      availableTransitions: [
+        { targetState: EN_FACULTAD, responsible: 'COORDINACION', requiresNote: true },
+      ],
+    })
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.change(screen.getByLabelText(/observación/i), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/observación/i).getAttribute('aria-invalid')).toBe('true'),
+    )
+    expect(postCalls(spy)).toHaveLength(0)
+  })
+
+  it('no manda note cuando la transición no la exige y el campo quedó vacío', async () => {
+    const spy = stubWithPost(() => json(200, BASE))
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() => expect(postCalls(spy)).toHaveLength(1))
+    const body = JSON.parse((postCalls(spy)[0][1] as RequestInit).body as string)
+    expect('note' in body).toBe(false)
+  })
+
+  it('un 422 marca el campo de nota, no un banner suelto', async () => {
+    stubWithPost(() =>
+      json(422, { title: 'Regla de negocio incumplida', status: 422, detail: 'La transición exige observación' }, true),
+    )
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/observación/i).getAttribute('aria-invalid')).toBe('true'),
+    )
+  })
+
+  it('un 409 ofrece releer el estado vigente y no da la transición por aplicada', async () => {
+    const spy = stubWithPost(() =>
+      json(409, { title: 'Transición no permitida', status: 409 }, true),
+    )
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    const refrescar = await screen.findByRole('button', { name: /actualizar estado vigente/i })
+    const antes = spy.mock.calls.length
+    fireEvent.click(refrescar)
+
+    // reload() vuelve a pedir detalle y timeline: dos peticiones más.
+    await waitFor(() => expect(spy.mock.calls.length).toBe(antes + 2))
+  })
+
+  it('un 400 se muestra con el detalle que manda el backend', async () => {
+    stubWithPost(() =>
+      json(400, { title: 'Bad Request', status: 400, detail: 'targetStateCode no puede ser vacío' }, true),
+    )
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/targetStateCode no puede ser vacío/i)).toBeDefined(),
+    )
+  })
+
+  it('un 401 marca la sesión como expirada para que el guard redirija', async () => {
+    stubWithPost(() => json(401, { title: 'Unauthorized', status: 401 }, true))
+    render(<RequestDetailPage />)
+    await abrirDialogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /^registrar$/i }))
+
+    await waitFor(() => expect(sessionExpired).toHaveBeenCalled())
   })
 })

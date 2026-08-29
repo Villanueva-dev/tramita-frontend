@@ -26,6 +26,13 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   changePassword: (current: string, next: string) => Promise<void>
+  /**
+   * Marca la sesión como terminada ante un 401 llegado desde cualquier
+   * pantalla. El gate de AppShell observa `status`, así que esto es lo que
+   * dispara la vuelta al login: sin avisarle al provider, un 401 en una
+   * pantalla interna deja al usuario mirando un error sin salida.
+   */
+  sessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -78,22 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const changePassword = useCallback(async (current: string, next: string) => {
-    try {
-      await apiChangePassword(current, next)
-    } catch (err) {
-      // Si la sesión expiró en el intento, reflejarlo para que el gate redirija.
-      if (err instanceof ApiError && err.status === 401) {
-        setUser(null)
-        setStatus('unauthenticated')
-      }
-      throw err
-    }
+  const sessionExpired = useCallback(() => {
+    setUser(null)
+    setStatus('unauthenticated')
   }, [])
 
+  const changePassword = useCallback(
+    async (current: string, next: string) => {
+      try {
+        await apiChangePassword(current, next)
+      } catch (err) {
+        // Si la sesión expiró en el intento, reflejarlo para que el gate redirija.
+        if (err instanceof ApiError && err.status === 401) sessionExpired()
+        throw err
+      }
+    },
+    [sessionExpired],
+  )
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, logout, changePassword }),
-    [status, user, login, logout, changePassword],
+    () => ({ status, user, login, logout, changePassword, sessionExpired }),
+    [status, user, login, logout, changePassword, sessionExpired],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

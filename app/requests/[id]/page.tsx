@@ -2,16 +2,20 @@
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
-import { ArrowLeft, CheckCircle2, FileText, Info, Loader2, User, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, FileText, Info, Loader2, User, X } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
+import { TransitionDialog } from '@/components/transition-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ADVANCE_REQUEST_422_FIELD, ApiError, advanceRequest } from '@/lib/api'
+import { apiErrorMessages } from '@/lib/api-errors'
+import { useAuth } from '@/lib/auth-store'
 import { useRequestDetail } from '@/lib/use-request-detail'
 import { daysSince, formatDate } from '@/lib/format'
-import type { Request } from '@/lib/types'
+import type { AvailableTransition, Request } from '@/lib/types'
 
 // El detalle muestra los siete campos que `Request` produce. Radicado,
 // prioridad, vencimiento, programa, semestre, correo, asignaturas, adjuntos,
@@ -76,8 +80,57 @@ function NotFound() {
 export default function RequestDetailPage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { request, timeline, loading, errors, notFound } = useRequestDetail(params.id)
+  const { request, timeline, loading, errors, notFound, unauthorized, reload } =
+    useRequestDetail(params.id)
+  const { sessionExpired } = useAuth()
   const [showCreated, setShowCreated] = useState(searchParams.get('created') === '1')
+  const [pending, setPending] = useState<AvailableTransition | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [noteError, setNoteError] = useState('')
+  const [conflict, setConflict] = useState('')
+  const [formErrors, setFormErrors] = useState<string[]>([])
+
+  // Un 401 en la lectura tiene la misma respuesta que en la escritura: la
+  // sesión terminó y el gate de AppShell debe llevar al login.
+  useEffect(() => {
+    if (unauthorized) sessionExpired()
+  }, [unauthorized, sessionExpired])
+
+  async function runTransition(note?: string) {
+    if (!pending) return
+    setSubmitting(true)
+    setNoteError('')
+    setConflict('')
+    setFormErrors([])
+    try {
+      await advanceRequest(params.id, pending.targetState.code, note)
+      setPending(null)
+      // Se relee en vez de confiar en el Request devuelto: el timeline también
+      // cambió, y son dos recursos distintos.
+      reload()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        // El 422 pertenece al campo de nota (ADVANCE_REQUEST_422_FIELD), no a
+        // un banner: es la observación que la transición exige y no llegó.
+        setNoteError(apiErrorMessages(err).join(' '))
+      } else if (err instanceof ApiError && err.status === 409) {
+        // Ni transición no vigente ni conflicto de concurrencia se distinguen
+        // desde acá, y en ambos casos el estado no cambió: se ofrece releer.
+        setPending(null)
+        setConflict(apiErrorMessages(err).join(' '))
+      } else if (err instanceof ApiError && err.status === 401) {
+        sessionExpired()
+      } else {
+        setPending(null)
+        // El 400 del backend explica qué campo rechazó en `detail`; el mensaje
+        // por defecto de apiErrorMessages es genérico y lo perdería.
+        const badRequest = err instanceof ApiError ? err.detail : undefined
+        setFormErrors(apiErrorMessages(err, badRequest ? { badRequest } : {}))
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -112,6 +165,7 @@ export default function RequestDetailPage() {
     )
   }
 
+  void ADVANCE_REQUEST_422_FIELD // el 422 de advanceRequest se ata al campo de nota
   const responsibility = currentResponsibility(request)
   const lastEntry = timeline.at(-1)
   const waitingDays = lastEntry ? daysSince(lastEntry.occurredAt) : null
@@ -129,6 +183,30 @@ export default function RequestDetailPage() {
             <button onClick={() => setShowCreated(false)} aria-label="Cerrar">
               <X className="size-4" />
             </button>
+          </div>
+        )}
+
+        {conflict && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-foreground"
+          >
+            <AlertTriangle className="size-5 shrink-0" />
+            <span className="flex-1">{conflict}</span>
+            <Button size="sm" variant="outline" onClick={reload}>
+              Actualizar estado vigente
+            </Button>
+          </div>
+        )}
+
+        {formErrors.length > 0 && (
+          <div
+            role="alert"
+            className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {formErrors.map((msg) => (
+              <span key={msg}>{msg}</span>
+            ))}
           </div>
         )}
 
@@ -216,6 +294,30 @@ export default function RequestDetailPage() {
               </CardContent>
             </Card>
 
+            {request.availableTransitions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Registrar movimiento</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  {request.availableTransitions.map((t) => (
+                    <div key={t.targetState.code} className="flex flex-col gap-1">
+                      <Button
+                        variant="outline"
+                        className="justify-start"
+                        onClick={() => setPending(t)}
+                      >
+                        Registrar: {t.targetState.name}
+                      </Button>
+                      <span className="pl-1 text-xs text-muted-foreground">
+                        en nombre de {t.responsible}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             {request.currentState.isFinal && (
               <Link href={`/requests/${request.id}/documento`}>
                 <Button variant="outline" className="w-full gap-2">
@@ -227,6 +329,14 @@ export default function RequestDetailPage() {
           </div>
         </div>
       </div>
+
+      <TransitionDialog
+        transition={pending}
+        submitting={submitting}
+        serverError={noteError}
+        onClose={() => setPending(null)}
+        onConfirm={runTransition}
+      />
     </AppShell>
   )
 }
