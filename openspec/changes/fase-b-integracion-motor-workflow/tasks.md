@@ -192,11 +192,36 @@ sigue sin haber render de campo para el 400.
 
 ## Fase 5: Transiciones y contrato (Slice 4b, PR4b, base PR4a)
 
-- [ ] 5.1 Acciones desde `availableTransitions`: texto "Registrar: {targetState.name}"; nota obligatoria en UX si `requiresNote`. [RT — Composición de acciones]
-- [ ] 5.2 RED+GREEN manejo de errores: 422 nota faltante → campo nota inválido; 409 → banner + botón "Actualizar estado vigente" (`reload()`, sin optimismo); 400 → error de formulario con `detail`; 404 → "no encontrado". [RT — Nota obligatoria, Conflicto 409]
-- [ ] 5.3 Borrar `lib/store.tsx`, `lib/mock-data.ts` y los tipos viejos de `lib/types.ts` (`RequestType`, `RequestStatus`, `Priority`, `Attachment`, `TimelineEvent`, `SubjectInfo`, `AcademicRequest`, `WorkflowStageConfig`, `RequestTypeConfig`). **Ejecuta también lo que `design.md:75` decidió y nunca bajó a esta lista**: borrar de `lib/format.ts` las funciones `daysUntil`, `isOverdue` y `statusVariant` (más el tipo `StatusVariant`) junto con su `import type { RequestStatus }` de la línea 1 — son los últimos consumidores del modelo viejo, y sin este borrado la 5.3 rompe `tsc`.
-- [ ] 5.4 `app/layout.tsx`: quitar `TramitaProvider` (`AuthProvider` se queda) — cierra D4.
-- [ ] 5.5 Verificar 0 ocurrencias fuera de fixtures: `rg -n "from '(@/lib|\.)/types'" app components lib`, `rg -n "from '(@/lib|\.)/mock-data'" app components lib`, y códigos de trámite/estado hardcodeados en `app/`, `components/`, `lib/`. **El alias no alcanza**: los módulos de `lib/` se importan entre sí con la forma relativa (`from './types'`), invisible para `rg "from '@/lib/types'"` — con ese patrón el gate daba 0 con `lib/format.ts:1` todavía anclado al modelo viejo, que es justo el riesgo que `proposal.md:74` dice mitigar.
+- [x] 5.1 Acciones desde `availableTransitions`: texto "Registrar: {targetState.name}"; nota obligatoria en UX si `requiresNote`. [RT — Composición de acciones]
+- [x] 5.2 RED+GREEN manejo de errores: 422 nota faltante → campo nota inválido; 409 → banner + botón "Actualizar estado vigente" (`reload()`, sin optimismo); 400 → error de formulario con `detail`; 404 → "no encontrado". [RT — Nota obligatoria, Conflicto 409]
+- [x] 5.3 Borrar `lib/store.tsx`, `lib/mock-data.ts` y los tipos viejos de `lib/types.ts` (`RequestType`, `RequestStatus`, `Priority`, `Attachment`, `TimelineEvent`, `SubjectInfo`, `AcademicRequest`, `WorkflowStageConfig`, `RequestTypeConfig`). **Ejecuta también lo que `design.md:75` decidió y nunca bajó a esta lista**: borrar de `lib/format.ts` las funciones `daysUntil`, `isOverdue` y `statusVariant` (más el tipo `StatusVariant`) junto con su `import type { RequestStatus }` de la línea 1 — son los últimos consumidores del modelo viejo, y sin este borrado la 5.3 rompe `tsc`.
+- [x] 5.4 `app/layout.tsx`: quitar `TramitaProvider` (`AuthProvider` se queda) — cierra D4.
+- [x] 5.5 Verificar 0 ocurrencias fuera de fixtures: `rg -n "from '(@/lib|\.)/types'" app components lib`, `rg -n "from '(@/lib|\.)/mock-data'" app components lib`, y códigos de trámite/estado hardcodeados en `app/`, `components/`, `lib/`. **El alias no alcanza**: los módulos de `lib/` se importan entre sí con la forma relativa (`from './types'`), invisible para `rg "from '@/lib/types'"` — con ese patrón el gate daba 0 con `lib/format.ts:1` todavía anclado al modelo viejo, que es justo el riesgo que `proposal.md:74` dice mitigar.
+
+### Añadidos a la Fase 5 que no estaban en la lista (2026-08-28)
+
+- **`components/action-dialog.tsx` → `components/transition-dialog.tsx`**. No figuraba en ningún
+  artefacto SDD y fijaba las acciones en un union type `'revisar' | 'aprobar' | 'devolver' |
+  'finalizar'`. Reescrito sobre `AvailableTransition`. **De paso murió una regla de negocio
+  inventada**: exigía un comentario de al menos 5 caracteres, mínimo que no aparece en el contrato
+  ni en ninguna spec — el backend sólo pide que la nota exista cuando `requiresNote`.
+- **El 401 (hallazgo B4 del review de la 3b)**. La política ya existía enterrada en
+  `changePassword`; se extrajo a `sessionExpired()` en el `AuthProvider` y se usa desde las dos
+  rutas por las que un 401 llega al detalle. La 5.2 listaba 422/409/400/404 y lo omitía.
+
+### Gate final 5.5 — medido el 2026-08-28
+
+| Comando | Resultado |
+|---|---|
+| `rg -n "from '(@/lib\|\.)/mock-data'" app components lib` | **0** |
+| `rg -n "from '(@/lib\|\.)/store'" app components lib` | **0** |
+| códigos de trámite/estado fuera de tests | **0** |
+| tipos viejos (los 9) | **0** |
+
+`lib/types.ts` queda con los seis tipos del contrato y nada más. ⚠️ El último hallazgo fue **un
+comentario** en `workflow-timeline.tsx` que citaba `RequestStatus` para explicar por qué murieron
+los mapas por estado: se reformuló, porque un comentario que nombra un tipo inexistente manda a
+buscar algo que ya no está.
 
 ## Verificación por fase
 

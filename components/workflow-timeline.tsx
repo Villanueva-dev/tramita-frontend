@@ -7,7 +7,8 @@ import { formatDateTime } from '@/lib/format'
 // primero. Reordenar en el cliente rompería la lectura de auditoría.
 //
 // El icono es único para toda entrada. Los mapas por estado que había antes
-// (iconos y colores por `RequestStatus`) no sobreviven a un motor configurable:
+// (un icono y un color por cada estado del modelo viejo) no sobreviven a un
+// motor configurable:
 // un trámite que se configure mañana no tendría entrada en ese Record.
 
 export function WorkflowTimeline({ entries }: { entries: TimelineEntry[] }) {

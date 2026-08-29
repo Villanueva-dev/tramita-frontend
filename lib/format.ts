@@ -1,4 +1,3 @@
-import type { RequestStatus } from './types'
 
 // El backend serializa LocalDateTime.now(ZoneOffset.UTC) SIN offset
 // (Request.java:80, RequestTransitionLog.java:69). `new Date(iso)` en JS
@@ -42,33 +41,4 @@ export function formatDateTime(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-export function daysUntil(iso: string) {
-  const now = new Date()
-  const due = new Date(iso)
-  const diff = due.getTime() - now.getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
-}
-
-export function isOverdue(iso: string, status: RequestStatus) {
-  if (status === 'finalizado') return false
-  return daysUntil(iso) < 0
-}
-
-export type StatusVariant =
-  | 'default'
-  | 'secondary'
-  | 'outline'
-  | 'success'
-  | 'warning'
-  | 'destructive'
-  | 'info'
-
-export const statusVariant: Record<RequestStatus, StatusVariant> = {
-  pendiente: 'warning',
-  en_revision: 'info',
-  devuelto: 'destructive',
-  aprobado: 'success',
-  finalizado: 'secondary',
 }
