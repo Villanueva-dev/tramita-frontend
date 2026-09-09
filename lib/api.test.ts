@@ -13,6 +13,7 @@ import {
   ADVANCE_REQUEST_422_FIELD,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+import type { CreateRequestBody } from './api'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -170,6 +171,73 @@ describe('createRequest', () => {
       }),
     ).rejects.toMatchObject({ status: 422 })
     expect(CREATE_REQUEST_422_FIELD).toBe('definitionCode')
+  })
+
+  it('transporta los seis campos del contrato 003 en el cuerpo emitido', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, {}))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createRequest({
+      definitionCode: 'ADICION_CREDITOS',
+      studentName: 'Ana María Pérez',
+      studentDocument: '1000000001',
+      program: 'Ingeniería de Sistemas',
+      semester: '8',
+      reason: 'Requiere Cálculo III para completar el plan de estudios.',
+    })
+
+    // Se afirma sobre el cuerpo emitido, no sobre el status: un envío incompleto
+    // también obtiene 201, y ese es justamente el defecto que esta change corrige.
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({
+      definitionCode: 'ADICION_CREDITOS',
+      studentName: 'Ana María Pérez',
+      studentDocument: '1000000001',
+      program: 'Ingeniería de Sistemas',
+      semester: '8',
+      reason: 'Requiere Cálculo III para completar el plan de estudios.',
+    })
+  })
+
+  it('no deja pasar al cuerpo una propiedad no declarada en el contrato', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, {}))
+    vi.stubGlobal('fetch', fetchMock)
+
+    // Datos de contacto que la pantalla del DO-FR-100 recoge y el backend no persiste.
+    // El cast fuerza el caso: TypeScript solo detecta el exceso sobre literales
+    // escritos en el sitio de la llamada, y en tiempo de ejecución no existe.
+    await createRequest({
+      definitionCode: 'ADICION_CREDITOS',
+      studentName: 'Ana María Pérez',
+      studentDocument: '1000000001',
+      studentEmail: 'ana.perez@example.com',
+      phone: '3001234567',
+    } as unknown as CreateRequestBody)
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const sent = JSON.parse(init.body as string)
+    expect(sent).not.toHaveProperty('studentEmail')
+    expect(sent).not.toHaveProperty('phone')
+    expect(Object.keys(sent).sort()).toEqual([
+      'definitionCode',
+      'studentDocument',
+      'studentName',
+    ])
+  })
+
+  it('transporta semester como ordinal, sin convertirlo en identificador de periodo', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, {}))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createRequest({
+      definitionCode: 'ADICION_CREDITOS',
+      studentName: 'Ana María Pérez',
+      studentDocument: '1000000001',
+      semester: '8',
+    })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string).semester).toBe('8')
   })
 })
 

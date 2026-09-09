@@ -1,6 +1,11 @@
 // Modelo del cliente, derivado del contrato del motor de workflow
-// (Tramita/specs/002-workflow-engine/contracts/openapi.yaml). No hay trámites
-// ni estados fijados acá: son datos que el backend configura (FR-009).
+// (Tramita/specs/003-request-form-rules/contracts/openapi.yaml, que sucede a la 002).
+// No hay trámites ni estados fijados acá: son datos que el backend configura (FR-009).
+//
+// Nota: los tipos de este archivo describen la RESPUESTA del backend y siguen reflejando
+// lo que las pantallas leen hoy. El cuerpo de creación ampliado por la 003 vive en
+// `CreateRequestBody` (api.ts); ampliar `Request` se difirió hasta que alguna pantalla
+// necesite mostrar esos campos.
 
 /** openapi.yaml WorkflowDefinition (:177-183). */
 export interface WorkflowDefinition {

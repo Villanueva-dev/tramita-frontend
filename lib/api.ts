@@ -164,14 +164,23 @@ export interface CreateRequestBody {
   definitionCode: string
   studentName: string
   studentDocument: string
+  /** Opcionales en el contrato 003 (`required` solo exige los tres de arriba). */
+  program?: string
+  /** Ordinal del semestre cursado y aprobado (`'8'`), no un periodo académico. */
+  semester?: string
+  reason?: string
 }
 
 /** Registra una solicitud de trámite (US1). */
 export async function createRequest(body: CreateRequestBody): Promise<Request> {
-  const { definitionCode, studentName, studentDocument } = body
+  // Allowlist explícito: guarda de privacidad, no una preferencia de estilo. La pantalla
+  // del DO-FR-100 recoge ocho campos que no se persisten (contacto, sede, motivos…); con
+  // una propagación del objeto llegarían al cuerpo y a sus registros de acceso.
+  // NO reemplazar por spread — ver design.md, Decisión 1.
+  const { definitionCode, studentName, studentDocument, program, semester, reason } = body
   const res = await apiFetch('/requests', {
     method: 'POST',
-    body: { definitionCode, studentName, studentDocument },
+    body: { definitionCode, studentName, studentDocument, program, semester, reason },
   })
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as Request
