@@ -75,5 +75,12 @@ backend (`specs/001-auth-login/integracion-frontend.md`).
 ## Proceso
 
 **SDD con OpenSpec**: `explore → propose → spec → design → tasks → apply → verify → archive`.
-Los artefactos viven en `openspec/`, que está **gitignorado** a propósito para no imponer el
-tooling al resto del equipo. La especificación precede al código.
+Los artefactos viven en `openspec/` y **se versionan**: el contrato SDD es la evidencia de que la
+especificación precedió al código, y esa trazabilidad es parte de lo que se defiende ante el
+jurado. (Al inicio se ignoró el directorio para no imponer el tooling al equipo; la decisión se
+revirtió en `8ca0de9` al versionar el contrato de la Fase B.)
+
+> ⚠️ **Consecuencia directa**: `openspec/` viaja a un repositorio **público**. Todo artefacto —
+> incluidos los reportes de proceso (`apply-progress.md`, `verify-report.md`, `archive-report.md`)
+> — debe nacer anonimizado. Un reporte que *narra* el saneamiento de un dato personal no debe
+> transcribir el dato saneado: se lo referencia, nunca se lo reproduce.

@@ -98,7 +98,19 @@ y el front todavía no tiene el concepto.
 **El dato operativo central es «ahora de quién depende»**: el trabajo real de la coordinación es
 perseguir el trámite, así que el responsable del paso actual vale más que el «cuánto falta».
 
-## El trabajo que viene — Fase B (contexto, no ejecutar desde acá)
+## ⛔ ESTA SECCIÓN VENCIÓ EL 2026-08-28 — la Fase B está CERRADA y MERGEADA
+
+`main == origin/main == 0b1a275` (merge de la PR #1), divergencia `0 0`. **`lib/mock-data.ts` y
+`lib/store.tsx` YA NO EXISTEN** (re-verificado el 2026-09-07), y `lib/types.ts` son los tipos del
+contrato real, no los union types literales. Lo de abajo vale como **el porqué del trabajo hecho**,
+nunca como estado ni como trabajo pendiente.
+
+**El trabajo que viene AHORA es otro**: la pantalla que reproduce el formato oficial `DO-FR-100`
+de créditos adicionales — change OpenSpec `formulario-do-fr-100-creditos-adicionales`, cuyo
+insumo completo está en `openspec/changes/formulario-do-fr-100-creditos-adicionales/BRIEF.md`.
+Ruta nueva que **convive** con `app/requests/new/page.tsx` (intocable), backend sin cambios.
+
+## El trabajo que vino — Fase B (contexto histórico, no ejecutar desde acá)
 
 Hoy el front corre 100% sobre mocks: `lib/mock-data.ts` + `lib/store.tsx`. La Fase B es conectar
 contra el motor de workflow real del backend.

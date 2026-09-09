@@ -83,6 +83,9 @@ describe('detalle de solicitud', () => {
     expect(screen.getByText('1000000001')).toBeDefined()
     expect(screen.getByText('Adición de créditos')).toBeDefined()
     expect(screen.getAllByText('Registrada').length).toBeGreaterThan(0)
+    // `createdAt` es parte del escenario: el fixture lo traía pero nada lo afirmaba.
+    // Se compara contra el año y no contra el formato exacto, que depende del locale.
+    expect(screen.getByText(/Registrado el .*2026/)).toBeDefined()
   })
 
   it('un 404 muestra la pantalla de no encontrada, no un banner de error', async () => {
@@ -135,6 +138,26 @@ describe('detalle de solicitud', () => {
     render(<RequestDetailPage />)
 
     await waitFor(() => expect(screen.getByText(/lleva 3 días/i)).toBeDefined())
+  })
+
+  it('una antigüedad alta no se destaca: 30 días se ve igual que 3', async () => {
+    // La spec difiere a SP5 decidir que N días es "tarde". Mientras tanto la UI
+    // ordena pero no juzga: el valor se pinta con el mismo estilo para cualquier N.
+    async function estiloCon(dias: number) {
+      const fecha = new Date(Date.now() - dias * 86400000).toISOString().replace('Z', '')
+      stubFetch(BASE, [
+        REGISTRO,
+        { ...REGISTRO, id: 2, fromState: REGISTRADA, toState: EN_FACULTAD, occurredAt: fecha },
+      ])
+      render(<RequestDetailPage />)
+      const valor = await screen.findByText(new RegExp(`Lleva ${dias} días`, 'i'))
+      const clase = valor.className
+      cleanup()
+      vi.unstubAllGlobals()
+      return clase
+    }
+
+    expect(await estiloCon(30)).toBe(await estiloCon(3))
   })
 
   it('la entrada de registro no muestra "en nombre de"', async () => {
