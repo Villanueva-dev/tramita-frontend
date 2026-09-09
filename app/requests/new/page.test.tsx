@@ -109,6 +109,24 @@ describe('formulario de registro (US1)', () => {
     expect(screen.getByLabelText<HTMLSelectElement>(/tipo de trámite/i).value).toBe('')
   })
 
+  it('no expone campos sin fuente en el contrato', async () => {
+    stubFetch()
+    await renderLoaded()
+
+    // Los tres campos que el backend sí persiste.
+    expect(screen.getByLabelText(/tipo de trámite/i)).toBeDefined()
+    expect(screen.getByLabelText(/nombre completo/i)).toBeDefined()
+    expect(screen.getByLabelText(/cédula/i)).toBeDefined()
+
+    // Y ninguno más: pedir un dato que el backend no guarda promete algo falso
+    // al usuario y deja el valor en los logs del request.
+    expect(screen.queryAllByRole('textbox')).toHaveLength(2)
+    expect(screen.queryAllByRole('combobox')).toHaveLength(1)
+    for (const ausente of [/prioridad/i, /vencimiento/i, /fecha límite/i, /adjunt/i]) {
+      expect(screen.queryByLabelText(ausente)).toBeNull()
+    }
+  })
+
   it('rechaza un nombre de solo espacios sin llamar al backend', async () => {
     const spy = stubFetch()
     await renderLoaded()
