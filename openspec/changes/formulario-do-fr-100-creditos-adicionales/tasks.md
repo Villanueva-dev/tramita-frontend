@@ -39,7 +39,7 @@ se ve aunque todavía no registre—, que es lo que habilita pedir feedback temp
 - [ ] 1.7 GREEN: crear `components/do-fr-100/motivos.ts` (14 rótulos); tablas 4 y 6 (firmas, solo espacio) en `sections.tsx`.
 - [ ] 1.8 RED: crear `definition-code.test.ts` — guarda `workflow-requests` (b): lee `page.tsx` con `node:fs`, cuenta `ADICION_CREDITOS`, espera 1.
 - [ ] 1.9 GREEN: ajustar `page.tsx` a un único literal.
-- [ ] 1.10 Verificar `pnpm test` completo; `app/requests/new/page.test.tsx` sigue con 9 `it` verdes, sin editarlo.
+- [ ] 1.10 Verificar `pnpm test` completo; `app/requests/new/page.test.tsx` **sin editar** y con todos sus `it(...)` verdes — contar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx` al ejecutar, no citar el número.
 - [ ] 1.11 Verificar `rm -rf .next && pnpm exec tsc --noEmit` sin errores.
 
 ## Fase 2 (PR 2) — Envío, validación y errores
@@ -61,6 +61,6 @@ se ve aunque todavía no registre—, que es lo que habilita pedir feedback temp
 - [ ] Registra una solicitud real con los 5 campos que persisten.
 - [ ] Test confirma que ningún campo no persistido llega al cuerpo (tarea 2.3).
 - [ ] `pnpm test` verde con los tests nuevos; `pnpm exec tsc --noEmit` sin errores (con `rm -rf .next` antes).
-- [ ] `app/requests/new/page.test.tsx` intacto, **9** `it(...)` verdes (medido; no 8 como decía `BRIEF.md`).
+- [ ] `app/requests/new/page.test.tsx` intacto y con todos sus `it(...)` verdes. El conteo se mide al cerrar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx`: el «9» de esta change venció al integrar `ede7bc3`, que redujo esa suite.
 - [ ] Cero datos personales reales en cualquier archivo del repo.
 - [ ] Las cinco preguntas a la Coordinación (`proposal.md`) quedan formuladas, con respuesta registrada o explícitamente pendientes.
