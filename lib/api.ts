@@ -74,22 +74,32 @@ interface RequestOptions {
   body?: Record<string, unknown>
 }
 
-async function apiFetch(path: string, opts: RequestOptions = {}): Promise<Response> {
-  const method = opts.method ?? 'GET'
+export async function apiFetch(
+  path: string,
+  opts: RequestOptions | RequestInit = {},
+): Promise<Response> {
+  const method = (opts.method ?? 'GET').toUpperCase()
   const isMutation = method !== 'GET'
 
+  const body = typeof opts.body === 'string'
+    ? opts.body
+    : opts.body === undefined
+      ? undefined
+      : JSON.stringify(opts.body)
+
   const run = (): Promise<Response> => {
-    const headers: Record<string, string> = {}
-    if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
+    const headers = new Headers('headers' in opts ? opts.headers : undefined)
+    if (body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
     if (isMutation) {
       const token = readXsrfToken()
-      if (token) headers[XSRF_HEADER] = token
+      if (token) headers.set(XSRF_HEADER, token)
     }
     return fetch(BASE + path, {
+      ...opts,
       method,
       credentials: 'include',
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body,
     })
   }
 
@@ -103,6 +113,19 @@ async function apiFetch(path: string, opts: RequestOptions = {}): Promise<Respon
   }
 
   return res
+}
+
+export async function problemMessage(response: Response, fallback: string) {
+  try {
+    const problem = await response.json() as { detail?: unknown; title?: unknown }
+    return typeof problem.detail === 'string'
+      ? problem.detail
+      : typeof problem.title === 'string'
+        ? problem.title
+        : fallback
+  } catch {
+    return fallback
+  }
 }
 
 // --- API de dominio ---

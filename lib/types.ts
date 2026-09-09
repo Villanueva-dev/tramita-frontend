@@ -52,6 +52,106 @@ export interface RequestSummary {
   createdAt: string
 }
 
+export type RequestType = 'adicion_creditos' | 'novedad_notas'
+export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
+export type SignatureType = 'DIGITAL' | 'ESCANEADA'
+
+export interface AttachmentApproval {
+  id: number
+  signerName: string
+  signerRole: string
+  signatureType: SignatureType
+  documentSha256: string
+  recordedByEmail: string
+  note?: string
+  signedAt: string
+  timestampedAt: string
+}
+
+export interface DocumentApprovalInput {
+  signerName: string
+  signerRole: string
+  signatureType: SignatureType
+  signedAt: string
+  note?: string
+}
+
+export interface Attachment {
+  id: string
+  name: string
+  size: string
+  type: string
+  sha256?: string
+  approvals: AttachmentApproval[]
+  file?: File
+}
+
+export interface SubjectInfo {
+  code: string
+  name: string
+  credits: number
+  group?: string
+  currentGrade?: string
+  proposedGrade?: string
+}
+
+export interface RequestTypeConfig {
+  id: RequestType
+  label: string
+  description: string
+  enabled: boolean
+  stages: { id: string; label: string; description: string }[]
+}
+
+export interface TimelineEvent {
+  id: string
+  date: string
+  actor: string
+  action: string
+  fromStatus?: RequestStatus
+  toStatus?: RequestStatus
+  comment?: string
+}
+
+export interface AcademicRequest {
+  id: string
+  radicado: string
+  type: RequestType
+  status: RequestStatus
+  priority: 'normal' | 'urgente'
+  createdAt: string
+  updatedAt: string
+  dueDate: string
+  studentCode: string
+  studentCedula: string
+  studentName: string
+  studentEmail: string
+  program: string
+  semester: string
+  subjects: SubjectInfo[]
+  reason: string
+  attachments: Attachment[]
+  timeline: TimelineEvent[]
+  currentStage: string
+  assignedTo: string
+  availableTransitions?: AvailableTransition[]
+}
+
+export interface RequestMetrics {
+  total: number
+  byDefinition: Record<string, number>
+  byCurrentState: Record<string, number>
+  completed: number
+  averageCycleHours: number | null
+  returnCount: number
+}
+
+export interface WorkflowStageConfig {
+  id: string
+  label: string
+  description: string
+}
+
 /** openapi.yaml TimelineEntry (:248-270). `id` es int64 (number), no string. */
 export interface TimelineEntry {
   id: number

@@ -42,3 +42,33 @@ export function formatDateTime(iso: string) {
     minute: '2-digit',
   })
 }
+
+export function addBusinessDays(iso: string, amount: number) {
+  const result = parseServerDateTime(iso)
+  if (Number.isNaN(result.getTime())) return iso
+  result.setUTCDate(result.getUTCDate() + amount)
+  return result.toISOString()
+}
+
+export function businessDaysUntil(iso: string) {
+  const due = parseServerDateTime(iso)
+  if (Number.isNaN(due.getTime())) return 0
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  due.setHours(0, 0, 0, 0)
+  return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+export function isOverdue(iso: string, status: string) {
+  return status !== 'finalizado' && businessDaysUntil(iso) < 0
+}
+
+export type StatusVariant = 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'info'
+
+export const statusVariant: Record<string, StatusVariant> = {
+  pendiente: 'warning',
+  en_revision: 'info',
+  devuelto: 'destructive',
+  aprobado: 'success',
+  finalizado: 'secondary',
+}

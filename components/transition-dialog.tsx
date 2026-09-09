@@ -35,11 +35,6 @@ export function TransitionDialog({
   const [localError, setLocalError] = useState('')
 
   useEffect(() => {
-    setNote('')
-    setLocalError('')
-  }, [transition])
-
-  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }

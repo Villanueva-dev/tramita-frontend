@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Eye,
   EyeOff,
@@ -17,22 +17,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Logo } from '@/components/brand'
-import { useAuth } from '@/lib/auth-store'
-import { apiErrorMessages } from '@/lib/api-errors'
+import { useTramita } from '@/lib/store'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, status } = useAuth()
+  const { login } = useTramita()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  // Si ya hay sesión (p. ej. F5 estando logueado), no mostrar el login.
-  useEffect(() => {
-    if (status === 'authenticated') router.replace('/dashboard')
-  }, [status, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,15 +38,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      // La navegación la dispara el useEffect cuando status pasa a 'authenticated'.
+      router.push('/dashboard')
     } catch (err) {
-      setError(
-        apiErrorMessages(err, {
-          unauthorized: 'Credenciales inválidas. Verifique su correo y contraseña.',
-          fallback: 'No se pudo iniciar sesión. Intente nuevamente.',
-        }).join(' '),
-      )
-    } finally {
+      setError(err instanceof Error ? err.message : 'No fue posible iniciar sesión.')
       setLoading(false)
     }
   }
@@ -130,7 +118,15 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  ¿Olvidó su contraseña?
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -185,9 +181,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            ¿Olvidó su contraseña? Comuníquese con el área de soporte para
-            restablecerla.
+          <p className="mt-6 rounded-lg bg-muted px-3 py-2.5 text-center text-xs text-muted-foreground">
+            Entorno de demostración. Presione{' '}
+            <span className="font-medium text-foreground">Ingresar</span> para
+            continuar con datos de ejemplo.
           </p>
         </div>
       </section>
