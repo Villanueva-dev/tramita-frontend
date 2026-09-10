@@ -23,8 +23,11 @@ type CardFilter =
   | 'urgente'
 
 export default function DashboardPage() {
-  const { requests, metrics, coordinatorName } = useTramita()
+  const { requests, metrics, coordinatorName, searchRequests, searched, searchErrors } = useTramita()
   const [now] = useState(() => Date.now())
+  // Término que viaja al backend (localización), distinto de `query`, que filtra
+  // en el cliente lo ya traído.
+  const [searchTerm, setSearchTerm] = useState('')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
@@ -276,16 +279,56 @@ export default function DashboardPage() {
 
         {/* Results */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <form
+            className="flex flex-wrap items-end gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void searchRequests(searchTerm)
+            }}
+          >
+            <div className="flex flex-1 flex-col gap-1.5 min-w-[220px]">
+              <Label htmlFor="request-search">Cédula o nombre del estudiante</Label>
+              <Input
+                id="request-search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Ej. 1090234 o Pérez"
+              />
+            </div>
+            <Button type="submit">Buscar</Button>
+          </form>
+
+          {searchErrors.map((message) => (
+            <p key={message} className="text-sm text-destructive">{message}</p>
+          ))}
+
+          {!searched && searchErrors.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Mostrando{' '}
-              <span className="font-medium text-foreground">
-                {filtered.length}
-              </span>{' '}
-              de {requests.length} solicitudes
+              Busque por cédula o nombre del estudiante para ver sus trámites. El sistema localiza
+              solicitudes; no muestra el listado completo de estudiantes.
             </p>
-          </div>
-          <RequestsTable requests={filtered} />
+          ) : null}
+
+          {searched ? (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando{' '}
+                  <span className="font-medium text-foreground">
+                    {filtered.length}
+                  </span>{' '}
+                  de {requests.length} solicitudes
+                </p>
+              </div>
+              {requests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Sin coincidencias para lo buscado.
+                </p>
+              ) : (
+                <RequestsTable requests={filtered} />
+              )}
+            </>
+          ) : null}
         </div>
       </div>
     </AppShell>

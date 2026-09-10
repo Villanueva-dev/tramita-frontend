@@ -31,6 +31,11 @@ export function Logo({
   )
 }
 
-export function StatusBadge({ status }: { status: RequestStatus }) {
-  return <Badge variant={statusVariant[status]}>{STATUS_LABELS[status]}</Badge>
+/**
+ * El color sale de `status` (la categoría con la que se filtra); el texto, del
+ * nombre que envía el motor de workflow. Sin `stateName` se cae a la etiqueta
+ * genérica, que no distingue «Rechazada» de «Finalizada».
+ */
+export function StatusBadge({ status, stateName }: { status: RequestStatus; stateName?: string }) {
+  return <Badge variant={statusVariant[status]}>{stateName || STATUS_LABELS[status]}</Badge>
 }
