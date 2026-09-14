@@ -68,7 +68,7 @@ alcance: **"Matrícula créditos adicionales"**.
 | Programa académico | → `program` (máx. 120) |
 | Sede · Facultad · Modalidad | se pintan, **no se envían** |
 | Semestre cursado y aprobado | → `semester` (máx. 50) |
-| Motivos de la solicitud (14 casillas) | **checkboxes multi-select, todas opcionales**, **no se envían** |
+| Motivos de la solicitud (13 casillas) | **checkboxes multi-select, todas opcionales**, **no se envían** |
 | "Otro: ¿Cuál?" | texto **opcional**, **no se envía** |
 | **Compromisos adquiridos** | → **`reason`** (máx. 2000) |
 | Campo de firmas y aprobaciones | solo el **espacio** pintado, sin funcionalidad |
@@ -120,7 +120,7 @@ asignaturas: la materia entra por ese texto libre.** Por eso se lo queda `reason
    >    a `/` cuando `status === 'unauthenticated'`, y `:149` no renderiza nada sin sesión.
 3. **Los campos no persistidos ni siquiera se envían** al backend. No mandarlos y confiar en que
    el backend los ignore: si se envían, pueden quedar en logs de request.
-4. **Las 14 opciones de motivos van hardcodeadas**, como **deuda deliberada y declarada**. Su
+4. **Las 13 opciones de motivos van hardcodeadas**, como **deuda deliberada y declarada**. Su
    destino correcto es configuración asociada a la definición del trámite, porque la Coordinación
    confirmó que *"si cambian una casilla, sacan la versión 2"* del formato. Dejarlo escrito en el
    design; no implementarlo ahora.
@@ -153,8 +153,9 @@ proposal a esperar aprobación**.
 - **`strict_tdd: true`** en `openspec/config.yaml`. Test primero.
 - Tests: `pnpm test` (Vitest 4 + Testing Library + jsdom, ya configurados).
 - Typecheck: `pnpm exec tsc --noEmit` — no hay script npm dedicado.
-- ⚠️ **ESLint no está instalado**: `pnpm lint` falla aunque el script exista en `package.json`.
-  No correrlo ni intentar arreglarlo.
+- **ESLint ya está instalado** (`ede7bc3`, 2026-09-09): `pnpm lint` corre con
+  `eslint.config.mjs` y el issue #4 se cerró el 2026-09-13. La restricción original de este brief
+  —"no correrlo"— venció.
 - No hay Prettier, Biome, coverage ni E2E.
 - Arquitectura: **estructura idiomática del App Router** (`app/` rutas, `components/` UI, `lib/`
   dominio), atomic design y container/presentational. **No copiar el package-by-layer del

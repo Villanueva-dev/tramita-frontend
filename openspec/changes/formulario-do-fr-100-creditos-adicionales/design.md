@@ -12,7 +12,7 @@
 Ruta nueva bajo `app/formatos/`, container/presentational: la página orquesta estado,
 validación de UX y envío; las seis tablas del formato viven en un presentational sin estado
 compuesto de primitivas de `components/ui/`. El cuerpo se arma con el allowlist que ya existe
-en `createRequest` (`lib/api.ts:180`) — esta pantalla es la razón por la que se escribió — y
+en `createRequest` (`lib/api.ts:198-207`) — esta pantalla es la razón por la que se escribió — y
 los errores reusan `apiErrorMessages` (RFC 9457). Cero cambios en `lib/`, en
 `app/requests/new/` y en el backend.
 
@@ -100,7 +100,7 @@ vacío, se revierte a (b) con el costo simétrico que la tabla describe.
 | Opción | Costo | Base |
 |---|---|---|
 | **(a) Obligatorios** *(elegida)* | La UI es más estricta que el contrato: si la Coordinación tiene un caso legítimo con el campo vacío, la pantalla bloquea un registro que el backend aceptaría. +3 tests RED. | El papel: sus tablas 3 y 5 no admiten celdas en blanco, y la fidelidad al papel es el criterio de desempate declarado. |
-| **(b) Opcionales** | Un `reason` vacío produce una solicitud sin contenido — y `reason` es el único lugar donde aparece la asignatura. Mala demo. | El contrato. |
+| **(b) Opcionales** | Un `reason` vacío produce una solicitud sin contenido — y `reason` es el único lugar donde aparece la asignatura, **confirmado por la Coordinación el 2026-09-13**, no inferido del formato. Mala demo. | El contrato. |
 | **(c) Split** (`reason` sí, los otros no) | Rechazada: la asimetría no se apoya ni en el papel ni en el contrato — es una corazonada disfrazada de matiz, y cuesta más explicarla que sostenerla. | — |
 
 Se eligió **(a)**. El rework es simétrico (3 líneas + 3 tests en cualquier dirección), así que
@@ -116,7 +116,7 @@ backend es ruido.
       ├─ validate()  → solo UX: marca aria-invalid y NO emite POST
       └─ handleSubmit() → createRequest({ definitionCode: 'ADICION_CREDITOS',
                              studentName, studentDocument, program, semester, reason })
-              │  allowlist de lib/api.ts:180 — los 8 no persistidos no tienen por dónde entrar
+              │  allowlist de lib/api.ts:198-207 — los 8 no persistidos no tienen por dónde entrar
               ▼
          POST /api/requests ─┬─ 201 → router.push(`/requests/{id}?created=1`)
                              ├─ 422 → error en la tabla 2 (CREATE_REQUEST_422_FIELD)
@@ -132,17 +132,25 @@ backend es ruido.
 | `app/formatos/do-fr-100/page.test.tsx` | Create | Tests de componente (jsdom). |
 | `app/formatos/do-fr-100/definition-code.test.ts` | Create | Guarda de texto fuente (ver Testing). |
 | `components/do-fr-100/sections.tsx` | Create | Presentational: las seis tablas en el orden del papel, compuestas de `components/ui/*`. |
-| `components/do-fr-100/motivos.ts` | Create | Los 14 rótulos hardcodeados, aislados (ver Deuda declarada). |
-| `components/ui/checkbox.tsx` | Create | Primitiva delgada `cn()` sobre `<input type="checkbox">`, igual patrón que `input.tsx`/`textarea.tsx`. 18 usos (4 + 14) justifican no repetir clases. |
+| `components/do-fr-100/motivos.ts` | Create | Los 13 rótulos hardcodeados, aislados (ver Deuda declarada). |
+| `components/ui/checkbox.tsx` | Create | Primitiva delgada `cn()` sobre `<input type="checkbox">`, igual patrón que `input.tsx`/`textarea.tsx`. 17 usos (4 + 13) justifican no repetir clases. |
 | `app/requests/new/**`, `lib/api.ts`, `lib/types.ts`, `components/app-shell.tsx` | **Sin tocar** | Invariante de la change. |
 
-## Deuda declarada — los 14 motivos
+## Deuda declarada — los 13 motivos
 
 Van hardcodeados en `components/do-fr-100/motivos.ts`. Su destino correcto es **configuración
 asociada a la definición del trámite**: la Coordinación confirmó que *«si cambian una casilla,
 sacan la versión 2»* del formato, así que el catálogo de motivos versiona con el trámite, no con
 el front. Se aísla en su propio módulo justamente para que esa migración toque un archivo. **No
 se implementa ahora** (cuesta backend y esquema, y no acerca la demo).
+
+## Normalización — las dos celdas «Otro: ¿Cuál?»
+
+El formato tiene **dos** celdas rotuladas «Otro: ¿Cuál?» en la tabla 4 (medido sobre el XML de la
+plantilla: trece motivos nombrados más esas dos apariciones). La pantalla las presenta como **un
+único campo libre**, y no se inventa un motivo 14 para cuadrar el conteo: dos celdas con el mismo
+rótulo son una sola pregunta repartida por maquetación, no dos datos distintos. Como el campo no
+se persiste, la normalización no tiene efecto sobre el cuerpo emitido.
 
 ## Testing Strategy
 
@@ -158,7 +166,7 @@ El conteo del literal se mide **solo sobre código de producción**: los tests y
 contienen legítimamente hoy (`lib/api.test.ts`, `app/**/*.test.tsx`), tal como lo interpretó la
 medición de la proposal. Todos los valores de prueba salen de `BRIEF.md:42-53` — sintéticos.
 
-`pnpm lint` no se ejecuta: ESLint no está instalado (issue #4).
+`pnpm lint` sí se ejecuta: ESLint entró en `ede7bc3` y el issue #4 se cerró el 2026-09-13.
 
 ## Threat Matrix
 

@@ -54,10 +54,23 @@ El sistema **MUST** construir el cuerpo mediante el mismo allowlist explícito d
 - WHEN se envía la solicitud
 - THEN el cuerpo transporta `"8"` sin transformarlo a un identificador de periodo académico
 
+### Requirement: La asignatura no se captura como campo propio
+
+El sistema **MUST NOT** capturar ni presentar la asignatura, su código o sus créditos como campos
+propios. La asignatura viaja como prosa dentro de «Compromisos adquiridos» → `reason`, tal como la
+registra el formato en papel (confirmado por la Coordinación, 2026-09-13). En consecuencia el tope
+de créditos del trámite no se evalúa por este canal, y eso es deliberado.
+
+#### Scenario: No existen campos de asignatura ni de créditos
+
+- GIVEN la pantalla del formato renderizada
+- WHEN se buscan campos de asignatura, código de asignatura o créditos
+- THEN no existe ninguno, y la asignatura solo puede escribirse dentro de «Compromisos adquiridos»
+
 ### Requirement: Campos que se pintan y no se envían
 
 El sistema **MUST** presentar en pantalla, reproduciendo el formato oficial, los campos ciudad y
-fecha, correo electrónico, número de contacto, sede, facultad, modalidad, las catorce casillas de
+fecha, correo electrónico, número de contacto, sede, facultad, modalidad, las trece casillas de
 motivos de la solicitud y "Otro: ¿cuál?". El sistema **MUST NOT** incluir ninguno de estos
 valores en el cuerpo emitido hacia `POST /requests`, sin importar si el usuario los diligencia.
 Es una garantía de minimización de datos personales, no una preferencia de presentación.

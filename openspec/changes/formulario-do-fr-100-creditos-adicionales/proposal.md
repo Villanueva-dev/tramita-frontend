@@ -31,9 +31,9 @@ consumidor. Esta change lo cierra.
 - **Cinco campos que persisten**: `studentName` (≤120), `studentDocument` (≤20), `program` (≤120),
   `semester` (≤50, ordinal) y `reason` (≤2000, recibe «Compromisos adquiridos»).
 - **Los campos no persistidos se pintan y no se envían** — ciudad/fecha, correo, contacto, sede,
-  facultad, modalidad, los 14 motivos y «Otro: ¿cuál?». La guarda ya existe en `lib/api.ts:176-184`
+  facultad, modalidad, los 13 motivos y «Otro: ¿cuál?». La guarda ya existe en `lib/api.ts:198-207`
   y esta pantalla es la razón por la que se escribió.
-- **Los 14 motivos, hardcodeados**, como **deuda deliberada y declarada** (ver Out of Scope).
+- **Los 13 motivos, hardcodeados**, como **deuda deliberada y declarada** (ver Out of Scope).
 - **TDD estricto** (`openspec/config.yaml:17`) con los valores sintéticos de `BRIEF.md:42-53`.
 
 ### Out of Scope — KISS + YAGNI
@@ -41,8 +41,8 @@ consumidor. Esta change lo cierra.
 | Queda fuera | Por qué |
 |---|---|
 | Reemplazar `app/requests/new/page.tsx` | Funciona, registra solicitudes reales y tiene tests vivos. **Conviven.** Tocarla mete riesgo sin acercar la demo. |
-| Cualquier cambio de backend | Todo lo que persiste ya existe en `CreateRequestBody` (`lib/api.ts:163-172`). Cero trabajo del lado servidor. |
-| Sección de asignaturas / disparar el tope de 21 créditos | El formato **no tiene** tabla de asignaturas: la materia entra en prosa dentro de «Compromisos adquiridos». Inventarla para lucir la validación sería el defecto, no el logro. Va como **pregunta a la Coordinación**, no como código (rel. `Villanueva-dev/Tramita#17`). |
+| Cualquier cambio de backend | Todo lo que persiste ya existe en `CreateRequestBody` (`lib/api.ts:186-195`). Cero trabajo del lado servidor. **Sigue siendo cierto para esta pantalla**: el trabajo de backend que abrió `Villanueva-dev/Tramita#18` pertenece a la captura pública, que es otra change. |
+| Sección de asignaturas / disparar el tope de 21 créditos | El formato **no tiene** tabla de asignaturas: la materia entra en prosa dentro de «Compromisos adquiridos». **Confirmado por la Coordinación el 2026-09-13** — era una lectura del formato, ahora es la respuesta a la pregunta 1. Se captura como texto libre, sin catálogo de asignaturas ni créditos. En consecuencia el tope de 21 créditos **no se evalúa por este canal**, y esa es la conducta correcta, no una carencia: `Villanueva-dev/Tramita#17` se cerró como statu quo por el mismo motivo. |
 | Motivos como configuración del trámite | Es su destino correcto —la Coordinación confirmó que *«si cambian una casilla, sacan la versión 2»*—, pero cuesta backend y esquema. Se **documenta**, no se implementa. |
 | Los otros tres tipos de solicitud del formato | Solo se especifica **que no son seleccionables**; si van deshabilitados o ausentes lo decide el design. |
 | Firmas, adjuntos, impresión/PDF | La tabla 6 se pinta como **espacio**, sin funcionalidad. Nada de esto tiene consumidor hoy. |
@@ -105,12 +105,16 @@ y los rótulos. Ese es el criterio de desempate ante cualquier duda de presentac
 
 Objetivo declarado de la pantalla: preguntar en lugar de suponer.
 
-1. **La asignatura que se adiciona** se escribe hoy en prosa dentro de «Compromisos adquiridos».
-   ¿Debería el sistema capturarla aparte (código, nombre, créditos), aun cuando el formato no la
-   pide? Sin ese dato el tope de 21 créditos **nunca llega a evaluarse** (`Tramita#17`).
-2. ¿Las **14 casillas de motivos** siguen vigentes en la versión que se usa hoy, o ya cambiaron?
-3. **Correo y número de contacto**: ¿se usan operativamente para perseguir el trámite? Hoy **no se
-   guardan** por minimización de datos personales; si son necesarios, es una decisión de producto.
+1. ✅ **RESPONDIDA el 2026-09-13.** ¿Capturar la asignatura aparte (código, nombre, créditos)?
+   **No.** Se captura como texto libre dentro de «Compromisos adquiridos», tal cual el papel:
+   pedirla estructurada inventaría un dato que quien diligencia no puede completar. El tope de 21
+   créditos no se evalúa por este canal — `Tramita#17` se cerró como statu quo por lo mismo.
+2. ¿Las **13 casillas de motivos** siguen vigentes en la versión que se usa hoy, o ya cambiaron?
+   (Trece es el conteo medido sobre el XML de la plantilla v2024, más dos celdas «Otro: ¿Cuál?».)
+3. ✅ **RESPONDIDA.** **Correo y número de contacto** sí se usan operativamente: la Coordinación
+   responde hoy por correo, así que el canal existe antes que el sistema. Persistirlos es una
+   enmienda de `FR-020` del backend, pedida en `Villanueva-dev/Tramita#18` y **fuera del alcance de
+   esta pantalla**: acá se siguen pintando sin enviarse.
 4. **¿Quién diligencia el formato?** ¿El estudiante lo envía lleno y la Coordinación transcribe, o
    la Coordinación lo llena mientras atiende?
 5. **Firmas**: ¿basta con dejar constancia de que existieron, o hay que adjuntar el PDF firmado?
@@ -119,9 +123,9 @@ Objetivo declarado de la pantalla: preguntar en lugar de suponer.
 
 | Riesgo | Prob. | Mitigación |
 |---|---|---|
-| Un campo no persistido llega al backend y a sus logs | Baja | El allowlist de `lib/api.ts:176-184` lo impide por construcción; la spec exige un escenario que lo ejercite. |
+| Un campo no persistido llega al backend y a sus logs | Baja | El allowlist de `lib/api.ts:198-207` lo impide por construcción; la spec exige un escenario que lo ejercite. |
 | Dato personal real del PDF llega al repo público | Baja | Solo valores sintéticos (`BRIEF.md:42-53`); el PDF se consulta por estructura, nunca por datos. Verificable con una búsqueda antes del commit. |
-| La demo hace creer que el tope de 21 créditos está validado | **Media** | Se declara en la proposal y se traslada como pregunta 1; el design decide si la pantalla lo dice en pantalla. |
+| La demo hace creer que el tope de 21 créditos está validado | **Media** | La pregunta 1 ya tiene respuesta: el tope no se evalúa por este canal y es deliberado. El design decide si la pantalla lo dice explícitamente. |
 | Romper la pantalla existente por refactor «de paso» | Baja | Es invariante de la change; sus tests deben seguir verdes sin modificarlos. |
 | La maqueta se vuelve permanente sin decidir su futuro | Media | Alcance y deuda (motivos hardcodeados) declarados aquí; sin enlace en el nav. |
 
@@ -136,10 +140,11 @@ rollback deja de ser trivial, y esa asimetría es parte del trade-off que el des
 ## Dependencies
 
 - Cliente HTTP alineado al contrato 003 — **cumplido**: `CreateRequestBody` declara los seis
-  campos (`lib/api.ts:163-172`).
+  campos (`lib/api.ts:186-195`).
 - Backend levantado y con `ADICION_CREDITOS` sembrado, solo para la prueba end-to-end manual.
-- Ninguna dependencia npm nueva. `pnpm lint` **no se ejecuta**: ESLint no está instalado
-  (`openspec/config.yaml:43-46`, issue #4).
+- Ninguna dependencia npm nueva. `pnpm lint` **ya funciona**: ESLint entró en `ede7bc3` y el
+  issue #4 se cerró el 2026-09-13. La verificación del repo es `pnpm test` + `pnpm exec tsc
+  --noEmit` + `pnpm lint` + `pnpm build`.
 
 ## Success Criteria
 

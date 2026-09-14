@@ -34,9 +34,13 @@ se ve aunque todavía no registre—, que es lo que habilita pedir feedback temp
 - [ ] 1.2 GREEN: crear `app/formatos/do-fr-100/page.tsx` (monta `AppShell`) + `components/do-fr-100/sections.tsx`, 6 tablas estáticas.
 - [ ] 1.3 RED `page.test.tsx`: tabla 2 — 4 checkboxes, 3 `disabled` sin marcar, 1 `disabled` marcada, dentro de `fieldset`+`legend`; click en las 3 no marca ninguna.
 - [ ] 1.4 GREEN: crear `components/ui/checkbox.tsx`; tabla 2 con `fieldset`/`legend`/nota `aria-describedby`.
-- [ ] 1.5 RED `page.test.tsx`: tabla 4 — 14 checkboxes de motivo + "Otro: ¿cuál?".
+- [ ] 1.5 RED `page.test.tsx`: tabla 4 — 13 checkboxes de motivo + **un** campo "Otro: ¿cuál?".
+      El papel tiene **dos** celdas "Otro: ¿Cuál?" (medido sobre el XML de la plantilla);
+      se normalizan a un único campo libre, sin inventar un motivo 14.
+- [ ] 1.5b RED `page.test.tsx`: no existe ningún campo de asignatura, código de asignatura
+      ni créditos; el único texto libre del bloque es «Compromisos adquiridos».
 - [ ] 1.6 RED `page.test.tsx`: guarda `workflow-requests` (a) — `queryAllByRole('combobox')` = 0.
-- [ ] 1.7 GREEN: crear `components/do-fr-100/motivos.ts` (14 rótulos); tablas 4 y 6 (firmas, solo espacio) en `sections.tsx`.
+- [ ] 1.7 GREEN: crear `components/do-fr-100/motivos.ts` (13 rótulos); tablas 4 y 6 (firmas, solo espacio) en `sections.tsx`.
 - [ ] 1.8 RED: crear `definition-code.test.ts` — guarda `workflow-requests` (b): lee `page.tsx` con `node:fs`, cuenta `ADICION_CREDITOS`, espera 1.
 - [ ] 1.9 GREEN: ajustar `page.tsx` a un único literal.
 - [ ] 1.10 Verificar `pnpm test` completo; `app/requests/new/page.test.tsx` **sin editar** y con todos sus `it(...)` verdes — contar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx` al ejecutar, no citar el número.
@@ -45,13 +49,13 @@ se ve aunque todavía no registre—, que es lo que habilita pedir feedback temp
 ## Fase 2 (PR 2) — Envío, validación y errores
 
 - [ ] 2.1 RED `page.test.tsx`: envío con los 5 campos → cuerpo = 5 campos + `definitionCode`; `semester` viaja `"8"` sin transformar.
-- [ ] 2.2 GREEN: estado + `handleSubmit` en `page.tsx`; `createRequest` con el allowlist de `lib/api.ts:180`.
+- [ ] 2.2 GREEN: estado + `handleSubmit` en `page.tsx`; `createRequest` con el allowlist de `lib/api.ts:198-207`.
 - [ ] 2.3 RED `page.test.tsx`: llenar los 8 campos no persistidos y enviar → el cuerpo no los contiene.
 - [ ] 2.4 GREEN: confirmar que `sections.tsx` no los propaga al estado enviado (el allowlist ya lo impide).
 - [ ] 2.5 RED `page.test.tsx`: `program`/`semester`/`reason` vacíos tras `trim()`, y los 5 campos sobre su límite (120/20/120/50/2000) → inválidos sin POST (Decisión 4, +3 tests).
 - [ ] 2.6 GREEN: extender `validate()` con obligatoriedad y límites de los 5 campos.
 - [ ] 2.7 RED `page.test.tsx`: `422` → error atado a `definitionCode`; otro error → banner de formulario.
-- [ ] 2.8 GREEN: `catch` en `handleSubmit` con `ApiError`/`apiErrorMessages`, patrón de `app/requests/new/page.tsx:96-104`.
+- [ ] 2.8 GREEN: `catch` en `handleSubmit` con `ApiError`/`apiErrorMessages`, patrón de `app/requests/new/page.tsx:147`.
 - [ ] 2.9 Verificar `pnpm test` completo; `rm -rf .next && pnpm exec tsc --noEmit` sin errores.
 - [ ] 2.10 Verificar manual: registrar una solicitud real contra el backend levantado.
 
@@ -63,4 +67,6 @@ se ve aunque todavía no registre—, que es lo que habilita pedir feedback temp
 - [ ] `pnpm test` verde con los tests nuevos; `pnpm exec tsc --noEmit` sin errores (con `rm -rf .next` antes).
 - [ ] `app/requests/new/page.test.tsx` intacto y con todos sus `it(...)` verdes. El conteo se mide al cerrar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx`: el «9» de esta change venció al integrar `ede7bc3`, que redujo esa suite.
 - [ ] Cero datos personales reales en cualquier archivo del repo.
-- [ ] Las cinco preguntas a la Coordinación (`proposal.md`) quedan formuladas, con respuesta registrada o explícitamente pendientes.
+- [ ] Las cinco preguntas a la Coordinación (`proposal.md`): **1 y 3 respondidas** (2026-09-13);
+      **2, 4 y 5 explícitamente pendientes**. La 5 (firmas) **no** queda resuelta por
+      `Tramita#11`, que es SP4 — traza de aprobaciones, otro alcance.
