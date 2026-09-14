@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from 'react'
 
-import { apiFetch, problemMessage } from './api'
+import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
+import { apiErrorMessages } from './api-errors'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
 import { workflowConfig as defaultWorkflowConfig } from './mock-data'
@@ -275,19 +276,20 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
 
     setSearchErrors([])
     try {
-      const response = await apiFetch(`/requests?search=${encodeURIComponent(trimmed)}`)
-      if (!response.ok) {
-        throw new Error(await problemMessage(response, 'No se pudieron cargar las solicitudes'))
-      }
-      const summaries = await response.json() as ApiRequest[]
-      setRequests(summaries.map(baseRequest))
+      setRequests((await fetchRequestsByTerm(trimmed)).map(baseRequest))
       setSearched(true)
     } catch (error) {
       // Los resultados previos pertenecen al término anterior: dejarlos junto a
       // un error sugiere que siguen vigentes para lo que se acaba de buscar.
       setRequests([])
       setSearched(false)
-      setSearchErrors([error instanceof Error ? error.message : 'No se pudieron cargar las solicitudes'])
+      // `apiErrorMessages` ya traduce 401, 400, 429 y parte el detalle del 422;
+      // rehacer esa traducción acá era la otra mitad de la duplicación.
+      //
+      // Sin `overrides.fallback` a propósito: ese override gana sobre el
+      // `title` del backend, y lo cambiaría por un genérico que no dice qué
+      // pasó. Sin él, el mensaje del servidor llega tal cual a la pantalla.
+      setSearchErrors(apiErrorMessages(error))
     }
   }, [])
 

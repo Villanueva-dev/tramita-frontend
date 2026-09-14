@@ -8,8 +8,9 @@ import type { Request, TimelineEntry } from './types'
 /**
  * Detalle de una solicitud junto con su bitácora de auditoría.
  *
- * A diferencia de `use-request-search`, esta carga no nace de una interacción
- * sino de abrir la pantalla, así que va en un Effect. Eso obliga al flag
+ * A diferencia de la búsqueda, que se dispara desde el handler del formulario,
+ * esta carga no nace de una interacción sino de abrir la pantalla, así que va
+ * en un Effect. Eso obliga al flag
  * `ignore` del cleanup que documenta React: si el id cambia o la pantalla se
  * desmonta mientras una petición está en vuelo, su respuesta ya no corresponde
  * al estado vigente y no debe escribirse.

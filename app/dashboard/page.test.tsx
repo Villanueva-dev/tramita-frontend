@@ -98,6 +98,24 @@ describe('DashboardPage — localización de solicitudes', () => {
 
     expect(screen.getByText(/sin coincidencias/i)).toBeDefined()
   })
+
+  it('la ayuda inicial deja el lugar al aviso cuando la búsqueda no se pudo hacer', () => {
+    useTramita.mockReturnValue({
+      requests: [],
+      metrics: null,
+      coordinatorName: 'coord@example.com',
+      searchRequests: vi.fn(),
+      searched: false,
+      searchErrors: ['Escriba al menos 2 caracteres para buscar.'],
+    })
+
+    render(<DashboardPage />)
+
+    // Dos textos compitiendo por el mismo hueco se leen como contradicción:
+    // el aviso dice que algo falta y la ayuda invita a empezar de cero.
+    expect(screen.getByText(/escriba al menos 2 caracteres/i)).toBeDefined()
+    expect(screen.queryByText(/busque por cédula o nombre/i)).toBeNull()
+  })
 })
 
 describe('DashboardPage', () => {
