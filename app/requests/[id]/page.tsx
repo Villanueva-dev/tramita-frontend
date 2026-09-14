@@ -273,7 +273,7 @@ export default function RequestDetailPage() {
                 <h2 className="font-serif text-2xl font-bold tracking-tight">
                   {req.radicado}
                 </h2>
-                <StatusBadge status={req.status} />
+                <StatusBadge status={req.status} stateName={req.stateName} />
                 {req.priority === 'urgente' && !isFinalized && (
                   <Badge variant="destructive">Urgente</Badge>
                 )}

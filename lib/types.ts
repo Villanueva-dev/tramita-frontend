@@ -118,6 +118,13 @@ export interface AcademicRequest {
   radicado: string
   type: RequestType
   status: RequestStatus
+  /**
+   * Nombre del estado tal como lo define el motor de workflow y lo envía el
+   * backend en `currentState.name`. Es lo que se muestra: `status` agrupa para
+   * filtrar y colorear, pero no puede distinguir dos estados finales distintos
+   * (RECHAZADA y FINALIZADA) ni los seis intermedios que colapsa.
+   */
+  stateName: string
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string

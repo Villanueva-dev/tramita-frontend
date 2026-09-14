@@ -14,25 +14,34 @@
 | Base de datos | Postgres `localhost:5433` | `docker start tramita-postgres` |
 
 **Proxy same-origin — ya implementado en `proxy.ts`**, no en `next.config.mjs`. El navegador ve
-todo bajo `localhost:3000`, así `SameSite=Strict` funciona, las cookies fluyen y **no hace falta
-CORS**.
+todo bajo `localhost:3000`, así `SameSite=Strict` funciona y las cookies fluyen.
 
-> ⚠️ **Un `rewrites()` de `next.config.mjs` NO alcanza**, aunque parezca equivalente. El navegador
-> manda `Origin: http://localhost:3000` en cada POST; si se reenvía tal cual, el backend lo ve
-> como cross-origin y **responde `403` aunque el CSRF sea válido**. Un rewrite de configuración no
-> puede modificar headers de la request; por eso el proxy vive en `proxy.ts`, que borra el header
-> `Origin` antes de reenviar (ver `proxy.ts:5-9` y el comentario de `next.config.mjs:6-7`).
+> 🔴 **Corrección 2026-09-13 — el `403` que originó este diseño era un valor mal configurado, no
+> el CORS.** Hasta hoy este documento afirmaba que reenviar el header `Origin` provocaba un `403`
+> "aunque el CSRF fuera válido", y por eso `proxy.ts` lo borraba antes de reenviar. **Es falso, y
+> está medido end-to-end**: aquel `403` venía de `APP_CORS_ALLOWED_ORIGINS` apuntando a un puerto
+> que no usa nadie (el `.env.example` del backend trae `5173`, el puerto por defecto de **Vite**;
+> `README.md:190` del backend es el único lugar que dice `3000`). Con la allowlist corregida, un
+> `POST /api/auth/login` con `Origin: http://localhost:3000` responde `401` por credenciales:
+> pasó CORS **y** pasó CSRF. El `headers.delete('origin')` se quitó de `proxy.ts`.
+
+**Qué hay que configurar igual, con proxy y todo**: `APP_CORS_ALLOWED_ORIGINS=http://localhost:3000`
+en el `.env` del backend (sin esa env var **no arranca**: fail-fast). No es redundante con el
+proxy: mientras el header se borraba, el backend no podía distinguir orígenes y aceptaba cualquiera
+que entrara por ahí; hoy rechaza uno ajeno con `403`. Es defensa en profundidad, y estuvo apagada
+sin que nadie lo supiera.
 
 ```ts
-// proxy.ts — el matcher captura /api/:path*
-const headers = new Headers(request.headers)
-headers.delete('origin')
-return NextResponse.rewrite(target, { request: { headers } })
+// proxy.ts — el matcher captura /api/:path*; reescribe la URL y no toca los headers
+return NextResponse.rewrite(target)
 ```
 
-> Alternativa sin proxy (fetch directo a `:8080`): hay que setear en el backend
-> `APP_CORS_ALLOWED_ORIGINS=http://localhost:3000` (sin esa env var el backend **no arranca**:
-> fail-fast) y usar `credentials: 'include'`. El proxy es más simple — es la vía recomendada.
+> **Alternativa sin proxy** (fetch directo a `:8080` con `credentials: 'include'` y la misma
+> allowlist): sigue disponible. Su descarte anterior —"el proxy es más simple"— se apoyaba en el
+> `403` que resultó falso, así que ya no es argumento para cerrar la discusión. **La topología de
+> despliegue es una decisión abierta del sistema**, no de este repo: el backend documenta un
+> despliegue cross-origin por subdominios y este frontend impuso same-origin por proxy. En dev
+> manda el proxy; para producción hay que decidirla explícitamente.
 
 **Credenciales de dev**: el backend siembra la cuenta real desde `SEED_COORD_EMAIL` /
 `SEED_COORD_PASSWORD` (`.env`, sin defaults). NO son las del mock de la maqueta
@@ -176,20 +185,22 @@ async function apiFetch(path: string, opts: RequestInit = {}) {
 // rehidratación al montar: const res = await apiFetch('/auth/me'); if (res.ok) setUser(await res.json());
 ```
 
-## 9. Checklist de cableado (maqueta actual → real)
+## 9. Checklist de cableado (maqueta → real) — completo
 
-- [x] Proxy same-origin de `/api/*` (§0) — resuelto en `proxy.ts`, que además borra el header
-  `Origin`. **No usar `rewrites()` de `next.config.mjs`**: no puede modificar headers.
-- [ ] `lib/api.ts`: crear el cliente base (§8) con `credentials: 'include'` + CSRF.
-- [ ] `lib/store.tsx`: **borrar el mock** (login simulado, credenciales hardcodeadas, `setTimeout`).
-  - `login(email, pw)` → `POST /auth/login`; en `204`, `GET /me` y poblar `user`.
-  - Quitar "logueado en memoria" como fuente de verdad → rehidratar con `GET /me` al montar y tras F5.
-  - `logout()` → `POST /auth/logout`; limpiar estado; re-sembrar CSRF.
-- [ ] Nueva **página de cambio de contraseña** (falta en la maqueta): form con espejo de política
-  en vivo (§6) y manejo del `422` (§5).
-- [ ] Mapear errores `problem+json` a la UI (§7).
-- [ ] Resolver el error TS oculto por `ignoreBuildErrors: true` (`app/.../[id]/page.tsx:132`,
-  `req` possibly undefined) — no es de auth, pero conviene apagar el `ignoreBuildErrors`.
+Los seis ítems están implementados. Se conservan con su commit para que la traza sea auditable.
+Todo el cableado es del 2026-07-15; la única corrección posterior es la del proxy (§0, 2026-09-13).
+
+- [x] Proxy same-origin de `/api/*` (§0) — `f7ff5f4`. Hoy `proxy.ts` solo reescribe la URL.
+  Corregida la allowlist, un `rewrites()` de `next.config.mjs` sería funcionalmente equivalente;
+  se mantiene `proxy.ts` porque ya está cableado y migrarlo no compra nada.
+- [x] `lib/api.ts`: cliente base (§8) con `credentials: 'include'` + CSRF — `f7ff5f4`;
+  tests en `6fed65d`.
+- [x] `lib/store.tsx`: mock de auth retirado — `aa4f22a` (AuthProvider con rehidratación vía
+  `/me`) y `246a4c5` (login, gate y logout reales). El auth vive en `lib/auth-store.tsx`.
+- [x] Página de cambio de contraseña con espejo de política (§6) — `0b5b0c8`; la política pura
+  y sus tests, en `a61100f`.
+- [x] Errores `problem+json` mapeados a la UI (§7) — `d424f22`, en `lib/api-errors.ts`.
+- [x] `ignoreBuildErrors` apagado y corregido el narrowing de `RequestDetailPage` — `cc86ca2`.
 
 ## 10. Fuera de alcance (Fase B)
 
@@ -198,9 +209,12 @@ que cubre solo auth.
 
 > **Actualización 2026-08-16**: el backend `002-workflow-engine` **ya existe y está mergeado a
 > `main`** (PR #3, merge `edcf188`). Su contrato es
-> `specs/002-workflow-engine/contracts/openapi.yaml`. La Fase B está en curso y `lib/types.ts` de
-> la maqueta **no es un borrador de contrato válido**: congela trámites y estados en union types
-> literales, incompatible con un motor configurable por dato. Se reemplaza, no se cablea.
+> `specs/002-workflow-engine/contracts/openapi.yaml`.
+>
+> **Actualización 2026-08-29**: la Fase B del frontend está **terminada y mergeada** (PR #1 del
+> repositorio `tramita-frontend`). El `lib/types.ts` de la maqueta original **no era un borrador de
+> contrato válido** —congelaba trámites y estados en union types literales, incompatible con un
+> motor configurable por dato— y fue reemplazado, no cableado.
 
 ---
 
