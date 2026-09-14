@@ -18,3 +18,5 @@ node_modules
 .codegraph/
 .atl/
 *.tsbuildinfo
+# Notas de trabajo locales: no viajan al repositorio público.
+notas-locales/

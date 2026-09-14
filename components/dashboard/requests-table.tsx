@@ -109,7 +109,7 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
                   <TypeBadge type={req.type} />
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={req.status} />
+                  <StatusBadge status={req.status} stateName={req.stateName} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatDate(req.createdAt)}
@@ -141,7 +141,7 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
                 )}
                 <span className="font-medium text-primary">{req.radicado}</span>
               </div>
-              <StatusBadge status={req.status} />
+              <StatusBadge status={req.status} stateName={req.stateName} />
             </div>
             <p className="font-medium">{req.studentName}</p>
             <p className="text-xs text-muted-foreground">
