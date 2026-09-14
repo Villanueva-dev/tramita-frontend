@@ -20,3 +20,4 @@ node_modules
 *.tsbuildinfo
 # Notas de trabajo locales: no viajan al repositorio público.
 notas-locales/
+.pi/
