@@ -2,11 +2,17 @@
 
 ## Purpose
 
-Acotar el requisito del catálogo data-driven para reconocer una segunda clase de pantalla
-de registro: las que reproducen un formato oficial en papel (hoy el DO-FR-100), en lugar de
-ofrecer un selector de trámites. La regla original se escribió en la fase B, cuando existía una
-sola clase de pantalla, y describía bien ese mundo. El sistema ahora tiene dos clases; el
-requisito se **completa** para cubrir la que faltaba — no se relaja para acomodar el código.
+Acotar el requisito del catálogo data-driven para reconocer una segunda clase de pantalla de
+registro: las que reproducen un formato oficial en papel (hoy el DO-FR-100), en lugar de ofrecer
+un selector de trámites. La regla original se escribió en la fase B, cuando existía una sola
+clase de pantalla, y describía bien ese mundo. El sistema ahora tiene dos clases; el requisito se
+**completa** para cubrir la que faltaba — no se relaja para acomodar el código.
+
+> **Revisado el 2026-09-16 tras el giro a canal público.** El delta sobrevive: una pantalla que
+> reproduce un formato oficial sigue declarando su trámite en vez de ofrecerlo. Lo único que
+> cambia es **dónde se usa el literal**: antes viajaba en el cuerpo como `definitionCode`; ahora
+> arma la ruta `POST /api/public/requests/{definitionCode}`, porque el canal público determina el
+> trámite por la ruta y no por el cuerpo. Sigue apareciendo exactamente una vez.
 
 ## MODIFIED Requirements
 
@@ -22,8 +28,9 @@ El sistema **MUST NOT** fijar en ellas códigos o nombres de trámite fuera de f
 
 **Pantallas que reproducen un formato oficial en papel** (por ejemplo, el DO-FR-100 acotado a
 créditos adicionales): un formato de papel no ofrece elegir entre trámites, reproduce uno. El
-sistema **MUST** declarar su `definitionCode` de forma explícita y **exactamente una vez** en el
-código de la pantalla, y **MUST NOT** ofrecer en ellas ningún selector de trámites.
+sistema **MUST** declarar su código de trámite de forma explícita y **exactamente una vez** en el
+código de la pantalla —sea para el cuerpo de la petición o para construir su ruta— y **MUST NOT**
+ofrecer en ellas ningún selector de trámites.
 
 (Previously: el requisito solo contemplaba pantallas que ofrecen elegir trámite y prohibía sin
 excepción cualquier `code` fijado en `app/`, `components/` o `lib/` fuera de fixtures.)
@@ -52,4 +59,5 @@ excepción cualquier `code` fijado en `app/`, `components/` o `lib/` fuera de fi
 - GIVEN una pantalla que reproduce un formato oficial (por ejemplo, el DO-FR-100)
 - WHEN se inspecciona su código fuente e interfaz
 - THEN no expone ningún control que permita elegir un trámite distinto
-- AND su literal de `definitionCode` aparece exactamente una vez
+- AND su literal de código de trámite aparece exactamente una vez, sin importar si alimenta el
+  cuerpo de la petición o su ruta

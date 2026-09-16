@@ -1,3 +1,26 @@
+> ## ⚠️ ESTADO: SUPERADO — leer como registro histórico, no como guía
+>
+> **Anotado el 2026-09-16.** Este brief describe una pantalla **interna**, montada sobre el gate
+> de sesión y enviando a `POST /requests`. La reunión con la Coordinación del 2026-09-15 la
+> volvió **pública**. La autoridad vigente es `proposal.md`, `design.md` y `tasks.md`, ya
+> reorientados.
+>
+> **Lo que este documento afirma y hoy es falso:**
+>
+> - «El array `NAV` sigue teniendo sus **dos** ítems» → hoy tiene **cuatro** (`app-shell.tsx:23-28`).
+> - «**El backend no se toca**» → la decisión de obligatoriedad total agrega **cuatro columnas**
+>   (`student_phone`, `campus`, `faculty`, `modality`) y reabre la feature 004.
+> - «Correo, contacto, sede, facultad, modalidad y los motivos **se pintan, no se envían**» → los
+>   cinco primeros **se envían y se persisten**; los trece motivos **se eliminaron** del formulario.
+> - «Las **13 opciones de motivos** van hardcodeadas como deuda deliberada» → no hay casillas, no
+>   hay deuda: pertenecen a otros tipos de solicitud, no a adición de créditos.
+> - «`app/requests/new/page.test.tsx` tiene **8** tests» → el conteo se **mide** al cerrar; el 8 y
+>   el 9 posteriores vencieron al integrar `ede7bc3`.
+>
+> **Lo que sigue vigente y vale releer**: la prohibición absoluta de PII real del PDF, los valores
+> sintéticos de prueba, por qué «Compromisos adquiridos» es el campo central, y las restricciones
+> del repo (pnpm, TDD estricto, Vitest, Conventional Commits en español).
+
 # Brief — Pantalla del formato DO-FR-100 (créditos adicionales)
 
 > **Qué es este documento.** El insumo que originó esta change, redactado el 2026-09-07 a partir

@@ -1,190 +1,283 @@
-# Design: Pantalla del formato DO-FR-100 — matrícula de créditos adicionales
+# Design: Formulario público del DO-FR-100 — matrícula de créditos adicionales
 
-> **Cómo se midió.** Lo que este documento afirma del repo se leyó hoy (2026-09-09):
-> `components/app-shell.tsx` completo, `app/requests/new/page.tsx` y su test (**9** bloques
-> `it(...)`), `lib/api.ts:77-106` y `:154-187`, `lib/api-errors.ts`, `package.json`,
-> `vitest.config.mts`, el árbol de `app/` y el inventario de `components/ui/` (badge, button,
-> card, input, label, select, textarea — **no hay checkbox**). **No verificado**: `pnpm test` y
-> `tsc --noEmit`, que esta fase no ejecutó.
+> **Reorientado el 2026-09-16.** El design anterior diseñaba una pantalla interna montada sobre
+> `AppShell`. Sus cuatro decisiones se reevaluaron una por una: **la 1 se cae, la 2 se repliega,
+> la 3 sobrevive con otro código de error, la 4 se endurece**. Se agregan tres decisiones nuevas
+> que el canal público obliga a tomar: la firma, el acuse y la salida ante el riesgo biométrico.
 
 ## Technical Approach
 
-Ruta nueva bajo `app/formatos/`, container/presentational: la página orquesta estado,
-validación de UX y envío; las seis tablas del formato viven en un presentational sin estado
-compuesto de primitivas de `components/ui/`. El cuerpo se arma con el allowlist que ya existe
-en `createRequest` (`lib/api.ts:198-207`) — esta pantalla es la razón por la que se escribió — y
-los errores reusan `apiErrorMessages` (RFC 9457). Cero cambios en `lib/`, en
-`app/requests/new/` y en el backend.
+Una ruta pública que no monta el shell de la aplicación, con un container que orquesta estado,
+validación de UX y envío, y componentes presentacionales sin estado propio para cada bloque del
+formato. El transporte existente se reusa tal cual; se agrega una función de dominio con su
+propio allowlist.
+
+El criterio de desempate ante dudas de presentación es el que fija la proposal: **conservar la
+fidelidad donde el estudiante la necesita, replegar lo que existía solo para que la Coordinación
+reconociera el papel.**
 
 ## Architecture Decisions
 
-### Decisión 1 — Ruta: `app/formatos/do-fr-100/page.tsx`, montando `<AppShell>`
+### Decisión 1 — Ruta pública `app/solicitud/creditos-adicionales/page.tsx`, sin `AppShell`
 
 | | |
 |---|---|
-| **Elegido** | `app/formatos/do-fr-100/page.tsx` con `<AppShell title="…">`. `app-shell.tsx` no se toca. |
-| **Alternativa de eje distinto** | Refinar el cálculo de `active` (`app-shell.tsx:38-40`): arreglar el shell en vez de esquivarlo (opción 4 del BRIEF). |
+| **Elegido** | `app/solicitud/creditos-adicionales/page.tsx`, sin montar `<AppShell>`. `app-shell.tsx` no se toca. |
+| **Alternativa de eje distinto** | `app/solicitud/[definitionCode]/page.tsx`: espejar la ruta del API y servir a cualquier trámite que se habilite como público. |
 
-Las opciones 1-3 del BRIEF son **el mismo eje** (elegir un string de URL), así que no cuentan
-como alternativa: la única otra palanca es cambiar quién decide el resaltado.
+**Por qué no montar el shell.** Medido el 2026-09-16: `components/app-shell.tsx:46-47` ejecuta
+`router.replace('/')` dentro de un `useEffect` cuando no hay sesión, y `:142` devuelve `null`.
+Una pantalla pública montada sobre él **sería redirigida al login**. El design anterior rechazó
+esta misma opción «porque pierde el gate de sesión»; en el canal público el gate es exactamente
+lo que sobra, así que la opción que se descartó es ahora la correcta, por la razón inversa.
 
-- **Por qué `formatos/` y no `requests/creditos/`**: por dos razones, ninguna de ellas técnica
-  de enrutado. Primero, `formatos/` es inmune **por construcción** al cálculo de resaltado de
-  `NAV` (`:23-26`), no por casualidad: tampoco lo encendería un futuro ítem `/requests`.
-  Segundo, **nombra la clase de pantalla** que el delta de `workflow-requests` acaba de
-  reconocer — «pantallas que reproducen un formato oficial» —, de modo que la estructura de
-  carpetas y la especificación dicen lo mismo.
+> ⚠️ El design anterior citaba `app-shell.tsx:130-132` y `:150` para ese gate. **Esas líneas ya
+> no corresponden**: el archivo cambió y hoy son `:46-47` y `:142`. Citar `archivo:línea` desde
+> un documento de diseño no es evidencia; hay que volver a medir.
 
-  > ⚠️ **Lo que NO es un argumento válido, y se descarta explícitamente.** Convivir con
-  > `app/requests/[id]/page.tsx` **no** sería un conflicto: Next.js llama a ese caso *static
-  > siblings* y lo resuelve de forma determinística y documentada — el segmento estático
-  > siempre tiene precedencia sobre el dinámico hermano (`getRouteMatch` prueba las rutas
-  > exactas antes que las dinámicas en `packages/next/src/server/base-server.ts`, la
-  > especificidad las ordena en `sortable-routes.ts`, y hay una suite e2e dedicada en
-  > `test/e2e/app-dir/static-siblings/`). El único efecto real sería que `/requests/creditos`
-  > dejaría de ser alcanzable como `[id]`, lo que con identificadores UUID no puede ocurrir.
-  > Se deja registrado para que nadie reconstruya este descarte sobre una premisa falsa.
-- **Por qué se rechaza la alternativa**: `app-shell.tsx` lo comparten cinco pantallas y **no
-  tiene tests** (`components/app-shell.test.tsx` no existe; los tests de página lo mockean).
-  Elegí no tocarlo sabiendo que **el acoplamiento del resaltado queda vivo**: convertir un
-  `git revert` de archivos nuevos en un rollback transversal no lo paga esta change. Follow-up
-  con disparo explícito: cuando una ruta necesite de verdad el resaltado, primero un test del
-  shell.
-- **Por qué no la opción 5** (no montar `AppShell`): pierde el gate de sesión (`:130-132`
-  redirige a `/`; `:150` no renderiza sin sesión). Cambiar autenticación por cosmética de nav es
-  mal negocio. Precedente: `/account/password` y `/requests/[id]` ya se ven sin ítem resaltado.
+**Por qué esta ruta y no la anterior.** `app/formatos/do-fr-100/` se eligió porque era inmune al
+cálculo de resaltado del nav (`app-shell.tsx:38-40`). Sin `AppShell` no hay nav en esta pantalla:
+**ese criterio dejó de discriminar** y ninguna ruta lo enciende. El criterio vigente es otro —
+esta URL la recibe un estudiante por correo—, y `/solicitud/creditos-adicionales` se lee sin
+conocer el sistema, mientras que `DO-FR-100` es un código interno que él no maneja.
 
-### Decisión 2 — Tipo de solicitud: las cuatro casillas, ninguna interactiva
+> Nota de medición: `BRIEF.md` afirma que el array `NAV` «sigue teniendo sus dos ítems».
+> **Hoy tiene cuatro** (`app-shell.tsx:23-28`: dashboard, requests/new, settings, assistant).
+> La conclusión no cambia, pero la premisa estaba vencida.
 
-| | |
-|---|---|
-| **Elegido** | `<fieldset>` + `<legend>Tipo de solicitud</legend>` con las cuatro casillas como `<input type="checkbox" disabled>`; solo «Matrícula créditos adicionales» va `checked`. Una nota visible explica la restricción, atada con `aria-describedby`. |
-| **Alternativa de eje distinto** | No usar controles de formulario: pintar la tabla 2 como marcado presentacional (glifos ▢/☑ en una lista), sin ningún `<input>`. |
+**Por qué se rechaza la alternativa.** `[definitionCode]` es YAGNI: hoy existe **un** trámite
+público, el backend ya decide cuáles lo son por configuración (`PUBLIC_CAPTURE_ENABLED`), y este
+formulario reproduce **un** formato en papel — no es un formulario genérico y no podría serlo sin
+volverse data-driven, que es otro proyecto. Además expondría el código interno en una URL que lee
+un estudiante. **Disparo para reconsiderar**: cuando exista un segundo trámite con captura
+pública habilitada.
 
-Omitir las tres rompe la fidelidad al papel, que la spec fija como criterio de desempate: el
-papel tiene cuatro casillas. Frente a los glifos, la casilla deshabilitada conserva la
-afordancia que reconoce quien llena el formato y deja legible el alcance actual — las tres
-grises **son** la pregunta a la Coordinación. Costo aceptado: un control `disabled` sale del
-orden de tabulación y baja de contraste; se mitiga con la leyenda y la nota, no con un `title`.
+**Providers**: no hace falta refactor. `app/layout.tsx:42-44` envuelve todo el árbol en
+`AuthProvider` + `TramitaProvider`, pero hay precedente probado de una página sin sesión bajo
+ellos: `app/page.tsx` (el login) ya usa `useTramita()`. `AuthProvider` llama `getMe()` al montar
+(`auth-store.tsx:48`) y el `401` es señal, no error (`api.ts:141`). Costo aceptado: una llamada
+`/auth/me` que el estudiante no necesita. **No** se consume el store en esta pantalla.
 
-### Decisión 3 — Sin verificación temprana del catálogo (A′ descartada)
+### Decisión 2 — El tipo de solicitud se afirma, no se ofrece en cuatro casillas
 
 | | |
 |---|---|
-| **Elegido** | No consultar `listWorkflowDefinitions()` al montar. El fallo de configuración sigue llegando como `422` en el envío, atado a la tabla 2. |
-| **Alternativa de eje distinto** | En vez de detectar antes (eje *cuándo*), abaratar el fallo tardío (eje *cuánto cuesta*): mensaje accionable en su tabla, con el estado del formulario intacto. |
+| **Elegido** | El bloque se reduce a una afirmación: «Tipo de solicitud: **Matrícula créditos adicionales**». Las otras tres casillas del formato **se omiten**. |
+| **Alternativa de eje distinto** | Conservar las cuatro casillas deshabilitadas, como decidió el design anterior. |
 
-- Medido en `app/requests/new/page.tsx:95-104`: el `catch` **no resetea el estado ni navega**.
-  Un `422` cuesta un clic, no volver a llenar seis tablas — el costo que A′ evitaría no existe.
-- El repo ya tiene el preflight sin escribir una línea: `/requests/new` puebla su `<select>`
-  desde `GET /workflow-definitions`; abrirla antes de la demo responde si `ADICION_CREDITOS`
-  está sembrado.
-- A′ costaría una llamada de red al montar, dos estados y ≥2 tests del camino de error, contra
-  la prioridad declarada (velocidad para conseguir feedback) y KISS+YAGNI.
-- **Disparo para reconsiderar**: si el `422` por trámite no sembrado aparece más de una vez en
-  una demo real.
+**Esto invierte la decisión anterior**, que eligió las cuatro casillas «porque el papel tiene
+cuatro» y porque «las tres grises *son* la pregunta a la Coordinación». Ambos argumentos
+pertenecían al mundo en que la lectora era la Coordinación.
 
-### Decisión 4 — `program`, `semester` y `reason` son obligatorios en la pantalla
+Aplicado el criterio vigente: las tres casillas inertes existían **para que la Coordinación
+reconociera el formato**. Un estudiante que abre un enlace de adición de créditos no gana nada
+viendo tres opciones grises que no puede elegir — gana la pregunta «¿por qué no puedo pedir
+esas?», que nadie va a responderle. En un celular, además, son tres objetivos táctiles de 44 px
+que no hacen nada.
 
-**Cerrada: opción (a).** Decisión de producto tomada por el responsable del proyecto tras
-plantearle el trade-off; no es una inferencia de este documento. El contrato 003 los declara
-opcionales (`lib/api.ts:167-171`; `required` solo exige `definitionCode`, `studentName`,
-`studentDocument`), pero el papel los pide siempre, y la fidelidad al papel es el criterio de
-desempate declarado en la proposal y en la spec.
+Lo que el estudiante **sí** necesita saber es qué está solicitando, y eso se conserva: el tipo
+aparece afirmado en el encabezado del formulario.
 
-**Consecuencia deliberada**: la validación de la pantalla es **más estricta que el contrato**.
-Es un endurecimiento de UX, no una regla de negocio nueva — la autoridad sigue siendo del
-backend, que aceptaría el registro sin esos campos. Si aparece un caso legítimo con alguno
-vacío, se revierte a (b) con el costo simétrico que la tabla describe.
+> ⚠️ **Decisión derivada del principio, no dictada explícitamente.** El responsable fijó el
+> criterio general de repliegue; esta aplicación concreta la propone el design. Si se prefiere
+> conservar las cuatro casillas, es un cambio de una sección y ~2 tests.
 
-| Opción | Costo | Base |
+### Decisión 3 — Sin verificación temprana del catálogo (sobrevive, con otro código)
+
+| | |
+|---|---|
+| **Elegido** | No consultar el catálogo al montar. El fallo de configuración llega en el envío. |
+| **Alternativa de eje distinto** | Abaratar el fallo tardío en vez de adelantarlo: mensaje accionable con el estado del formulario intacto. |
+
+Sobrevive del design anterior, y sus razones siguen en pie: el `catch` no resetea el estado ni
+navega, así que el fallo cuesta un clic y no volver a llenar el formato.
+
+**Lo que cambia es el código de error.** Ya no es un `422` por definición inexistente: el canal
+público responde **`404`** cuando el trámite no existe **o no tiene la captura pública
+habilitada**, sin distinguir entre ambos casos —la distinción no le sirve a quien envía
+legítimamente y sí a quien sondea—. El mensaje al estudiante debe ser accionable sin exponer esa
+diferencia: *«Este enlace no está disponible. Escribile a la Coordinación.»*
+
+⚠️ **Y el preflight gratuito desapareció**: el design anterior contaba con abrir `/requests/new`
+antes de una demo para comprobar que `ADICION_CREDITOS` estaba sembrado. Esa pantalla es interna
+y no dice nada sobre `PUBLIC_CAPTURE_ENABLED`. La comprobación previa a una demo ahora es abrir
+la propia URL pública.
+
+### Decisión 4 — Todos los campos son obligatorios
+
+**Cerrada por el responsable del proyecto el 2026-09-16**: *«mejor dicho, NINGÚN CAMPO PUEDE
+QUEDAR VACÍO»*. No es una inferencia de este documento.
+
+El design anterior ya había endurecido tres campos por encima del contrato, y lo declaraba como
+tal. Ahora no hay endurecimiento: **el contrato público y la pantalla coinciden**, porque los
+once campos son obligatorios en ambos lados.
+
+| Campo | Límite | Nota |
 |---|---|---|
-| **(a) Obligatorios** *(elegida)* | La UI es más estricta que el contrato: si la Coordinación tiene un caso legítimo con el campo vacío, la pantalla bloquea un registro que el backend aceptaría. +3 tests RED. | El papel: sus tablas 3 y 5 no admiten celdas en blanco, y la fidelidad al papel es el criterio de desempate declarado. |
-| **(b) Opcionales** | Un `reason` vacío produce una solicitud sin contenido — y `reason` es el único lugar donde aparece la asignatura, **confirmado por la Coordinación el 2026-09-13**, no inferido del formato. Mala demo. | El contrato. |
-| **(c) Split** (`reason` sí, los otros no) | Rechazada: la asimetría no se apoya ni en el papel ni en el contrato — es una corazonada disfrazada de matiz, y cuesta más explicarla que sostenerla. | — |
+| `studentName` | ≤120 | |
+| `studentDocument` | ≤20 | |
+| `studentEmail` | ≤255 | Canal por el que responde la Coordinación |
+| `studentPhone` | ≤30 | Columna nueva en el backend |
+| `program` | ≤120 | |
+| `campus` | ≤120 | Columna nueva |
+| `faculty` | ≤120 | Columna nueva |
+| `modality` | ≤50 | Columna nueva |
+| `semester` | ≤50 | Ordinal (`'8'`), no un periodo académico |
+| `reason` | ≤2000 | «Compromisos adquiridos». Acá va la asignatura, en prosa |
+| `signature` | — | URL de datos; el tope real lo fija el filtro de 256 KB sobre el cuerpo |
 
-Se eligió **(a)**. El rework es simétrico (3 líneas + 3 tests en cualquier dirección), así que
-la decisión se tomó por el riesgo de la demo, no por el costo de cambiarla después. Si alguna vez
-se revierte a **(b)**, los campos vacíos deben viajar como `undefined` —no `''`—:
-`JSON.stringify` (`lib/api.ts:92`) omite la clave, y una cadena vacía contra un `@Size` del
-backend es ruido.
+**Consecuencia declarada**: esto **reabre la feature 004 del backend**. `V3.3.0` pasa de dos
+columnas a seis, y `data-model.md:28` —que rechazó `student_phone` por §III— debe rectificarse
+con el consumidor que esa decisión no miró: el PDF formal del SP3 (`Tramita#10`). Ver la
+proposal, sección *Dependencies*, incluida la precisión sobre el alcance de esa cita.
+
+**Validación vacía**: se valida tras `trim()`. Un campo con espacios no cuenta como diligenciado.
+
+### Decisión 5 — La firma es un `<canvas>` propio con suavizado, sin dependencias
+
+| | |
+|---|---|
+| **Elegido** | `<canvas>` con Pointer Events y suavizado por curva cuadrática; `toDataURL('image/png')`. |
+| **Alternativa de eje distinto** | El nombre tipografiado: el estudiante escribe su nombre y se renderiza en cursiva sobre el canvas. |
+
+**Por qué no una librería.** `signature_pad` existe para que el trazo salga suave. El spec del
+backend declara que **el sistema acepta una firma ilegible o un solo trazo** y que juzgar si una
+firma sirve es de la Coordinación (`../Tramita/specs/004-public-request-capture/spec.md:129`).
+El requisito de calidad es cero: comprar una dependencia para satisfacerlo es comprar algo que
+nadie pidió. El suavizado que de verdad mejora el trazo con el dedo cabe en cuatro líneas —punto
+medio entre muestras y `quadraticCurveTo`— y queda en el repo, auditable.
+
+**Por qué no la tipografiada, siendo más simple.** Es técnicamente superior: menos código, menos
+peso, accesible con teclado, y **no es un rasgo biométrico**. Pero contradice
+`spec.md:28` («firma trazando en la pantalla») y la Coordinadora aprobó el prototipo **con
+trazo**. Su costo no es de código: es reabrir una decisión ya cerrada con la usuaria. Ver la
+Decisión 7, que la deja lista por si hace falta.
+
+**Detalles que no son opcionales**, y que solo se ven con un teléfono en la mano:
+
+- **`touch-action: none` en el canvas.** Sin esa línea de CSS, arrastrar el dedo hace scroll y el
+  recuadro no recibe el trazo. Es la trampa número uno y no es JavaScript.
+- **Escalar por `devicePixelRatio`** al dimensionar el canvas, o el trazo sale borroso.
+- **`setPointerCapture`**, para que el trazo no se corte si el dedo sale del recuadro.
+- **Botón «Limpiar»**, porque firmar mal con el dedo es normal.
+- El canvas se considera firmado **solo si hubo al menos un trazo**: un canvas en blanco produce
+  un PNG válido, así que `toDataURL()` devolviendo algo **no** prueba que el estudiante firmó.
+  Esa distinción se guarda en estado propio, no se infiere del data URL.
+
+**Peso**: un trazo del tamaño del recuadro pesa 20–30 KB en base64
+(`research.md` D6), contra un tope de 256 KB para el cuerpo entero (D7). Holgado, pero el
+formulario debe mostrar el error `413` de forma accionable si alguna vez se supera.
+
+### Decisión 6 — El acuse reemplaza al formulario en la misma página
+
+| | |
+|---|---|
+| **Elegido** | Al recibir el `201`, la página cambia de estado y muestra la confirmación en lugar del formulario. |
+| **Alternativa de eje distinto** | Una ruta `/solicitud/creditos-adicionales/enviado`. |
+
+El `201` del canal público **no devuelve identificador, ni estado, ni cabecera `Location`**
+(`openapi.yaml`, FR-008, D5): devolverlos abriría de hecho la ventana de consulta que la
+Coordinación decidió no dar. Por lo tanto `router.push('/requests/{id}?created=1')` —el patrón
+vigente en `app/requests/new/page.tsx:146`— **es imposible aquí**: no hay `id`.
+
+Contra la ruta aparte: sería alcanzable por URL directa sin haber enviado nada, mostrando una
+confirmación falsa, y un refresh sobre el formulario podría re-enviar. El cambio de estado in
+situ no tiene ninguno de los dos problemas.
+
+El acuse **MUST NOT** mostrar identificador, estado ni enlace de consulta. Dice que llegó, y
+dice que la Coordinación responderá al correo que el estudiante escribió.
+
+> El spec del backend acepta explícitamente que un doble envío registre dos solicitudes y que la
+> Coordinación descarte una (`spec.md:119`). El front **no debe** inventar deduplicación.
+
+### Decisión 7 — La salida ante el riesgo biométrico queda escrita, no implementada
+
+No está determinado si una firma manuscrita digitalizada constituye dato biométrico bajo la
+Ley 1581 de 2012, ni se obtuvo pronunciamiento sobre su valor probatorio. Ambas cosas están
+declaradas **provisionales y no auditadas** en `research.md:148-154`.
+
+**Decisión**: se implementa la Decisión 5 y se deja documentada la sustitución.
+
+**Disparo explícito**: si la consulta responde que el trazo es dato biométrico, se sustituye la
+captura por el nombre tipografiado. Para que ese cambio sea local y no un rediseño, la captura
+vive **detrás de una interfaz de un solo método** —«devolveme una URL de datos y si hubo firma»—
+en `components/firma/`, y el container no sabe cómo se produjo el trazo.
+
+Eso es lo único que el desacoplamiento compra, y se paga con un archivo más. No se construye
+nada más «por si acaso».
 
 ## Data Flow
 
-    app/formatos/do-fr-100/page.tsx  (container)
-      ├─ estado: 5 campos que persisten + 8 que se pintan y no se envían
-      ├─ validate()  → solo UX: marca aria-invalid y NO emite POST
-      └─ handleSubmit() → createRequest({ definitionCode: 'ADICION_CREDITOS',
-                             studentName, studentDocument, program, semester, reason })
-              │  allowlist de lib/api.ts:198-207 — los 8 no persistidos no tienen por dónde entrar
+    app/solicitud/creditos-adicionales/page.tsx  (container, público)
+      ├─ estado: 11 campos + hayFirma:boolean + estadoEnvio
+      ├─ validate() → todos no vacíos tras trim() + límites → marca aria-invalid, NO emite
+      └─ handleSubmit() → submitPublicRequest('ADICION_CREDITOS', { …11 campos })
+              │  allowlist propio en lib/api.ts — el estado del formulario no se propaga
+              │  apiFetch sin cambios: sin cookie CSRF no manda el header (api.ts:94-97)
               ▼
-         POST /api/requests ─┬─ 201 → router.push(`/requests/{id}?created=1`)
-                             ├─ 422 → error en la tabla 2 (CREATE_REQUEST_422_FIELD)
-                             └─ otro → banner de formulario (apiErrorMessages)
+         POST /api/public/requests/ADICION_CREDITOS
+              ├─ 201 → estado 'enviado' → el acuse reemplaza al formulario
+              ├─ 404 → «Este enlace no está disponible» (Decisión 3)
+              ├─ 413 → «La firma es demasiado pesada. Limpiá y firmá de nuevo.»
+              ├─ 422 → error atado al campo que el problem+json nombre
+              ├─ 429 → apiErrorMessages ya lo maneja con Retry-After (api-errors.ts:31-36)
+              └─ otro → banner de formulario
 
-    components/do-fr-100/sections.tsx  ← props (valores + onChange + errors); sin estado propio
+    components/do-fr-100/*  ← props (valores + onChange + errors); sin estado propio
+    components/firma/*      ← expone { dataUrl, hayFirma } hacia arriba
 
 ## File Changes
 
 | Archivo | Acción | Detalle |
 |---|---|---|
-| `app/formatos/do-fr-100/page.tsx` | Create | Container: estado, validación de UX, envío por allowlist, ruteo de errores. Monta `AppShell`. **Único lugar con el literal `ADICION_CREDITOS`.** |
-| `app/formatos/do-fr-100/page.test.tsx` | Create | Tests de componente (jsdom). |
-| `app/formatos/do-fr-100/definition-code.test.ts` | Create | Guarda de texto fuente (ver Testing). |
-| `components/do-fr-100/sections.tsx` | Create | Presentational: las seis tablas en el orden del papel, compuestas de `components/ui/*`. |
-| `components/do-fr-100/motivos.ts` | Create | Los 13 rótulos hardcodeados, aislados (ver Deuda declarada). |
-| `components/ui/checkbox.tsx` | Create | Primitiva delgada `cn()` sobre `<input type="checkbox">`, igual patrón que `input.tsx`/`textarea.tsx`. 17 usos (4 + 13) justifican no repetir clases. |
-| `app/requests/new/**`, `lib/api.ts`, `lib/types.ts`, `components/app-shell.tsx` | **Sin tocar** | Invariante de la change. |
-
-## Deuda declarada — los 13 motivos
-
-Van hardcodeados en `components/do-fr-100/motivos.ts`. Su destino correcto es **configuración
-asociada a la definición del trámite**: la Coordinación confirmó que *«si cambian una casilla,
-sacan la versión 2»* del formato, así que el catálogo de motivos versiona con el trámite, no con
-el front. Se aísla en su propio módulo justamente para que esa migración toque un archivo. **No
-se implementa ahora** (cuesta backend y esquema, y no acerca la demo).
-
-## Normalización — las dos celdas «Otro: ¿Cuál?»
-
-El formato tiene **dos** celdas rotuladas «Otro: ¿Cuál?» en la tabla 4 (medido sobre el XML de la
-plantilla: trece motivos nombrados más esas dos apariciones). La pantalla las presenta como **un
-único campo libre**, y no se inventa un motivo 14 para cuadrar el conteo: dos celdas con el mismo
-rótulo son una sola pregunta repartida por maquetación, no dos datos distintos. Como el campo no
-se persiste, la normalización no tiene efecto sobre el cuerpo emitido.
+| `app/solicitud/creditos-adicionales/page.tsx` | Create | Container público. **Único lugar con el literal `ADICION_CREDITOS`**, ahora para armar la ruta. |
+| `app/solicitud/creditos-adicionales/page.test.tsx` | Create | Tests de componente (jsdom). |
+| `app/solicitud/creditos-adicionales/definition-code.test.ts` | Create | Guarda de texto fuente: el literal aparece exactamente una vez. |
+| `components/do-fr-100/sections.tsx` | Create | Presentational de los bloques del formato. |
+| `components/firma/canvas-firma.tsx` | Create | Captura del trazo. Superficie mínima hacia afuera (Decisión 7). |
+| `components/ui/checkbox.tsx` | **Ya no hace falta** | Existía para las 17 casillas (4 + 13). Sin casillas, no hay consumidor: no se crea (§I). |
+| `lib/api.ts` | Modify | Agrega `submitPublicRequest` con allowlist propio. **`createRequest` no se toca.** |
+| `lib/types.ts` | Modify | `PublicRequestBody` y `PublicReceipt`. |
+| `app/requests/new/**`, `components/app-shell.tsx` | **Sin tocar** | Invariante. |
 
 ## Testing Strategy
 
-| Capa | Qué se prueba | Cómo |
-|---|---|---|
-| Componente | Orden y rótulos de las seis tablas; los 8 campos no persistidos no llegan al cuerpo; envío con los 5 campos; `semester` como ordinal; límites de longitud sin emitir POST; `422` en la tabla 2 vs. banner | Vitest + Testing Library, patrón de `app/requests/new/page.test.tsx`: `vi.stubGlobal('fetch')`, `cleanup()` manual, aserción sobre `JSON.parse(init.body)` |
-| Componente | Guarda de `workflow-requests`, mitad **«no expone selector»** | `queryAllByRole('combobox')` → 0; las 4 casillas de la tabla 2 están `disabled` y un `click` en las tres no marcadas no las marca |
-| Fuente | Guarda de `workflow-requests`, mitad **«el literal aparece exactamente una vez»** | Test aparte que lee `page.tsx` con `node:fs` y cuenta ocurrencias. No hay precedente en el repo (medido: 0 coincidencias de `readFileSync\|node:fs` en `**/*.{ts,tsx,mts}`), pero es la única forma mecanizable: un test de runtime no ve el texto del fuente. `@types/node` ya está instalado; sin dependencias nuevas |
-| Regresión | `app/requests/new/page.test.tsx` intacto y verde (9 `it`) | `pnpm test` |
-| Tipos | `pnpm exec tsc --noEmit` **precedido de `rm -rf .next`** | Manual |
+TDD estricto (`openspec/config.yaml:17`). Los tests que importan, más allá de los de render:
 
-El conteo del literal se mide **solo sobre código de producción**: los tests y fixtures lo
-contienen legítimamente hoy (`lib/api.test.ts`, `app/**/*.test.tsx`), tal como lo interpretó la
-medición de la proposal. Todos los valores de prueba salen de `BRIEF.md:42-53` — sintéticos.
+1. **Sin sesión no hay redirección.** El test monta la página sin sesión y verifica que sigue
+   renderizando. Es el que habría detectado el error del design anterior.
+2. **El cuerpo emitido tiene exactamente once campos** y **no** contiene `definitionCode`.
+3. **El trámite viaja en la URL**: la ruta llamada es `/public/requests/ADICION_CREDITOS`.
+4. **Ningún campo vacío pasa**: por cada campo, vaciarlo (y llenarlo de espacios) impide el envío.
+5. **Canvas en blanco no cuenta como firma**, aunque `toDataURL()` devuelva un PNG válido.
+6. **El acuse no contiene identificador ni estado.**
+7. **Los errores 404 / 413 / 422 / 429** se renderizan donde corresponde.
 
-`pnpm lint` sí se ejecuta: ESLint entró en `ede7bc3` y el issue #4 se cerró el 2026-09-13.
+⚠️ **Lo que jsdom no puede probar**: el gesto táctil real. `touch-action` es CSS y no se ejercita
+en jsdom, así que **la firma con el dedo se verifica a mano en un dispositivo real** y se anota
+como criterio de cierre. Un test verde no prueba que se pueda firmar en un celular.
 
 ## Threat Matrix
 
-**N/A** — la change no toca routing de CLI, comandos de shell, subprocesos, automatización de
-VCS/PR, clasificación de archivos ejecutables ni integración de procesos. Es una pantalla de
-navegador contra un endpoint ya existente.
+| Amenaza | Tratamiento |
+|---|---|
+| Suplantación de identidad | **Aceptada y declarada** por el backend. El front no la mitiga y no debe aparentar que sí. |
+| **Superficie de Next expuesta sin autenticación** | 🔴 `tramita-frontend#7`: dos **RCE críticas sin autenticar** en 16.2.6, parcheadas en `>=16.3.3`. Hasta hoy toda la app estaba detrás del login; esta pantalla **cambia la amenaza de clase**: ya no hace falta una credencial, hace falta el enlace. **Decisión pendiente del responsable**: actualizar antes de publicar, o publicar y aceptarlo por escrito. |
+| **Origen público ausente de la allowlist de CORS** | `Tramita#20`. En desarrollo no se nota —el front llama por ruta relativa a través de su proxy—; **en producción sí**. Tarea de despliegue, fácil de perder porque no la rompe ningún test. |
+| Campo no persistido filtrado a logs | Ya no aplica igual: los once campos se persisten. El allowlist se conserva porque el estado del formulario puede crecer con datos de UI. |
+| Envíos masivos | Del backend (límite por origen + tope de 256 KB). El front solo muestra el `429` bien. |
+| PII real en el repo público | Valores sintéticos de `BRIEF.md:42-53`. Verificable antes del commit. |
 
 ## Migration / Rollout
 
-Sin migración: aditiva, sin estado persistido en el cliente, sin cambios de contrato ni de
-backend. `git revert` de la PR retira archivos nuevos y deja el resto idéntico — la Decisión 1
-preserva esa propiedad al no tocar `app-shell.tsx`. Se llega por URL directa; sin ítem de nav.
+Aditiva en el front. **Bloqueada end-to-end** hasta que exista el endpoint público (0/45 tareas
+en el backend). Hasta entonces la pantalla se desarrolla contra el contrato y se verifica con
+mocks.
 
 ## Open Questions
 
-- [x] **Obligatoriedad de `program`, `semester` y `reason`** — resuelta: son obligatorios,
-      opción (a) de la Decisión 4. Ya no bloquea los tests de validación.
-- [ ] Las cinco preguntas a la Coordinación de `proposal.md:104-116` siguen abiertas; ninguna
-      bloquea la implementación.
-
-No queda ninguna decisión pendiente para pasar a `tasks`.
+- **Validez legal de la firma trazada** y **si es dato biométrico** (preguntas 5 y 6 de la
+  proposal). No bloquean: la Decisión 7 deja la salida escrita.
+- **¿El formulario sigue siendo demasiado largo en móvil tras el repliegue?** No está medido con
+  un estudiante real. Si alguien abandona a mitad, la salida es partirlo en pasos — y eso sí
+  sería un rediseño, no un ajuste.
