@@ -43,18 +43,18 @@ pantalla completa.
 
 ## Fase 1 (PR 1) — La ruta pública y el formato
 
-- [ ] 1.1 RED `page.test.tsx`: **la página renderiza sin sesión y no redirige**. Falla: la ruta no existe. Es el test que habría detectado el error del design anterior.
-- [ ] 1.2 GREEN: crear `app/solicitud/creditos-adicionales/page.tsx` **sin montar `AppShell`** + `components/do-fr-100/sections.tsx` con los bloques estáticos.
-- [ ] 1.3 RED `page.test.tsx`: el árbol no contiene `AppShell` ni consume el store de solicitudes.
-- [ ] 1.4 RED `page.test.tsx`: orden de los bloques y rótulos oficiales de los campos diligenciables.
-- [ ] 1.5 RED `page.test.tsx`: **no existe ninguna casilla** — ni de tipo de solicitud ni de motivo (`queryAllByRole('checkbox')` = 0), y el tipo aparece afirmado como texto.
-- [ ] 1.6 RED `page.test.tsx`: guarda de `workflow-requests` (a) — `queryAllByRole('combobox')` = 0.
-- [ ] 1.7 RED `page.test.tsx`: no existe campo de asignatura, código de asignatura ni créditos; el único texto libre extenso es «Compromisos adquiridos».
-- [ ] 1.8 GREEN: completar `sections.tsx` con los once campos y el bloque de firma vacío.
-- [ ] 1.9 RED: crear `definition-code.test.ts` — guarda de `workflow-requests` (b): lee `page.tsx` con `node:fs`, cuenta `ADICION_CREDITOS`, espera **1**.
-- [ ] 1.10 GREEN: ajustar `page.tsx` a un único literal.
-- [ ] 1.11 Verificar `pnpm test` completo; `app/requests/new/page.test.tsx` **sin editar** y con todos sus `it(...)` verdes — contar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx` al ejecutar, no citar el número.
-- [ ] 1.12 Verificar `rm -rf .next && pnpm exec tsc --noEmit` y `pnpm lint` sin errores.
+- [x] 1.1 RED `page.test.tsx`: **la página renderiza sin sesión y no redirige**. Falla: la ruta no existe. Es el test que habría detectado el error del design anterior.
+- [x] 1.2 GREEN: crear `app/solicitud/creditos-adicionales/page.tsx` **sin montar `AppShell`** + `components/do-fr-100/sections.tsx` con los bloques estáticos.
+- [x] 1.3 GUARD `page.test.tsx`: el árbol no contiene `AppShell` ni consume el store de solicitudes.
+- [x] 1.4 RED `page.test.tsx`: orden de los bloques y rótulos oficiales de los campos diligenciables. Corregidos el rótulo oficial de programa y el orden semestre/modalidad con RED/GREEN observado.
+- [x] 1.5 GUARD `page.test.tsx`: **no existe ninguna casilla** — ni de tipo de solicitud ni de motivo (`queryAllByRole('checkbox')` = 0), y el tipo aparece afirmado como texto.
+- [x] 1.6 GUARD `page.test.tsx`: guarda de `workflow-requests` (a) — `queryAllByRole('combobox')` = 0.
+- [x] 1.7 GUARD `page.test.tsx`: no existe campo de asignatura, código de asignatura ni créditos; el único texto libre extenso es «Compromisos adquiridos».
+- [x] 1.8 GREEN: completar `sections.tsx` con los once campos y el bloque de firma vacío. El marcador ahora usa una figura nombrada, compatible con el canvas planeado.
+- [x] 1.9 RED: crear `definition-code.test.ts` — guarda de `workflow-requests` (b): lee `page.tsx` con `node:fs`, cuenta `ADICION_CREDITOS`, espera **1**.
+- [x] 1.10 GREEN: ajustar `page.tsx` a un único literal.
+- [x] 1.11 Verificar `pnpm test` completo; `app/requests/new/page.test.tsx` **sin editar** y con todos sus `it(...)` verdes — contar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx` al ejecutar, no citar el número.
+- [x] 1.12 Verificar `rm -rf .next && pnpm exec tsc --noEmit` y `pnpm lint` sin errores.
 
 ## Fase 2 (PR 2) — La firma
 
