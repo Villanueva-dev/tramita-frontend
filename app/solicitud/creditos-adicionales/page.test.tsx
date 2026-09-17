@@ -8,20 +8,21 @@ afterEach(() => {
   cleanup()
 })
 
-function phaseOneSourceFiles(directory: string): string[] {
+function publicRequestSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
-    if (entry.isDirectory()) return phaseOneSourceFiles(path)
+    if (entry.isDirectory()) return publicRequestSourceFiles(path)
     return entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')
       ? [path]
       : []
   })
 }
 
-function phaseOneFeatureSource() {
+function publicRequestFeatureSource() {
   const paths = [
-    ...phaseOneSourceFiles('app/solicitud/creditos-adicionales'),
-    ...phaseOneSourceFiles('components/do-fr-100'),
+    ...publicRequestSourceFiles('app/solicitud/creditos-adicionales'),
+    ...publicRequestSourceFiles('components/do-fr-100'),
+    ...publicRequestSourceFiles('components/firma'),
   ].filter((path) => !path.includes('.test.'))
 
   return paths.map((path) => ({ path, source: readFileSync(path, 'utf8') }))
@@ -34,12 +35,13 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(screen.getByRole('heading', { name: /solicitud de matrícula de créditos adicionales/i })).toBeDefined()
   })
 
-  it('guards the complete Phase 1 feature boundary from AppShell and request-store dependencies', () => {
-    const sources = phaseOneFeatureSource()
+  it('guards the complete public-request boundary from AppShell and request-store dependencies', () => {
+    const sources = publicRequestFeatureSource()
 
     expect(sources.map(({ path }) => path).sort()).toEqual([
       'app/solicitud/creditos-adicionales/page.tsx',
       'components/do-fr-100/sections.tsx',
+      'components/firma/canvas-firma.tsx',
     ])
 
     for (const { source } of sources) {
@@ -102,17 +104,18 @@ describe('PublicAdditionalCreditsPage', () => {
       'semester',
       'modality',
       'reason',
+      '',
     ])
     expect(controls.filter((control) => /asignatura|subject|credit/i.test(control.id || control.getAttribute('name') || ''))).toHaveLength(0)
     expect(document.querySelectorAll('textarea')).toHaveLength(1)
     expect(document.querySelector('textarea')?.id).toBe('reason')
   })
 
-  it('exposes the empty signature placeholder through a named figure', () => {
+  it('integrates the signature canvas inside the named figure', () => {
     render(<PublicAdditionalCreditsPage />)
 
     const signaturePlaceholder = screen.getByRole('figure', { name: 'Espacio para firma' })
-    expect(signaturePlaceholder.querySelector('div')?.getAttribute('contenteditable')).toBeNull()
-    expect(signaturePlaceholder.querySelector('div')?.getAttribute('aria-label')).toBeNull()
+    expect(screen.getByLabelText('Área para dibujar la firma')).toBe(signaturePlaceholder.querySelector('canvas'))
+    expect(screen.getByRole('button', { name: 'Limpiar firma' })).toBeDefined()
   })
 })

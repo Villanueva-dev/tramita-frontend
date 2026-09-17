@@ -58,15 +58,15 @@ pantalla completa.
 
 ## Fase 2 (PR 2) — La firma
 
-- [ ] 2.1 RED `canvas-firma.test.tsx`: el componente expone `{ dataUrl, hayFirma }` y arranca con `hayFirma: false`.
-- [ ] 2.2 GREEN: crear `components/firma/canvas-firma.tsx` con Pointer Events, `setPointerCapture` y escalado por `devicePixelRatio`.
-- [ ] 2.3 RED: **un lienzo en blanco no cuenta como firma**, aunque `toDataURL()` devuelva un PNG válido. `hayFirma` sigue en `false`.
-- [ ] 2.4 GREEN: llevar `hayFirma` en estado propio, activado por el primer `pointerdown`, nunca inferido del data URL.
-- [ ] 2.5 RED: tras trazar, `dataUrl` empieza por `data:image/png;base64,`; tras «Limpiar», `hayFirma` vuelve a `false`.
-- [ ] 2.6 GREEN: suavizado por punto medio + `quadraticCurveTo`, y acción «Limpiar».
-- [ ] 2.7 **Guarda de CSS**: el canvas declara `touch-action: none`. jsdom no ejercita el gesto, así que esta tarea verifica que **la declaración existe**, y deja explícito que no prueba el gesto.
-- [ ] 2.8 ⚠️ **Verificación manual obligatoria, no automatizable**: firmar con el dedo en un teléfono real. Un test verde no prueba que se pueda firmar en un celular.
-- [ ] 2.9 Verificar `pnpm test`, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`.
+- [x] 2.1 RED `canvas-firma.test.tsx`: el componente expone `{ dataUrl, hayFirma }` y arranca con `hayFirma: false`.
+- [x] 2.2 GREEN: crear `components/firma/canvas-firma.tsx` con Pointer Events, `setPointerCapture` y escalado por `devicePixelRatio`.
+- [x] 2.3 RED: **un lienzo en blanco no cuenta como firma**, aunque `toDataURL()` devuelva un PNG válido. `hayFirma` sigue en `false`.
+- [x] 2.4 GREEN: llevar `hayFirma` en estado propio, activado por el primer `pointerdown`, nunca inferido del data URL.
+- [x] 2.5 RED: tras trazar, `dataUrl` empieza por `data:image/png;base64,`; tras «Limpiar», `hayFirma` vuelve a `false`.
+- [x] 2.6 GREEN: suavizado por punto medio + `quadraticCurveTo`, y acción «Limpiar».
+- [x] 2.7 **Guarda de CSS**: el canvas declara `touch-action: none`. jsdom no ejercita el gesto, así que esta tarea verifica que **la declaración existe**, y deja explícito que no prueba el gesto.
+- [x] 2.8 **Verificación manual completada**: el maintainer confirmó que el canvas corregido permite dibujar la firma con el dedo en un dispositivo móvil real. No se registraron detalles de dispositivo o navegador.
+- [x] 2.9 Verificar `pnpm test`, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`.
 
 ## Fase 3 (PR 3) — Envío, validación, errores y acuse
 
@@ -96,7 +96,7 @@ pantalla completa.
 - [ ] El cuerpo emitido tiene exactamente los once campos y ningún `definitionCode`.
 - [ ] Ningún campo vacío (ni con espacios) permite enviar.
 - [ ] Un lienzo en blanco no cuenta como firma.
-- [ ] La firma se probó **con el dedo en un dispositivo táctil real** (tarea 2.8).
+- [x] La firma se probó **con el dedo en un dispositivo táctil real** (tarea 2.8): el maintainer confirmó que el canvas corregido permite dibujar con el dedo.
 - [ ] El acuse no expone identificador, estado ni enlace de consulta.
 - [ ] `pnpm test` verde; `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint` y `pnpm build` sin errores.
 - [ ] `app/requests/new/page.test.tsx` intacto y con todos sus `it(...)` verdes. El conteo se mide al cerrar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx`: el «9» original venció al integrar `ede7bc3`.

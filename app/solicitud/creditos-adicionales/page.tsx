@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PublicRequestSections, type PublicRequestFormValues } from '@/components/do-fr-100/sections'
+import { CanvasFirma, type SignatureCapture } from '@/components/firma/canvas-firma'
 
 export const PUBLIC_REQUEST_DEFINITION_CODE = 'ADICION_CREDITOS'
 
@@ -20,6 +21,7 @@ const INITIAL_VALUES: PublicRequestFormValues = {
 
 export default function PublicAdditionalCreditsPage() {
   const [values, setValues] = useState(INITIAL_VALUES)
+  const [, setSignature] = useState<SignatureCapture>({ dataUrl: '', hayFirma: false })
 
   function handleChange(field: keyof PublicRequestFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -36,7 +38,11 @@ export default function PublicAdditionalCreditsPage() {
             Complete la información solicitada para radicar su solicitud.
           </p>
         </header>
-        <PublicRequestSections values={values} onChange={handleChange} />
+        <PublicRequestSections
+          values={values}
+          onChange={handleChange}
+          signatureCapture={<CanvasFirma onChange={setSignature} />}
+        />
       </div>
     </main>
   )

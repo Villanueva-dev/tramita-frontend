@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import type { ReactNode } from 'react'
 
 export interface PublicRequestFormValues {
   studentName: string
@@ -19,6 +20,7 @@ export interface PublicRequestFormValues {
 interface PublicRequestSectionsProps {
   values: PublicRequestFormValues
   onChange: (field: keyof PublicRequestFormValues, value: string) => void
+  signatureCapture: ReactNode
 }
 
 function TextField({
@@ -44,7 +46,7 @@ function TextField({
   )
 }
 
-export function PublicRequestSections({ values, onChange }: PublicRequestSectionsProps) {
+export function PublicRequestSections({ values, onChange, signatureCapture }: PublicRequestSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -110,11 +112,11 @@ export function PublicRequestSections({ values, onChange }: PublicRequestSection
       <Card>
         <CardHeader>
           <CardTitle>Firma del solicitante</CardTitle>
-          <CardDescription>La captura de firma estará disponible antes del envío.</CardDescription>
+          <CardDescription>Trace su firma en el recuadro.</CardDescription>
         </CardHeader>
         <CardContent>
           <figure aria-labelledby="signature-placeholder-label">
-            <div className="h-32 rounded-lg border border-dashed border-border bg-muted/30" />
+            {signatureCapture}
             <figcaption id="signature-placeholder-label" className="sr-only">
               Espacio para firma
             </figcaption>
