@@ -226,11 +226,25 @@ El sistema **MUST** interpretar los errores como `application/problem+json` (RFC
 |---|---|
 | `404` | Mensaje accionable que **MUST NOT** distinguir entre «el trámite no existe» y «no admite captura pública» |
 | `413` | Mensaje que orienta a limpiar la firma y volver a trazarla |
-| `422` | Error atado al campo que nombre el `problem+json` |
+| `422` | Error atado a cada campo que nombre el `problem+json`, distinguiendo faltantes de inválidos |
 | `429` | Mensaje con el tiempo de espera, reusando el manejo de `Retry-After` existente |
 | otros | Aviso general del formulario |
 
 En todos los casos el sistema **MUST** conservar los datos ya diligenciados.
+
+Para el `422`, el `problem+json` trae dos arreglos de nombres de campo —`missingFields` e
+`invalidFields`— y el sistema:
+
+- **MUST** traducir `missingFields` a un mensaje de campo obligatorio y `invalidFields` a un
+  mensaje de revisión, para que quien completa el formulario sepa si le falta el dato o lo
+  escribió mal.
+- **MUST** dar precedencia al mensaje de campo obligatorio si un mismo campo apareciera en ambos
+  arreglos. El backend los emite disjuntos, así que es una defensa del cliente y no un caso que
+  el contrato produzca.
+- **MUST** descartar los nombres que no correspondan a un control del formulario, para no
+  arrastrar errores sin control visible al que atarlos.
+- **MUST** mostrar un aviso general del formulario cuando ningún nombre recibido corresponda a un
+  control, en lugar de dejar el envío sin explicación.
 
 #### Scenario: El enlace no está habilitado
 
@@ -244,6 +258,27 @@ En todos los casos el sistema **MUST** conservar los datos ya diligenciados.
 - GIVEN el backend responde `413`
 - WHEN se procesa la respuesta
 - THEN el mensaje orienta a limpiar la firma y trazarla de nuevo
+
+#### Scenario: El backend rechaza campos faltantes e inválidos
+
+- GIVEN el backend responde `422` con un campo en `missingFields` y otro en `invalidFields`
+- WHEN se procesa la respuesta
+- THEN el campo faltante indica que es obligatorio
+- AND el campo inválido indica que debe revisarse
+- AND los datos diligenciados se conservan
+
+#### Scenario: Un mismo campo llega como faltante y como inválido
+
+- GIVEN el backend responde `422` nombrando el mismo campo en ambos arreglos
+- WHEN se procesa la respuesta
+- THEN ese campo indica que es obligatorio, no que deba revisarse
+
+#### Scenario: El rechazo solo nombra campos que el formulario no tiene
+
+- GIVEN el backend responde `422` y ningún nombre corresponde a un control del formulario
+- WHEN se procesa la respuesta
+- THEN se muestra un aviso general del formulario
+- AND ningún control queda marcado con error
 
 #### Scenario: Demasiados envíos desde el mismo origen
 
