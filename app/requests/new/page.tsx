@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useTramita } from '@/lib/store'
-import { PROGRAMS, REQUEST_TYPE_LABELS } from '@/lib/mock-data'
+import { PROGRAMS, REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import type { Attachment, RequestType, SubjectInfo } from '@/lib/types'
 
 interface SubjectRow extends SubjectInfo {
@@ -301,7 +301,7 @@ export default function NewRequestPage() {
                   type="email"
                   value={studentEmail}
                   onChange={(e) => setStudentEmail(e.target.value)}
-                  placeholder="nombre@estudiante.remington.edu.co"
+                  placeholder="nombre@example.com"
                   aria-invalid={!!errors.studentEmail}
                 />
                 <FieldError msg={errors.studentEmail} />

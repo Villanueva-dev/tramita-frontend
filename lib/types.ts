@@ -52,6 +52,26 @@ export interface RequestSummary {
   createdAt: string
 }
 
+/** Body accepted by the anonymous public request-capture endpoint. */
+export interface PublicRequestBody {
+  studentName: string
+  studentDocument: string
+  studentEmail: string
+  studentPhone: string
+  program: string
+  campus: string
+  faculty: string
+  modality: string
+  semester: string
+  reason: string
+  signature: string
+}
+
+/** Deliberately minimal public receipt: it exposes no request identifier or state. */
+export interface PublicReceipt {
+  message: string
+}
+
 export type RequestType = 'adicion_creditos' | 'novedad_notas'
 export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
 export type SignatureType = 'DIGITAL' | 'ESCANEADA'
@@ -118,6 +138,13 @@ export interface AcademicRequest {
   radicado: string
   type: RequestType
   status: RequestStatus
+  /**
+   * Nombre del estado tal como lo define el motor de workflow y lo envía el
+   * backend en `currentState.name`. Es lo que se muestra: `status` agrupa para
+   * filtrar y colorear, pero no puede distinguir dos estados finales distintos
+   * (RECHAZADA y FINALIZADA) ni los seis intermedios que colapsa.
+   */
+  stateName: string
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string

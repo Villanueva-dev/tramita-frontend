@@ -1,3 +1,26 @@
+> ## ⚠️ ESTADO: SUPERADO — leer como registro histórico, no como guía
+>
+> **Anotado el 2026-09-16.** Este brief describe una pantalla **interna**, montada sobre el gate
+> de sesión y enviando a `POST /requests`. La reunión con la Coordinación del 2026-09-15 la
+> volvió **pública**. La autoridad vigente es `proposal.md`, `design.md` y `tasks.md`, ya
+> reorientados.
+>
+> **Lo que este documento afirma y hoy es falso:**
+>
+> - «El array `NAV` sigue teniendo sus **dos** ítems» → hoy tiene **cuatro** (`app-shell.tsx:23-28`).
+> - «**El backend no se toca**» → la decisión de obligatoriedad total agrega **cuatro columnas**
+>   (`student_phone`, `campus`, `faculty`, `modality`) y reabre la feature 004.
+> - «Correo, contacto, sede, facultad, modalidad y los motivos **se pintan, no se envían**» → los
+>   cinco primeros **se envían y se persisten**; los trece motivos **se eliminaron** del formulario.
+> - «Las **13 opciones de motivos** van hardcodeadas como deuda deliberada» → no hay casillas, no
+>   hay deuda: pertenecen a otros tipos de solicitud, no a adición de créditos.
+> - «`app/requests/new/page.test.tsx` tiene **8** tests» → el conteo se **mide** al cerrar; el 8 y
+>   el 9 posteriores vencieron al integrar `ede7bc3`.
+>
+> **Lo que sigue vigente y vale releer**: la prohibición absoluta de PII real del PDF, los valores
+> sintéticos de prueba, por qué «Compromisos adquiridos» es el campo central, y las restricciones
+> del repo (pnpm, TDD estricto, Vitest, Conventional Commits en español).
+
 # Brief — Pantalla del formato DO-FR-100 (créditos adicionales)
 
 > **Qué es este documento.** El insumo que originó esta change, redactado el 2026-09-07 a partir
@@ -68,7 +91,7 @@ alcance: **"Matrícula créditos adicionales"**.
 | Programa académico | → `program` (máx. 120) |
 | Sede · Facultad · Modalidad | se pintan, **no se envían** |
 | Semestre cursado y aprobado | → `semester` (máx. 50) |
-| Motivos de la solicitud (14 casillas) | **checkboxes multi-select, todas opcionales**, **no se envían** |
+| Motivos de la solicitud (13 casillas) | **checkboxes multi-select, todas opcionales**, **no se envían** |
 | "Otro: ¿Cuál?" | texto **opcional**, **no se envía** |
 | **Compromisos adquiridos** | → **`reason`** (máx. 2000) |
 | Campo de firmas y aprobaciones | solo el **espacio** pintado, sin funcionalidad |
@@ -120,7 +143,7 @@ asignaturas: la materia entra por ese texto libre.** Por eso se lo queda `reason
    >    a `/` cuando `status === 'unauthenticated'`, y `:149` no renderiza nada sin sesión.
 3. **Los campos no persistidos ni siquiera se envían** al backend. No mandarlos y confiar en que
    el backend los ignore: si se envían, pueden quedar en logs de request.
-4. **Las 14 opciones de motivos van hardcodeadas**, como **deuda deliberada y declarada**. Su
+4. **Las 13 opciones de motivos van hardcodeadas**, como **deuda deliberada y declarada**. Su
    destino correcto es configuración asociada a la definición del trámite, porque la Coordinación
    confirmó que *"si cambian una casilla, sacan la versión 2"* del formato. Dejarlo escrito en el
    design; no implementarlo ahora.
@@ -153,8 +176,9 @@ proposal a esperar aprobación**.
 - **`strict_tdd: true`** en `openspec/config.yaml`. Test primero.
 - Tests: `pnpm test` (Vitest 4 + Testing Library + jsdom, ya configurados).
 - Typecheck: `pnpm exec tsc --noEmit` — no hay script npm dedicado.
-- ⚠️ **ESLint no está instalado**: `pnpm lint` falla aunque el script exista en `package.json`.
-  No correrlo ni intentar arreglarlo.
+- **ESLint ya está instalado** (`ede7bc3`, 2026-09-09): `pnpm lint` corre con
+  `eslint.config.mjs` y el issue #4 se cerró el 2026-09-13. La restricción original de este brief
+  —"no correrlo"— venció.
 - No hay Prettier, Biome, coverage ni E2E.
 - Arquitectura: **estructura idiomática del App Router** (`app/` rutas, `components/` UI, `lib/`
   dominio), atomic design y container/presentational. **No copiar el package-by-layer del

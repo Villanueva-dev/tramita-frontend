@@ -25,8 +25,8 @@
 #
 #   El contrato OpenAPI del backend es la autoridad del cableado: todo
 #   commit que toque la integración lo referencia con archivo:línea.
-#   Los artefactos de openspec/ están gitignorados — citarlos sirve como
-#   traza local, pero quien clone el repo no los va a ver.
+#   Los artefactos de openspec/ están versionados: citarlos con ruta es
+#   una referencia que cualquiera puede abrir tras clonar.
 #
 # ─────────────────────────────────────────────────────────────────────────
 #
@@ -52,8 +52,8 @@
 #   · Un commit = un propósito. Si el cuerpo necesita "y además", partilo.
 #   · Todo cambio de comportamiento lleva línea "Verificado:" con el comando
 #     y su resultado. Sin evidencia, el commit afirma algo que nadie comprobó.
-#     Usar "pnpm test" y "pnpm exec tsc --noEmit": el script "pnpm lint" está
-#     roto (declara "eslint ." y ESLint no está instalado).
+#     Usar "pnpm test", "pnpm exec tsc --noEmit" y "pnpm lint": los tres
+#     corren. Citar el comando y su resultado, no solo que se ejecutó.
 #   · Un refactor NO cambia comportamiento: si lo cambia, no es refactor.
 #   · Español, igual que el resto de la documentación del proyecto.
 #     Los identificadores de código y la copy de la interfaz siguen en inglés.

@@ -7,7 +7,14 @@
 // - CSRF double-submit: cookie XSRF-TOKEN (legible) -> header X-XSRF-TOKEN en cada POST.
 // - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
-import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+import type {
+  PublicReceipt,
+  PublicRequestBody,
+  Request,
+  RequestSummary,
+  TimelineEntry,
+  WorkflowDefinition,
+} from './types'
 
 const BASE = '/api'
 const XSRF_COOKIE = 'XSRF-TOKEN'
@@ -20,14 +27,29 @@ export class ApiError extends Error {
   readonly detail?: string
   /** Segundos a esperar (header Retry-After); presente en 429. */
   readonly retryAfter?: number
+  /** Compatibilidad para consumidores que aún usan un único arreglo de campos. */
+  readonly fieldNames?: string[]
+  readonly missingFields?: string[]
+  readonly invalidFields?: string[]
 
-  constructor(status: number, title: string, detail?: string, retryAfter?: number) {
+  constructor(
+    status: number,
+    title: string,
+    detail?: string,
+    retryAfter?: number,
+    fieldNames?: string[],
+    missingFields?: string[],
+    invalidFields?: string[],
+  ) {
     super(detail ? `${title}: ${detail}` : title)
     this.name = 'ApiError'
     this.status = status
     this.title = title
     this.detail = detail
     this.retryAfter = retryAfter
+    this.fieldNames = fieldNames
+    this.missingFields = missingFields
+    this.invalidFields = invalidFields
   }
 }
 
@@ -53,11 +75,24 @@ function readXsrfToken(): string | null {
 export async function parseProblem(res: Response): Promise<ApiError> {
   let title = res.statusText || 'Error de solicitud'
   let detail: string | undefined
+  let missingFields: string[] | undefined
+  let invalidFields: string[] | undefined
 
   try {
-    const body = (await res.json()) as { title?: unknown; detail?: unknown }
+    const body = (await res.json()) as {
+      title?: unknown
+      detail?: unknown
+      missingFields?: unknown
+      invalidFields?: unknown
+    }
     if (typeof body.title === 'string' && body.title) title = body.title
     if (typeof body.detail === 'string' && body.detail) detail = body.detail
+    const fieldsFrom = (value: unknown) =>
+      Array.isArray(value) ? value.filter((field): field is string => typeof field === 'string') : []
+    const missing = fieldsFrom(body.missingFields)
+    const invalid = fieldsFrom(body.invalidFields)
+    if (missing.length > 0) missingFields = missing
+    if (invalid.length > 0) invalidFields = invalid
   } catch {
     // Sin cuerpo JSON: nos quedamos con el statusText.
   }
@@ -66,7 +101,16 @@ export async function parseProblem(res: Response): Promise<ApiError> {
   const retryAfter =
     retryHeader && Number.isFinite(Number(retryHeader)) ? Number(retryHeader) : undefined
 
-  return new ApiError(res.status, title, detail, retryAfter)
+  const fieldNames = [...(missingFields ?? []), ...(invalidFields ?? [])]
+  return new ApiError(
+    res.status,
+    title,
+    detail,
+    retryAfter,
+    fieldNames.length > 0 ? fieldNames : undefined,
+    missingFields,
+    invalidFields,
+  )
 }
 
 interface RequestOptions {
@@ -235,7 +279,48 @@ export async function createRequest(body: CreateRequestBody): Promise<Request> {
   return (await res.json()) as Request
 }
 
-/** Localiza solicitudes por cédula, código o nombre (US3, FR-011). El backend exige `minLength: 2`. */
+/**
+ * Registers a public form submission. The workflow definition belongs exclusively
+ * to the route; the explicit destructuring keeps UI-only values out of the request.
+ */
+export async function submitPublicRequest(
+  definitionCode: string,
+  body: PublicRequestBody,
+): Promise<PublicReceipt> {
+  const {
+    studentName,
+    studentDocument,
+    studentEmail,
+    studentPhone,
+    program,
+    campus,
+    faculty,
+    modality,
+    semester,
+    reason,
+    signature,
+  } = body
+  const res = await apiFetch(`/public/requests/${encodeURIComponent(definitionCode)}`, {
+    method: 'POST',
+    body: {
+      studentName,
+      studentDocument,
+      studentEmail,
+      studentPhone,
+      program,
+      campus,
+      faculty,
+      modality,
+      semester,
+      reason,
+      signature,
+    },
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicReceipt
+}
+
+/** Localiza solicitudes por nombre o cédula (US3, FR-011). El backend exige `minLength: 2`. */
 export async function searchRequests(term: string): Promise<RequestSummary[]> {
   const res = await apiFetch(`/requests?search=${encodeURIComponent(term)}`)
   if (!res.ok) throw await parseProblem(res)

@@ -37,7 +37,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
-import { REQUEST_TYPE_LABELS } from '@/lib/mock-data'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
 
@@ -273,7 +273,7 @@ export default function RequestDetailPage() {
                 <h2 className="font-serif text-2xl font-bold tracking-tight">
                   {req.radicado}
                 </h2>
-                <StatusBadge status={req.status} />
+                <StatusBadge status={req.status} stateName={req.stateName} />
                 {req.priority === 'urgente' && !isFinalized && (
                   <Badge variant="destructive">Urgente</Badge>
                 )}

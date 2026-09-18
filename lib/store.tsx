@@ -10,10 +10,11 @@ import {
   type ReactNode,
 } from 'react'
 
-import { apiFetch, problemMessage } from './api'
+import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
+import { apiErrorMessages } from './api-errors'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
-import { workflowConfig as defaultWorkflowConfig } from './mock-data'
+import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
 import type {
   AcademicRequest,
   Attachment,
@@ -102,6 +103,11 @@ interface TramitaContextValue {
   coordinatorName: string
   requests: AcademicRequest[]
   metrics: RequestMetrics | null
+  /** Localiza solicitudes por cédula o nombre; el backend no expone un listado completo. */
+  searchRequests: (term: string) => Promise<void>
+  /** True cuando la última búsqueda se completó: distingue «aún no buscó» de «sin coincidencias». */
+  searched: boolean
+  searchErrors: string[]
   workflowConfig: RequestTypeConfig[]
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -115,6 +121,9 @@ interface TramitaContextValue {
 }
 
 const TramitaContext = createContext<TramitaContextValue | null>(null)
+
+// El mínimo lo fija el contrato del backend (@Size(min = 2) en RequestController).
+const MIN_SEARCH_LENGTH = 2
 
 const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
@@ -138,7 +147,7 @@ function deriveDueDate(createdAt: string): string {
   return addBusinessDays(createdAt, 6)
 }
 
-function baseRequest(apiRequest: ApiRequest): AcademicRequest {
+export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   const type = typeFromCode(apiRequest.definition.code)
   const status = statusFromState(apiRequest.currentState)
   const priority = apiRequest.priority ?? 'normal'
@@ -147,6 +156,7 @@ function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     radicado: apiRequest.id,
     type,
     status,
+    stateName: apiRequest.currentState.name,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
     dueDate: deriveDueDate(apiRequest.createdAt),
@@ -245,34 +255,53 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
   const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
   const [workflowConfig, setWorkflowConfig] = useState(defaultWorkflowConfig)
 
-  const refreshRequests = useCallback(async () => {
-    const response = await apiFetch('/requests')
-    if (!response.ok) throw new Error(await problemMessage(response, 'No se pudieron cargar las solicitudes'))
-    const summaries = await response.json() as ApiRequest[]
-    setRequests(summaries.map(baseRequest))
-    const metricsResponse = await apiFetch('/metrics/requests')
-    if (metricsResponse.ok) setMetrics(await metricsResponse.json() as RequestMetrics)
+  const [searched, setSearched] = useState(false)
+  const [searchErrors, setSearchErrors] = useState<string[]>([])
+
+  /**
+   * `GET /api/requests` localiza, no lista: el término es obligatorio porque
+   * devolver todo expondría el nombre y la cédula de cada estudiante
+   * (minimización de datos personales, Ley 1581 de 2012 — ver IRequestRepo en
+   * el backend). Pedirlo sin término devuelve 400 y deja la bandeja vacía sin
+   * que nadie se entere, que es exactamente el fallo que esto corrige.
+   */
+  const searchRequests = useCallback(async (term: string) => {
+    const trimmed = term.trim()
+    if (trimmed.length < MIN_SEARCH_LENGTH) {
+      setSearchErrors([`Escriba al menos ${MIN_SEARCH_LENGTH} caracteres para buscar.`])
+      setRequests([])
+      setSearched(false)
+      return
+    }
+
+    setSearchErrors([])
+    try {
+      setRequests((await fetchRequestsByTerm(trimmed)).map(baseRequest))
+      setSearched(true)
+    } catch (error) {
+      // Los resultados previos pertenecen al término anterior: dejarlos junto a
+      // un error sugiere que siguen vigentes para lo que se acaba de buscar.
+      setRequests([])
+      setSearched(false)
+      // `apiErrorMessages` ya traduce 401, 400, 429 y parte el detalle del 422;
+      // rehacer esa traducción acá era la otra mitad de la duplicación.
+      //
+      // Sin `overrides.fallback` a propósito: ese override gana sobre el
+      // `title` del backend, y lo cambiaría por un genérico que no dice qué
+      // pasó. Sin él, el mensaje del servidor llega tal cual a la pantalla.
+      setSearchErrors(apiErrorMessages(error))
+    }
   }, [])
 
   const isAuthenticated = authStatus === 'authenticated'
-
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    let active = true
-    queueMicrotask(() => {
-      void refreshRequests().catch(() => {
-        if (active) setRequests([])
-      })
-    })
-    return () => { active = false }
-  }, [isAuthenticated, refreshRequests])
 
   useEffect(() => {
     // Todas las pantallas vuelven al login cuando la sesión server-side expira.
     const expireSession = () => {
       setRequests([])
       setMetrics(null)
+      setSearched(false)
+      setSearchErrors([])
     }
     window.addEventListener('tramita:session-expired', expireSession)
     return () => window.removeEventListener('tramita:session-expired', expireSession)
@@ -298,13 +327,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     await authLogin(email, password)
-    await refreshRequests()
-  }, [authLogin, refreshRequests])
+  }, [authLogin])
 
   const logout = useCallback(async () => {
     await authLogout()
     setRequests([])
     setMetrics(null)
+    setSearched(false)
+    setSearchErrors([])
   }, [authLogout])
 
   const getRequest = useCallback((id: string) => requests.find((request) => request.id === id), [requests])
@@ -423,6 +453,9 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     coordinatorName: user?.email ?? '',
     requests: visibleRequests,
     metrics: visibleMetrics,
+    searchRequests,
+    searched,
+    searchErrors,
     workflowConfig,
     login,
     logout,
@@ -433,7 +466,7 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     uploadDocument,
     registerDocumentApproval,
     updateWorkflowConfig,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 
