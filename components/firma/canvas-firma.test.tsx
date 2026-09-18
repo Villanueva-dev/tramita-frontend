@@ -45,9 +45,10 @@ describe('CanvasFirma', () => {
     expect(onChange).toHaveBeenLastCalledWith({ dataUrl: '', hayFirma: false })
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(context.stroke).not.toHaveBeenCalled()
+    expect(HTMLCanvasElement.prototype.toDataURL).not.toHaveBeenCalled()
   })
 
-  it('captures a meaningful stroke with pointer capture, pixel-ratio sizing, drawing commands, and PNG encoding', () => {
+  it('draws independent continuous segments and serializes once when a meaningful stroke finishes', () => {
     const onChange = vi.fn<(capture: SignatureCapture) => void>()
     const context = createCanvasContext()
     const pointerCapture = installPointerCapture()
@@ -72,20 +73,48 @@ describe('CanvasFirma', () => {
 
       fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
       fireEvent.pointerMove(canvas, { clientX: 60, clientY: 30, pointerId: 4 })
+      fireEvent.pointerMove(canvas, { clientX: 100, clientY: 50, pointerId: 4 })
 
       expect(pointerCapture.set).toHaveBeenCalledWith(4)
       expect(canvas.width).toBe(400)
       expect(canvas.height).toBe(160)
       expect(context.scale).toHaveBeenCalledWith(2, 2)
-      expect(context.beginPath).toHaveBeenCalledTimes(1)
-      expect(context.moveTo).toHaveBeenCalledWith(10, 10)
+      expect(context.lineWidth).toBe(2)
+      expect(context.lineCap).toBe('round')
+      expect(context.lineJoin).toBe('round')
+      expect(context.beginPath).toHaveBeenCalledTimes(2)
+      expect(context.moveTo).toHaveBeenNthCalledWith(1, 10, 10)
+      expect(context.moveTo).toHaveBeenNthCalledWith(2, 30, 20)
       expect(context.quadraticCurveTo).toHaveBeenCalledWith(10, 10, 30, 20)
-      expect(context.stroke).toHaveBeenCalledTimes(1)
+      expect(context.quadraticCurveTo).toHaveBeenCalledWith(50, 30, 70, 40)
+      expect(context.stroke).toHaveBeenCalledTimes(2)
+      expect(toDataUrl).not.toHaveBeenCalled()
+
+      fireEvent.pointerUp(canvas, { clientX: 100, clientY: 50, pointerId: 4 })
+
+      expect(toDataUrl).toHaveBeenCalledOnce()
       expect(toDataUrl).toHaveBeenCalledWith('image/png')
       expect(onChange).toHaveBeenLastCalledWith({ dataUrl: 'data:image/png;base64,DRAWN', hayFirma: true })
     } finally {
       restoreDevicePixelRatio()
     }
+  })
+
+  it('serializes a meaningful cancelled stroke so visible ink and parent state remain aligned', () => {
+    const onChange = vi.fn<(capture: SignatureCapture) => void>()
+    const context = createCanvasContext()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context)
+    const toDataUrl = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,DRAWN')
+
+    render(<CanvasFirma onChange={onChange} />)
+    const canvas = screen.getByLabelText('Área para dibujar la firma') as HTMLCanvasElement
+
+    fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
+    fireEvent.pointerMove(canvas, { clientX: 60, clientY: 30, pointerId: 4 })
+    fireEvent.pointerCancel(canvas, { pointerId: 4 })
+
+    expect(toDataUrl).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenLastCalledWith({ dataUrl: 'data:image/png;base64,DRAWN', hayFirma: true })
   })
 
   it('draws when pointer capture is unavailable, as on touch environments that do not support it', () => {
@@ -101,6 +130,7 @@ describe('CanvasFirma', () => {
 
       fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
       fireEvent.pointerMove(canvas, { clientX: 60, clientY: 30, pointerId: 4 })
+      fireEvent.pointerUp(canvas, { clientX: 60, clientY: 30, pointerId: 4 })
 
       expect(context.quadraticCurveTo).toHaveBeenCalledWith(20, 10, 40, 20)
       expect(onChange).toHaveBeenLastCalledWith({ dataUrl: 'data:image/png;base64,DRAWN', hayFirma: true })
@@ -120,12 +150,14 @@ describe('CanvasFirma', () => {
     const canvas = screen.getByLabelText('Área para dibujar la firma') as HTMLCanvasElement
 
     fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
+    fireEvent.pointerMove(canvas, { clientX: 60, clientY: 10, pointerId: 4 })
     fireEvent.pointerUp(canvas, { pointerId: 4 })
     fireEvent.pointerDown(canvas, { clientX: 60, clientY: 30, pointerId: 5 })
+    fireEvent.pointerMove(canvas, { clientX: 80, clientY: 40, pointerId: 5 })
 
     expect(context.scale).toHaveBeenCalledTimes(1)
-    expect(context.moveTo).toHaveBeenCalledWith(20, 10)
-    expect(context.moveTo).toHaveBeenCalledWith(60, 30)
+    expect(context.moveTo).toHaveBeenNthCalledWith(1, 20, 10)
+    expect(context.moveTo).toHaveBeenNthCalledWith(2, 60, 30)
   })
 
   it('clears the signature state and preserves the gesture-prevention declaration', () => {
@@ -140,10 +172,12 @@ describe('CanvasFirma', () => {
 
     fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
     fireEvent.pointerMove(canvas, { clientX: 40, clientY: 10, pointerId: 4 })
+    fireEvent.pointerUp(canvas, { pointerId: 4 })
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar firma' }))
 
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, canvas.width, canvas.height)
     expect(onChange).toHaveBeenLastCalledWith({ dataUrl: '', hayFirma: false })
+    expect(screen.getByRole('button', { name: 'Limpiar firma' }).hasAttribute('disabled')).toBe(true)
     expect(canvas.style.touchAction).toBe('none')
   })
 
@@ -163,6 +197,7 @@ describe('CanvasFirma', () => {
     expect(latestOnChange).not.toHaveBeenCalledWith({ dataUrl: '', hayFirma: false })
 
     fireEvent.pointerMove(canvas, { clientX: 60, clientY: 10, pointerId: 4 })
+    fireEvent.pointerUp(canvas, { pointerId: 4 })
 
     expect(latestOnChange).toHaveBeenLastCalledWith({ dataUrl: 'data:image/png;base64,DRAWN', hayFirma: true })
   })

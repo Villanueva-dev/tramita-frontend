@@ -33,6 +33,7 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const isCanvasPreparedRef = useRef(false)
   const previousPointRef = useRef<Point | null>(null)
+  const previousRenderedEndPointRef = useRef<Point | null>(null)
   const strokeStartPointRef = useRef<Point | null>(null)
   const hasMeaningfulStrokeRef = useRef(false)
   const onChangeRef = useRef(onChange)
@@ -115,10 +116,8 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
     capturePointer(canvas, event.pointerId)
 
     const point = pointFromEvent(event)
-    const context = contextFor(canvas)
-    context.beginPath()
-    context.moveTo(point.x, point.y)
     previousPointRef.current = point
+    previousRenderedEndPointRef.current = point
     strokeStartPointRef.current = point
     hasMeaningfulStrokeRef.current = false
   }
@@ -142,15 +141,21 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
     const endPoint = midpoint(controlPoint, nextPoint)
     const context = contextFor(canvas)
 
+    context.beginPath()
+    const segmentStart = previousRenderedEndPointRef.current ?? controlPoint
+    context.moveTo(segmentStart.x, segmentStart.y)
     context.quadraticCurveTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y)
     context.stroke()
     previousPointRef.current = nextPoint
-    emitCanvasSignature(canvas)
+    previousRenderedEndPointRef.current = endPoint
   }
 
   function finishStroke(event: React.PointerEvent<HTMLCanvasElement>) {
-    releasePointer(event.currentTarget, event.pointerId)
+    const canvas = event.currentTarget
+    releasePointer(canvas, event.pointerId)
+    if (hasMeaningfulStrokeRef.current) emitCanvasSignature(canvas)
     previousPointRef.current = null
+    previousRenderedEndPointRef.current = null
     strokeStartPointRef.current = null
     hasMeaningfulStrokeRef.current = false
   }
@@ -166,6 +171,7 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
   function clearSignature() {
     clearCanvas()
     previousPointRef.current = null
+    previousRenderedEndPointRef.current = null
     strokeStartPointRef.current = null
     hasMeaningfulStrokeRef.current = false
     if (uploadInputRef.current) uploadInputRef.current.value = ''
