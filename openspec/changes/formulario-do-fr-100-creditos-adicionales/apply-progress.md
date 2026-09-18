@@ -321,3 +321,47 @@ implementó.
 - next_recommended: make a single synthetic submission only after a local backend is already reachable, then run SDD verification.
 - risks: a live public submission has not been observed; browser-level signature behavior retains the previously recorded maintainer evidence. No submission was attempted against a remote or unavailable local host.
 - skill_resolution: paths-injected
+
+## Task 3.19 and closing criteria — real end-to-end submission
+
+- [x] 3.19 A real public submission was executed on 2026-09-18 through the browser, with Postgres
+  (host port 5433), the backend (8080) and the Next dev server (3000) all running. The earlier block
+  is lifted: the backend change has all 47 of its tasks marked, and `PUBLIC_CAPTURE_ENABLED` is
+  `true` for `ADICION_CREDITOS`, which was checked before submitting because a missing flag returns
+  404 and would look like a frontend failure.
+
+### Database evidence
+
+| Evidence | Result |
+|---|---|
+| Persisted row | `request` `a571f358-608d-4d2c-833c-b0f3ab910973`, `created_at 2026-09-18 00:52:17` |
+| Definition and state | `ADICION_CREDITOS`, initial state `EN_COORDINACION` |
+| Contract fields | All ten text fields stored intact, including the five added by migration `V3.3.0` |
+| Semester | Stored as `'8'`, untransformed, as task 3.8 requires |
+| Signature encoding | `student_signature` is 9774 characters starting `data:image/png;base64,iVBORw0KGg` — the base64 PNG header, not a JPEG |
+| Audit trail | `request_transition_log` row with actor `portal-publico@tramita.local`, `active = false`, no `from_state_id` |
+| Receipt | Screen showed «Solicitud recibida» with no identifier, state or lookup link, and the URL never changed |
+
+### Closing criteria
+
+Eight of the ten criteria are now met and recorded in `tasks.md` with the command that measured each
+one. Verification was re-run with the cache cleared: `rm -rf .next && pnpm exec tsc --noEmit` exit 0,
+`pnpm lint` exit 0, `pnpm test` 122 passing across 15 files, `pnpm build` compiled with
+`/solicitud/creditos-adicionales` as a static route.
+
+Two criteria remain open, deliberately:
+
+- **Zero real personal data in the repository.** Still unmet. `lib/mock-data.ts` holds six records
+  with realistic full names and addresses under the real institutional domain
+  `@estudiante.remington.edu.co`, and `ORDEN.md` is still tracked. Issue #14 owns this; closing it
+  here would claim work that was not done.
+- **Deployment checklist note about the public origin in the CORS allowlist** (task 0.3). Not
+  written yet. No test fails because of it, which is exactly why it is easy to lose.
+
+### Result Contract
+
+- status: success
+- executive_summary: The public capture channel works end to end against a live backend. Task 3.19 is closed with database evidence rather than a claimed submission, and eight of ten closing criteria are met.
+- artifacts: `tasks.md` records 3.19 and the measured closing criteria; this cumulative `apply-progress.md` preserves every phase.
+- next_recommended: Resolve issue #14 for the personal-data criterion, and write the deployment note for task 0.3.
+- risks: `pnpm audit` still reports 13 vulnerabilities (3 moderate, 10 high) in transitive dependencies; none are in `next` and none are critical. Signature legal validity and the biometric-data question remain open with the Coordination.
