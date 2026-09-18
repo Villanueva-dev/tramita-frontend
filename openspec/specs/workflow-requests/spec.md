@@ -13,10 +13,22 @@ abajo se refieren a ese archivo).
 
 ### Requirement: Catálogo data-driven de definiciones de trámite
 
-El sistema **MUST** poblar el selector de trámites exclusivamente desde
-`GET /workflow-definitions` (:14-28), usando `code` + `name` de `WorkflowDefinition`
-(:177-183). El sistema **MUST NOT** fijar códigos o nombres de trámite en `app/`,
-`components/` o `lib/` fuera de fixtures.
+El sistema reconoce dos clases de pantalla de registro, cada una con su propia norma sobre el
+origen del `code` de trámite, ninguna subordinada a la otra.
+
+**Pantallas que ofrecen elegir un trámite** (por ejemplo, el registro genérico de
+`app/requests/new`): el sistema **MUST** poblar su selector exclusivamente desde
+`GET /workflow-definitions` (:14-28), usando `code` + `name` de `WorkflowDefinition` (:177-183).
+El sistema **MUST NOT** fijar en ellas códigos o nombres de trámite fuera de fixtures.
+
+**Pantallas que reproducen un formato oficial en papel** (por ejemplo, el DO-FR-100 acotado a
+créditos adicionales): un formato de papel no ofrece elegir entre trámites, reproduce uno. El
+sistema **MUST** declarar su código de trámite de forma explícita y **exactamente una vez** en el
+código de la pantalla —sea para el cuerpo de la petición o para construir su ruta— y **MUST NOT**
+ofrecer en ellas ningún selector de trámites.
+
+(Previously: el requisito solo contemplaba pantallas que ofrecen elegir trámite y prohibía sin
+excepción cualquier `code` fijado en `app/`, `components/` o `lib/` fuera de fixtures.)
 
 #### Scenario: Selector poblado desde el catálogo
 
@@ -30,12 +42,20 @@ El sistema **MUST** poblar el selector de trámites exclusivamente desde
 - WHEN se recarga el formulario sin cambiar el código del front
 - THEN la nueva definición aparece en el selector
 
-#### Scenario: Ausencia de códigos hardcodeados
+#### Scenario: Ausencia de códigos hardcodeados fuera de las pantallas de formato oficial
 
-- GIVEN el código fuente en `app/`, `components/`, `lib/` (excluyendo fixtures)
+- GIVEN el código fuente en `app/`, `components/`, `lib/` (excluyendo fixtures y las pantallas
+  que reproducen un formato oficial)
 - WHEN se busca cualquier `code` literal de trámite (p. ej. `ADICION_CREDITOS`)
-- THEN la búsqueda devuelve 0 ocurrencias
+- THEN la búsqueda devuelve 0 ocurrencias fuera de esas exclusiones
 
+#### Scenario: Pantalla de formato oficial sin selector y con el literal declarado una sola vez
+
+- GIVEN una pantalla que reproduce un formato oficial (por ejemplo, el DO-FR-100)
+- WHEN se inspecciona su código fuente e interfaz
+- THEN no expone ningún control que permita elegir un trámite distinto
+- AND su literal de código de trámite aparece exactamente una vez, sin importar si alimenta el
+  cuerpo de la petición o su ruta
 ### Requirement: Registro de una solicitud (US1)
 
 El sistema **MUST** enviar vía `POST /requests` los seis campos siguientes, y solo esos:
