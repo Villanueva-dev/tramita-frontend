@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { STATUS_LABELS } from '@/lib/mock-data'
+import { STATUS_LABELS } from '@/lib/ui-constants'
 import { statusVariant } from '@/lib/format'
 import type { RequestStatus } from '@/lib/types'
 import Image from 'next/image'

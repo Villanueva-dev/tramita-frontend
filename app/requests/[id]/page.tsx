@@ -37,7 +37,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
-import { REQUEST_TYPE_LABELS } from '@/lib/mock-data'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
 

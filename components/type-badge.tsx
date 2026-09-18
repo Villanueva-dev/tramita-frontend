@@ -1,6 +1,6 @@
 import { BookOpen, GraduationCap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { REQUEST_TYPE_LABELS } from '@/lib/mock-data'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import type { RequestType } from '@/lib/types'
 
 export function TypeBadge({ type }: { type: RequestType }) {

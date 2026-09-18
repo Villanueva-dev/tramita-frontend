@@ -14,7 +14,7 @@ import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from 
 import { apiErrorMessages } from './api-errors'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
-import { workflowConfig as defaultWorkflowConfig } from './mock-data'
+import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
 import type {
   AcademicRequest,
   Attachment,

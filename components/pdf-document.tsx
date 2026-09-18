@@ -1,6 +1,6 @@
 import type { AcademicRequest } from '@/lib/types'
 import { formatDate } from '@/lib/format'
-import { REQUEST_TYPE_LABELS } from '@/lib/mock-data'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 
 export function PdfDocument({ request }: { request: AcademicRequest }) {
   const completed = request.timeline.find((h) => h.toStatus === 'finalizado')

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
-import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/mock-data'
+import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
 import { businessDaysUntil, isOverdue } from '@/lib/format'
 import type { RequestStatus, RequestType } from '@/lib/types'
 

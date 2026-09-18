@@ -1,61 +1,6 @@
-import type {
-  AcademicRequest,
-  RequestStatus,
-  RequestType,
-  RequestTypeConfig,
-} from './types'
+import type { AcademicRequest } from '../types'
 
-export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
-  adicion_creditos: 'Adición de Créditos',
-  novedad_notas: 'Novedad de Notas',
-}
-
-export const STATUS_LABELS: Record<RequestStatus, string> = {
-  pendiente: 'Pendiente',
-  en_revision: 'En Revisión',
-  devuelto: 'Devuelto',
-  aprobado: 'Aprobado',
-  finalizado: 'Finalizado',
-}
-
-export const PROGRAMS = [
-  'Ingeniería de Sistemas',
-  'Administración de Empresas',
-  'Contaduría Pública',
-  'Derecho',
-  'Psicología',
-]
-
-export const COORDINATOR_NAME = 'Coord. Ana María Restrepo'
-
-export const workflowConfig: RequestTypeConfig[] = [
-  {
-    id: 'adicion_creditos',
-    label: 'Adición de Créditos',
-    description:
-      'Solicitud para inscribir créditos adicionales por encima del límite regular del semestre.',
-    enabled: true,
-    stages: [
-      { id: 'radicacion', label: 'Radicación', description: 'Registro inicial de la solicitud' },
-      { id: 'revision', label: 'Revisión de Coordinación', description: 'Validación de requisitos académicos' },
-      { id: 'aprobacion', label: 'Aprobación', description: 'Decisión final del coordinador' },
-      { id: 'cierre', label: 'Cierre y Notificación', description: 'Generación de PDF y notificación al estudiante' },
-    ],
-  },
-  {
-    id: 'novedad_notas',
-    label: 'Novedad de Notas',
-    description:
-      'Solicitud de corrección o modificación de una calificación registrada.',
-    enabled: true,
-    stages: [
-      { id: 'radicacion', label: 'Radicación', description: 'Registro inicial de la novedad' },
-      { id: 'verificacion', label: 'Verificación Docente', description: 'Confirmación con el docente responsable' },
-      { id: 'aprobacion', label: 'Aprobación', description: 'Autorización del cambio de nota' },
-      { id: 'cierre', label: 'Cierre y Notificación', description: 'Generación de PDF y notificación al estudiante' },
-    ],
-  },
-]
+const COORDINATOR_NAME = 'Coordinación de prueba'
 
 export const mockRequests: AcademicRequest[] = [
   {
@@ -68,10 +13,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2025-01-08T09:12:00',
     updatedAt: '2025-01-08T09:12:00',
     dueDate: '2025-01-11T23:59:00',
-    studentCode: '1090234',
-    studentCedula: '1017234567',
-    studentName: 'Juliana Gómez Vélez',
-    studentEmail: 'juliana.gomez@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-1',
+    studentCedula: 'TEST-DOCUMENT-1',
+    studentName: 'Estudiante de prueba 1',
+    studentEmail: 'student1@example.com',
     program: 'Ingeniería de Sistemas',
     semester: 'Semestre 7',
     subjects: [
@@ -107,10 +52,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2025-01-07T14:30:00',
     updatedAt: '2025-01-08T08:05:00',
     dueDate: '2025-01-14T23:59:00',
-    studentCode: '1088765',
-    studentCedula: '1019876543',
-    studentName: 'Andrés Felipe Cardona',
-    studentEmail: 'andres.cardona@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-2',
+    studentCedula: 'TEST-DOCUMENT-2',
+    studentName: 'Estudiante de prueba 2',
+    studentEmail: 'student2@example.com',
     program: 'Administración de Empresas',
     semester: 'Semestre 4',
     subjects: [
@@ -159,10 +104,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2025-01-05T10:00:00',
     updatedAt: '2025-01-06T16:20:00',
     dueDate: '2025-01-12T23:59:00',
-    studentCode: '1077654',
-    studentCedula: '1015551212',
-    studentName: 'María Camila Ospina',
-    studentEmail: 'maria.ospina@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-3',
+    studentCedula: 'TEST-DOCUMENT-3',
+    studentName: 'Estudiante de prueba 3',
+    studentEmail: 'student3@example.com',
     program: 'Contaduría Pública',
     semester: 'Semestre 6',
     subjects: [
@@ -202,10 +147,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2025-01-04T11:45:00',
     updatedAt: '2025-01-07T09:30:00',
     dueDate: '2025-01-13T23:59:00',
-    studentCode: '1066543',
-    studentCedula: '1013334455',
-    studentName: 'Santiago Herrera López',
-    studentEmail: 'santiago.herrera@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-4',
+    studentCedula: 'TEST-DOCUMENT-4',
+    studentName: 'Estudiante de prueba 4',
+    studentEmail: 'student4@example.com',
     program: 'Derecho',
     semester: 'Semestre 8',
     subjects: [
@@ -242,10 +187,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2024-12-18T08:00:00',
     updatedAt: '2024-12-20T15:10:00',
     dueDate: '2024-12-27T23:59:00',
-    studentCode: '1055432',
-    studentCedula: '1011112233',
-    studentName: 'Valentina Ríos Mejía',
-    studentEmail: 'valentina.rios@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-5',
+    studentCedula: 'TEST-DOCUMENT-5',
+    studentName: 'Estudiante de prueba 5',
+    studentEmail: 'student5@example.com',
     program: 'Psicología',
     semester: 'Semestre 5',
     subjects: [
@@ -274,10 +219,10 @@ export const mockRequests: AcademicRequest[] = [
     createdAt: '2025-01-08T07:40:00',
     updatedAt: '2025-01-08T07:40:00',
     dueDate: '2025-01-10T23:59:00',
-    studentCode: '1099887',
-    studentCedula: '1018889900',
-    studentName: 'Daniel Estrada Correa',
-    studentEmail: 'daniel.estrada@estudiante.remington.edu.co',
+    studentCode: 'TEST-STUDENT-6',
+    studentCedula: 'TEST-DOCUMENT-6',
+    studentName: 'Estudiante de prueba 6',
+    studentEmail: 'student6@example.com',
     program: 'Ingeniería de Sistemas',
     semester: 'Semestre 9',
     subjects: [
