@@ -2,21 +2,20 @@
 
 ## Batch
 
-- Scope: cumulative Phase 1 plus completed Phase 2 work (tasks 1.1–1.12 and 2.1–2.9)
+- Scope: cumulative Phase 1 plus completed Phase 2 work and its pre-Phase-3 correction (tasks 1.1–1.12 and 2.1–2.15)
 - Delivery mode: single-pr + size:exception (maintainer-authorized)
 - Artifact store: OpenSpec, per current native SDD status
 - Previous progress: Phase 1 history, guard reclassification, accepted review correction, and evidence preserved below
-- Status: success for 21/53 tasks; Phase 2 is complete
+- Status: success for 27/49 tasks; Phase 2 and the pre-Phase-3 correction are complete
 
 ## Result Contract
 
 - status: success
-- executive_summary: Phase 1 public-route and regression-guard history is preserved, and Phase 2 signature capture is complete with automated checks plus maintainer-confirmed finger drawing on a real mobile device.
-- artifacts: `tasks.md` records 21/53 completed tasks; this cumulative `apply-progress.md` preserves all Phase 1 and Phase 2 evidence in OpenSpec.
+- executive_summary: Phase 1 public-route and regression-guard history is preserved; Phase 2 signature capture and its pre-Phase-3 correction are complete with automated checks, maintainer-confirmed desktop Chrome mouse drawing on the correct URL, mobile finger drawing, keyboard image upload/clear, and canonical build evidence.
+- artifacts: `tasks.md` records 27/49 completed tasks; this cumulative `apply-progress.md` preserves all Phase 1 and Phase 2 evidence in OpenSpec.
 - next_recommended: Phase 3 remains pending and must be separately authorized and applied.
-- risks: The maintainer confirmation establishes finger drawing only; no device/browser details or broader mobile usability claims were recorded. Phase 3 remains dependent on the public backend endpoint for end-to-end proof.
+- risks: The maintainer confirmed desktop Chrome mouse drawing on the correct URL, mobile finger drawing, and keyboard image upload/clear. No browser version or device details were recorded, so no broader compatibility claim is inferred. jsdom cannot prove browser canvas pixels or native file-picker behavior. Phase 3 remains dependent on the public backend endpoint for end-to-end proof.
 - skill_resolution: paths-injected
-
 ## Completed Tasks
 
 - [x] 1.1 Route test RED evidence captured.
@@ -175,3 +174,91 @@ Phase 1 is complete. The next implementation slice is Phase 2 signature capture;
 ### Next Step
 
 Phase 2 is complete. Phase 3 remains pending and was not implemented in this bounded update.
+
+## Corrección crítica pre-Fase 3 de firma
+
+- Scope: corrige los hallazgos #20, #22, #23, #25, #26, #28 y #29 sin implementar envío, API,
+  validación o acuse de la Fase 3.
+- Delivery mode: single-pr + size:exception (maintainer-authorized).
+- Artifact store: OpenSpec, per current native SDD status.
+- Status: success — las correcciones 2.10–2.15 están completas. La evidencia canónica de build
+  del maintainer resuelve la verificación requerida; los fallos de sandbox y webpack se conservan
+  como historial ambiental/no canónico, no como resultado del código fuente.
+
+### Result Contract
+
+- status: success
+- executive_summary: La corrección de firma está completa: el trazo exige 4 píxeles CSS, el
+  callback vigente no reinicia la captura, la carga PNG/JPEG es una alternativa accesible y el
+  nombre de la figura es exacto. La evidencia canónica local del maintainer confirmó dos builds
+  exitosos y la verificación manual final confirmó mouse, dedo y carga/limpieza por teclado.
+- artifacts: `tasks.md` marca 2.10–2.15 como completas; este reporte conserva las pruebas,
+  mutaciones, diagnósticos y evidencia de build.
+- next_recommended: La Fase 3 continúa pendiente y no fue implementada por esta corrección.
+- risks: jsdom no demuestra píxeles de canvas, gestos táctiles reales ni el selector nativo de
+  archivos, pero el maintainer verificó manualmente el alcance requerido. No se registraron
+  versiones de navegador ni detalles de dispositivo; no se infieren afirmaciones más amplias.
+- skill_resolution: paths-injected
+
+### Root-Class Evidence
+
+- Un `pointerdown` seguido de `pointerup`, o un desplazamiento menor de 4 píxeles CSS desde el
+  origen del gesto, ya no emite una firma. Al alcanzar el umbral, el canvas dibuja, emite PNG y
+  marca `hayFirma`.
+- La inicialización de la captura ocurre solo al montar. Una referencia actualizada por efecto
+  conserva la captura al cambiar la identidad de `onChange` y entrega los eventos posteriores al
+  callback vigente.
+- El canvas sigue disponible; un control nativo de archivo, etiquetado y enfocable por teclado,
+  admite PNG/JPEG como alternativa accesible y produce el mismo `SignatureCapture`.
+- La figura deja de exponer el nombre obsoleto `Espacio para firma` y se llama
+  `Firma del solicitante`.
+- Las pruebas ahora exigen `beginPath`, `moveTo`, `quadraticCurveTo`, `stroke` y
+  `toDataURL('image/png')`. No demuestran píxeles del navegador: jsdom no implementa ese nivel
+  de canvas.
+- Las mutaciones temporales confirmaron la guarda: quitar todos los `stroke()` dejó 1 fallo de 9
+  en `canvas-firma.test.tsx`; cambiar PNG por JPEG dejó 1 fallo de 9. Ambas mutaciones se
+  restauraron antes de la verificación final.
+- La prueba que sustituye `window.devicePixelRatio` restaura el descriptor original en `finally`;
+  `vi.restoreAllMocks()` no restaura propiedades redefinidas directamente.
+- Verificación manual final del maintainer: con la URL correcta, el dibujo con mouse funciona en
+  Chrome de escritorio; el dibujo con dedo funciona en móvil; y la carga de imagen por teclado y
+  su limpieza funcionan. No se registraron versiones de navegador ni detalles de dispositivo.
+  La aparente regresión de escritorio y su error HMR WebSocket provenían de una URL de desarrollo
+  incorrecta, no del canvas.
+
+### Completed Tasks
+
+- [x] 2.10 Umbral determinista de 4 píxeles CSS para un trazo significativo, con casos de toque,
+  movimiento menor y trazo válido PNG.
+- [x] 2.11 Estabilidad de captura y entrega al callback vigente tras cambiar `onChange`.
+- [x] 2.12 Alternativa de imagen PNG/JPEG nativa, etiquetada y reiniciable con el mismo contrato.
+- [x] 2.13 Nombre accesible actualizado a `Firma del solicitante`.
+- [x] 2.14 Guardas de comandos de dibujo, codificación PNG y restauración de descriptor DPR.
+- [x] 2.15 Documentación y verificación completadas con evidencia canónica del maintainer.
+
+### TDD Cycle Evidence
+
+| Tasks | Test file and layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|
+| 2.10–2.14 | `components/firma/canvas-firma.test.tsx` and `app/solicitud/creditos-adicionales/page.test.tsx` — integration | `pnpm exec vitest run components/firma/canvas-firma.test.tsx app/solicitud/creditos-adicionales/page.test.tsx` → 2 files / 12 tests passed | After adding the correction cases, the same command failed: 2 files, 6 failed / 9 passed. The failures exposed tap-as-signature, duplicate `stroke()`, callback reset, missing upload control, stale figure name, and missing control ID. | After the production correction: the same command → 2 files / 15 tests passed. | Tap/sub-threshold versus meaningful movement, initial versus latest callback, canvas versus uploaded PNG, and current versus stale figure name exercise separate paths. | Replaced the reset-on-callback effect with a latest-callback ref effect; extracted emit/clear helpers and the 4-pixel constant. The focused suite stayed green after the lint-driven ref adjustment. |
+
+### Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused correction tests | `pnpm exec vitest run components/firma/canvas-firma.test.tsx app/solicitud/creditos-adicionales/page.test.tsx` → 2 files / 15 tests passed. |
+| Full suite | `pnpm test` → 15 files / 93 tests passed. |
+| Mutation checks | Sin `stroke()`: 1 file / 1 failed, asertando el conteo de `context.stroke`; PNG→JPEG: 1 file / 1 failed, asertando `toDataURL('image/png')`. Las fuentes se restauraron inmediatamente. |
+| Typecheck | `pnpm exec tsc --noEmit` → exit 0. |
+| Lint | First run failed on a render-time ref write; after moving it to an effect, `pnpm lint` → exit 0. |
+| Historial del sandbox | En este sandbox, `pnpm build` falló dos veces: Turbopack no pudo crear un proceso que enlace un puerto, `Operation not permitted`. Es una limitación de ese entorno, no un diagnóstico del código fuente. |
+| Diagnóstico webpack (no canónico) | `pnpm exec next build --webpack` se ejecutó una vez y falló: `Could not parse output from TypeScript's --showConfig.` No sustituye ni aprueba el comando canónico. |
+| Build canónico del maintainer | El maintainer ejecutó `pnpm build` localmente con código 0 en 8.4142 s: Next.js 16.3.5 compiló, TypeScript terminó, 9/9 páginas estáticas se generaron y `/solicitud/creditos-adicionales` se emitió estática. Una segunda corrida de `next build` también compiló, terminó TypeScript, generó 9/9 páginas y emitió el mismo inventario de rutas. Esta evidencia resuelve la verificación requerida. |
+| Límites de jsdom | jsdom ejercita los límites de Pointer Events e input nativo, pero no demuestra píxeles de canvas, gesto táctil real ni selector de archivos nativo. |
+| Verificación manual final | El maintainer confirmó mouse en Chrome de escritorio con la URL correcta, dedo en móvil, y carga/limpieza de imagen por teclado. No se registraron versiones ni detalles de dispositivo. El error HMR WebSocket correspondía a la URL de desarrollo incorrecta, no al canvas. |
+| Rollback boundary | Revert `components/firma/canvas-firma.tsx`, `components/firma/canvas-firma.test.tsx`, `components/do-fr-100/sections.tsx`, `app/solicitud/creditos-adicionales/page.test.tsx`, and this correction section. Existing Phase 1 evidence and all Phase 3 source remain outside the boundary. |
+
+### Next Step
+
+La corrección crítica pre-Fase 3 está completa. La Fase 3 de envío/API sigue pendiente y no se
+implementó.

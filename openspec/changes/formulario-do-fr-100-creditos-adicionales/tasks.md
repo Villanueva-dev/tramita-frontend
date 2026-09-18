@@ -68,6 +68,36 @@ pantalla completa.
 - [x] 2.8 **Verificación manual completada**: el maintainer confirmó que el canvas corregido permite dibujar la firma con el dedo en un dispositivo móvil real. No se registraron detalles de dispositivo o navegador.
 - [x] 2.9 Verificar `pnpm test`, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`.
 
+### Corrección crítica de firma — pre-Fase 3
+
+> **Motivo.** Las tareas 2.4, 2.5 y 2.8 siguen registrando correctamente el trabajo realizado,
+> pero su afirmación de que el primer `pointerdown` basta para firmar quedó invalidada: un toque
+> sin desplazamiento no constituye un trazo significativo. Estas tareas corrigen el contrato sin
+> reabrir evidencia válida de la Fase 2 ni adelantar el envío de la Fase 3.
+
+- [x] 2.10 RED/GREEN: un toque o desplazamiento menor al umbral de trazo significativo no firma;
+  un desplazamiento que alcanza el umbral sí firma y conserva la salida PNG.
+- [x] 2.11 RED/GREEN: cambiar la identidad de `onChange` no reinicia una captura existente y los
+  eventos posteriores notifican al callback vigente.
+- [x] 2.12 RED/GREEN: ofrecer una carga de imagen PNG/JPEG operable por teclado como alternativa
+  accesible al canvas; su resultado alimenta el mismo contrato `SignatureCapture` y limpiar
+  reinicia ambas vías.
+- [x] 2.13 RED/GREEN: nombrar la figura y el bloque como `Firma del solicitante`, sin conservar
+  el nombre accesible obsoleto `Espacio para firma`.
+- [x] 2.14 RED/GREEN: agregar guardas que fallen si se eliminan los comandos de dibujo o se cambia
+  la codificación PNG; aislar la sustitución de `devicePixelRatio` para que sus descriptores no
+  se filtren entre pruebas.
+- [x] 2.15 Documentar el umbral, la alternativa accesible y el límite de jsdom; verificar el
+  lote de corrección sin implementar comportamiento de envío/API de la Fase 3. La historia del
+  sandbox se preserva: allí `pnpm build` falló porque Turbopack no pudo enlazar un puerto y el
+  diagnóstico no canónico webpack falló al analizar `tsc --showConfig`. La verificación canónica
+  fue resuelta por el maintainer: `pnpm build` terminó con código 0 en 8.4142 s y una segunda
+  corrida también compiló; ambas completaron TypeScript, generaron 9/9 páginas estáticas y
+  emitieron `/solicitud/creditos-adicionales` como ruta estática. La verificación manual final
+  confirmó dibujo con mouse en Chrome de escritorio usando la URL correcta, dibujo con dedo en
+  móvil, y carga/limpieza por teclado de imagen; no se registraron versiones ni detalles de
+  dispositivo. El error HMR WebSocket pertenecía a la URL de desarrollo incorrecta, no al canvas.
+
 ## Fase 3 (PR 3) — Envío, validación, errores y acuse
 
 - [ ] 3.1 RED `lib/api.test.ts`: `submitPublicRequest('ADICION_CREDITOS', body)` llama a `/public/requests/ADICION_CREDITOS`.

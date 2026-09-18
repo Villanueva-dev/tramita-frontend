@@ -112,13 +112,13 @@ export function PublicRequestSections({ values, onChange, signatureCapture }: Pu
       <Card>
         <CardHeader>
           <CardTitle>Firma del solicitante</CardTitle>
-          <CardDescription>Trace su firma en el recuadro.</CardDescription>
+          <CardDescription>Trace su firma en el recuadro o cargue una imagen como alternativa accesible.</CardDescription>
         </CardHeader>
         <CardContent>
-          <figure aria-labelledby="signature-placeholder-label">
+          <figure aria-labelledby="signature-label">
             {signatureCapture}
-            <figcaption id="signature-placeholder-label" className="sr-only">
-              Espacio para firma
+            <figcaption id="signature-label" className="sr-only">
+              Firma del solicitante
             </figcaption>
           </figure>
         </CardContent>

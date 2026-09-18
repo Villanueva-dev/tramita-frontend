@@ -58,7 +58,7 @@ describe('PublicAdditionalCreditsPage', () => {
       screen.getByText('Datos del solicitante'),
       screen.getByText('Motivo de la solicitud'),
       screen.getByText('Compromisos adquiridos', { selector: '[data-slot="card-title"]' }),
-      screen.getByText('Firma del solicitante'),
+      screen.getByText('Firma del solicitante', { selector: '[data-slot="card-title"]' }),
     ]
 
     for (let index = 1; index < blocks.length; index += 1) {
@@ -104,6 +104,7 @@ describe('PublicAdditionalCreditsPage', () => {
       'semester',
       'modality',
       'reason',
+      'signature-upload',
       '',
     ])
     expect(controls.filter((control) => /asignatura|subject|credit/i.test(control.id || control.getAttribute('name') || ''))).toHaveLength(0)
@@ -111,11 +112,13 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(document.querySelector('textarea')?.id).toBe('reason')
   })
 
-  it('integrates the signature canvas inside the named figure', () => {
+  it('integrates the canvas and keyboard-operable image alternative inside an accurately named figure', () => {
     render(<PublicAdditionalCreditsPage />)
 
-    const signaturePlaceholder = screen.getByRole('figure', { name: 'Espacio para firma' })
-    expect(screen.getByLabelText('Área para dibujar la firma')).toBe(signaturePlaceholder.querySelector('canvas'))
+    const signatureFigure = screen.getByRole('figure', { name: 'Firma del solicitante' })
+    expect(screen.queryByRole('figure', { name: 'Espacio para firma' })).toBeNull()
+    expect(screen.getByLabelText('Área para dibujar la firma')).toBe(signatureFigure.querySelector('canvas'))
+    expect(screen.getByLabelText('Cargar una imagen de firma')).toBe(signatureFigure.querySelector('input[type="file"]'))
     expect(screen.getByRole('button', { name: 'Limpiar firma' })).toBeDefined()
   })
 })

@@ -137,8 +137,8 @@ proposal, sección *Dependencies*, incluida la precisión sobre el alcance de es
 
 | | |
 |---|---|
-| **Elegido** | `<canvas>` con Pointer Events y suavizado por curva cuadrática; `toDataURL('image/png')`. |
-| **Alternativa de eje distinto** | El nombre tipografiado: el estudiante escribe su nombre y se renderiza en cursiva sobre el canvas. |
+| **Elegido** | `<canvas>` con Pointer Events y suavizado por curva cuadrática; `toDataURL('image/png')`, más carga nativa de imagen PNG/JPEG como alternativa accesible. |
+| **Alternativa de eje distinto** | Atestación con nombre tipografiado. |
 
 **Por qué no una librería.** `signature_pad` existe para que el trazo salga suave. El spec del
 backend declara que **el sistema acepta una firma ilegible o un solo trazo** y que juzgar si una
@@ -147,11 +147,11 @@ El requisito de calidad es cero: comprar una dependencia para satisfacerlo es co
 nadie pidió. El suavizado que de verdad mejora el trazo con el dedo cabe en cuatro líneas —punto
 medio entre muestras y `quadraticCurveTo`— y queda en el repo, auditable.
 
-**Por qué no la tipografiada, siendo más simple.** Es técnicamente superior: menos código, menos
-peso, accesible con teclado, y **no es un rasgo biométrico**. Pero contradice
-`spec.md:28` («firma trazando en la pantalla») y la Coordinadora aprobó el prototipo **con
-trazo**. Su costo no es de código: es reabrir una decisión ya cerrada con la usuaria. Ver la
-Decisión 7, que la deja lista por si hace falta.
+**Alternativa accesible aceptada.** Se conserva el canvas aprobado y se añade un `<input
+type="file">` nativo, etiquetado y alcanzable por teclado, que acepta PNG/JPEG. Tras cargarlo,
+la imagen produce el mismo contrato `{ dataUrl, hayFirma }` que el canvas; no hay una ruta de
+envío ni una afirmación legal nueva. Se descartó la atestación con nombre tipografiado porque el
+responsable pidió una imagen de firma, no un sustituto textual ni una equivalencia jurídica.
 
 **Detalles que no son opcionales**, y que solo se ven con un teléfono en la mano:
 
@@ -160,9 +160,11 @@ Decisión 7, que la deja lista por si hace falta.
 - **Escalar por `devicePixelRatio`** al dimensionar el canvas, o el trazo sale borroso.
 - **`setPointerCapture`**, para que el trazo no se corte si el dedo sale del recuadro.
 - **Botón «Limpiar»**, porque firmar mal con el dedo es normal.
-- El canvas se considera firmado **solo si hubo al menos un trazo**: un canvas en blanco produce
-  un PNG válido, así que `toDataURL()` devolviendo algo **no** prueba que el estudiante firmó.
-  Esa distinción se guarda en estado propio, no se infiere del data URL.
+- El canvas se considera firmado solo cuando la distancia desde el inicio del gesto
+  alcanza **4 píxeles CSS**. Un toque o un movimiento menor no emite PNG ni cambia el estado.
+- El callback se guarda en una referencia actual para que un cambio de identidad no reinicialice
+  una captura existente; los eventos posteriores notifican la función vigente.
+- Limpiar reinicia el canvas, la selección de archivo y el estado de ambas alternativas.
 
 **Peso**: un trazo del tamaño del recuadro pesa 20–30 KB en base64
 (`research.md` D6), contra un tope de 256 KB para el cuerpo entero (D7). Holgado, pero el
@@ -224,7 +226,7 @@ nada más «por si acaso».
               └─ otro → banner de formulario
 
     components/do-fr-100/*  ← props (valores + onChange + errors); sin estado propio
-    components/firma/*      ← expone { dataUrl, hayFirma } hacia arriba
+    components/firma/*      ← canvas o PNG/JPEG cargado → { dataUrl, hayFirma } hacia arriba
 
 ## File Changes
 
