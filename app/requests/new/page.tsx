@@ -301,7 +301,7 @@ export default function NewRequestPage() {
                   type="email"
                   value={studentEmail}
                   onChange={(e) => setStudentEmail(e.target.value)}
-                  placeholder="nombre@estudiante.remington.edu.co"
+                  placeholder="nombre@example.com"
                   aria-invalid={!!errors.studentEmail}
                 />
                 <FieldError msg={errors.studentEmail} />
