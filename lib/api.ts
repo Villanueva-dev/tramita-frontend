@@ -135,6 +135,22 @@ export interface SessionUser {
   active: boolean
 }
 
+export interface AssistantSource {
+  sourceId: string
+  title: string
+  version: string
+  locator?: string
+  section?: string
+  page?: number
+}
+
+export interface AssistantResponse {
+  answer: string
+  grounded: boolean
+  sources: AssistantSource[]
+  disclaimer: string
+}
+
 /**
  * Snapshot de la sesión. `null` si no hay sesión (401 es señal, no error).
  * Como es un GET, además siembra la cookie XSRF-TOKEN para los POST siguientes.
@@ -167,6 +183,16 @@ export async function changePassword(
   if (!res.ok) throw await parseProblem(res)
 }
 
+/** Consulta el asistente documental; la clave del proveedor nunca sale del backend. */
+export async function askAssistant(question: string): Promise<AssistantResponse> {
+  const res = await apiFetch('/assistant', {
+    method: 'POST',
+    body: { question },
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as AssistantResponse
+}
+
 // --- Motor de workflow (Fase B) ---
 // Autoridad: Tramita/specs/002-workflow-engine/contracts/openapi.yaml.
 // El mapa 422→campo (D-E) es estático por operación: cada operación tiene una
@@ -187,7 +213,7 @@ export interface CreateRequestBody {
   definitionCode: string
   studentName: string
   studentDocument: string
-  /** Opcionales en el contrato 003 (`required` solo exige los tres de arriba). */
+  /** Opcionales en el contrato 003 (`required` exige los tres datos de identificación). */
   program?: string
   /** Ordinal del semestre cursado y aprobado (`'8'`), no un periodo académico. */
   semester?: string
@@ -209,7 +235,7 @@ export async function createRequest(body: CreateRequestBody): Promise<Request> {
   return (await res.json()) as Request
 }
 
-/** Localiza solicitudes por nombre o cédula (US3, FR-011). El backend exige `minLength: 2`. */
+/** Localiza solicitudes por cédula, código o nombre (US3, FR-011). El backend exige `minLength: 2`. */
 export async function searchRequests(term: string): Promise<RequestSummary[]> {
   const res = await apiFetch(`/requests?search=${encodeURIComponent(term)}`)
   if (!res.ok) throw await parseProblem(res)

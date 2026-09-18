@@ -12,7 +12,7 @@ const REQUEST: Request = {
   id: 'req-1',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Ana Pérez',
-  studentDocument: '1000000001',
+  studentDocument: '1017234567',
   currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
   availableTransitions: [
     {

@@ -23,7 +23,7 @@ type CardFilter =
   | 'urgente'
 
 export default function DashboardPage() {
-  const { requests, metrics, coordinatorName } = useTramita()
+  const { requests, metrics } = useTramita()
   const [now] = useState(() => Date.now())
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
@@ -95,7 +95,6 @@ export default function DashboardPage() {
     setQuery('')
   }
 
-  const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
   const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
   const openRequests = requests.filter((request) => request.status !== 'finalizado')
   const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, request.status))
@@ -115,7 +114,7 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-serif text-2xl font-bold tracking-tight">
-              Buenos días, {firstName}
+              Buenos días
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Tiene {requests.filter((r) => r.status === 'pendiente').length}{' '}

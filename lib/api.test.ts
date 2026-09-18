@@ -11,6 +11,7 @@ import {
   getRequestTimeline,
   advanceRequest,
   ADVANCE_REQUEST_422_FIELD,
+  askAssistant,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
 import type { CreateRequestBody } from './api'
@@ -102,6 +103,35 @@ describe('parseProblem', () => {
   })
 })
 
+describe('askAssistant', () => {
+  it('envía una pregunta al backend y devuelve la respuesta documentada', async () => {
+    const answer = {
+      answer: 'Presente los documentos indicados en el reglamento.',
+      grounded: true,
+      sources: [{ sourceId: 'reglamento', title: 'Reglamento Estudiantil', version: '2026' }],
+      disclaimer: 'Orientación informativa; la decisión corresponde a la institución.',
+    }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, answer))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(askAssistant('¿Qué documentos necesito?')).resolves.toEqual(answer)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/assistant')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ question: '¿Qué documentos necesito?' })
+  })
+
+  it('propaga el problem+json del backend', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(503, 'Asistente no disponible')))
+
+    await expect(askAssistant('¿Qué documentos necesito?')).rejects.toMatchObject({
+      status: 503,
+      title: 'Asistente no disponible',
+    })
+  })
+})
+
 describe('listWorkflowDefinitions', () => {
   it('pide GET /api/workflow-definitions y devuelve el catálogo vigente', async () => {
     const definitions: WorkflowDefinition[] = [
@@ -127,12 +157,12 @@ describe('listWorkflowDefinitions', () => {
 })
 
 describe('createRequest', () => {
-  it('envía POST /api/requests solo con definitionCode+studentName+studentDocument y devuelve la solicitud creada', async () => {
+  it('envía POST /api/requests solo con definitionCode+studentName y devuelve la solicitud creada', async () => {
     const created: Request = {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',
@@ -143,7 +173,7 @@ describe('createRequest', () => {
     const result = await createRequest({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
     })
 
     expect(result).toEqual(created)
@@ -153,7 +183,6 @@ describe('createRequest', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
     })
   })
 
@@ -167,20 +196,20 @@ describe('createRequest', () => {
       createRequest({
         definitionCode: 'NO_EXISTE',
         studentName: 'Ana',
-        studentDocument: '123',
+        studentDocument: '1017234567',
       }),
     ).rejects.toMatchObject({ status: 422 })
     expect(CREATE_REQUEST_422_FIELD).toBe('definitionCode')
   })
 
-  it('transporta los seis campos del contrato 003 en el cuerpo emitido', async () => {
+  it('transporta los cinco campos del contrato 003 en el cuerpo emitido', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, {}))
     vi.stubGlobal('fetch', fetchMock)
 
     await createRequest({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       program: 'Ingeniería de Sistemas',
       semester: '8',
       reason: 'Requiere Cálculo III para completar el plan de estudios.',
@@ -192,7 +221,7 @@ describe('createRequest', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       program: 'Ingeniería de Sistemas',
       semester: '8',
       reason: 'Requiere Cálculo III para completar el plan de estudios.',
@@ -209,7 +238,7 @@ describe('createRequest', () => {
     await createRequest({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       studentEmail: 'ana.perez@example.com',
       phone: '3001234567',
     } as unknown as CreateRequestBody)
@@ -232,7 +261,7 @@ describe('createRequest', () => {
     await createRequest({
       definitionCode: 'ADICION_CREDITOS',
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       semester: '8',
     })
 
@@ -248,7 +277,7 @@ describe('searchRequests', () => {
         id: 'uuid-1',
         definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
         studentName: 'Ana María Pérez',
-        studentDocument: '1000000001',
+        studentDocument: '1017234567',
         currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
         createdAt: '2026-08-14T15:00:00Z',
       },
@@ -280,7 +309,7 @@ describe('getRequest', () => {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
-      studentDocument: '1000000001',
+      studentDocument: '1017234567',
       currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
       availableTransitions: [
         { targetState: { code: 'APROBADO', name: 'Aprobado', isFinal: true }, responsible: 'FACULTAD', requiresNote: false },
@@ -341,7 +370,7 @@ describe('advanceRequest', () => {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana',
-      studentDocument: '123',
+      studentDocument: '1017234567',
       currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',

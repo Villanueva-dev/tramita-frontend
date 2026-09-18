@@ -39,7 +39,7 @@ describe('NewRequestPage', () => {
     expect(screen.getByText('Radicar nueva solicitud')).toBeDefined()
     expect(screen.getByText('Adición de Créditos')).toBeDefined()
     expect(screen.getByPlaceholderText('Ej. 1090234')).toBeDefined()
-    expect(screen.getByPlaceholderText('Ej. 1017234567')).toBeDefined()
+    expect(screen.queryByLabelText('Cédula')).toBeNull()
   })
 
   it('mantiene el formulario sin depender de datos mock de solicitudes', () => {

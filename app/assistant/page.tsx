@@ -1,28 +1,12 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { Bot, BookOpen, LoaderCircle, Send, ShieldAlert, UserRound } from 'lucide-react'
+import { Bot, BookOpen, LoaderCircle, RotateCcw, Send, ShieldAlert, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { apiFetch, problemMessage } from '@/lib/api'
-
-interface AssistantSource {
-  sourceId: string
-  title: string
-  version: string
-  locator?: string
-  section?: string
-  page?: number
-}
-
-interface AssistantResponse {
-  answer: string
-  grounded: boolean
-  sources: AssistantSource[]
-  disclaimer: string
-}
+import { askAssistant, type AssistantResponse } from '@/lib/api'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -33,6 +17,12 @@ interface ChatMessage {
 const SUGGESTIONS = [
   '¿Qué documentos necesito para una novedad de notas?',
   '¿Cuáles son los pasos generales de una adición de créditos?',
+]
+
+const FOLLOW_UP_SUGGESTIONS = [
+  '¿Qué actor interviene después?',
+  '¿Cuánto tiempo puede tardar el trámite?',
+  '¿Qué debo hacer si no tengo todos los documentos?',
 ]
 
 export default function AssistantPage() {
@@ -51,12 +41,7 @@ export default function AssistantPage() {
     setMessages((current) => [...current, { role: 'user', content: trimmedQuestion }])
     setLoading(true)
     try {
-      const response = await apiFetch('/assistant', {
-        method: 'POST',
-        body: JSON.stringify({ question: trimmedQuestion }),
-      })
-      if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo consultar el asistente.'))
-      const assistantResponse = await response.json() as AssistantResponse
+      const assistantResponse = await askAssistant(trimmedQuestion)
       // La conversación vive solo en memoria para no retener preguntas potencialmente personales.
       setMessages((current) => [...current, {
         role: 'assistant',
@@ -70,21 +55,42 @@ export default function AssistantPage() {
     }
   }
 
+  function resetConversation() {
+    setQuestion('')
+    setMessages([])
+    setError('')
+  }
+
   return (
     <AppShell title="Asistente académico">
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="flex min-h-[600px] flex-col">
           <CardHeader className="border-b border-border">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                <Bot className="size-5" />
-              </span>
-              <div>
-                <CardTitle>Consulta documental</CardTitle>
-                <CardDescription className="mt-1">
-                  Pregunta sobre los trámites académicos de la Sede Cali.
-                </CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Bot className="size-5" />
+                </span>
+                <div>
+                  <CardTitle>Consulta documental</CardTitle>
+                  <CardDescription className="mt-1">
+                    Pregunta sobre los trámites académicos de la Sede Cali.
+                  </CardDescription>
+                </div>
               </div>
+              {messages.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={resetConversation}
+                  disabled={loading}
+                  aria-label="Reiniciar consulta"
+                  title="Reiniciar consulta"
+                >
+                  <RotateCcw className="size-4" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -118,15 +124,32 @@ export default function AssistantPage() {
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
                     {message.response && (
-                      <div className="mt-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
-                        <p>{message.response.disclaimer}</p>
-                        {message.response.sources.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            <p className="font-semibold text-foreground">Fuentes consultadas</p>
-                            {message.response.sources.map((source) => (
-                              <p key={`${source.sourceId}-${source.version}`}>
-                                {source.title} · versión {source.version}{source.locator ? ` · ${source.locator}` : ''}
-                              </p>
+                      <div className="mt-3 border-t border-border/70 pt-3">
+                        <div className="text-xs text-muted-foreground">
+                          <p>{message.response.disclaimer}</p>
+                          {message.response.sources.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              <p className="font-semibold text-foreground">Fuentes consultadas</p>
+                              {message.response.sources.map((source) => (
+                                <p key={`${source.sourceId}-${source.version}`}>
+                                  {source.title} · versión {source.version}{source.locator ? ` · ${source.locator}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {index === messages.length - 1 && !loading && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {FOLLOW_UP_SUGGESTIONS.map((suggestion) => (
+                              <Button
+                                key={suggestion}
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                onClick={() => setQuestion(suggestion)}
+                              >
+                                {suggestion}
+                              </Button>
                             ))}
                           </div>
                         )}
