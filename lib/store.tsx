@@ -125,19 +125,27 @@ const TramitaContext = createContext<TramitaContextValue | null>(null)
 // El mínimo lo fija el contrato del backend (@Size(min = 2) en RequestController).
 const MIN_SEARCH_LENGTH = 2
 
+// Código del estado inicial de ADICION_CREDITOS. El motor lo renombró en la migración
+// V3.2.0 (`REGISTRADA` -> `EN_COORDINACION`) para dar lugar a la devolución que hace la
+// Coordinación. El cliente se ve obligado a reconocerlo por su código porque el contrato
+// no expone `is_initial`: la columna existe en `workflow_state`, pero el schema `State`
+// del OpenAPI declara solo code, name e isFinal. Mientras siga así, cada renombre del
+// motor rompe en silencio las dos funciones de abajo.
+const INITIAL_STATE_CODE = 'EN_COORDINACION'
+
 const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
 function statusFromState(state: ApiState): RequestStatus {
   if (state.isFinal) return 'finalizado'
-  if (state.code === 'REGISTRADA') return 'pendiente'
+  if (state.code === INITIAL_STATE_CODE) return 'pendiente'
   if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
   if (state.code.includes('APROBADA') || state.code === 'APROBADO') return 'aprobado'
   return 'en_revision'
 }
 
 function stageFromState(state: ApiState, type: RequestType) {
-  if (state.code === 'REGISTRADA') return 'radicacion'
+  if (state.code === INITIAL_STATE_CODE) return 'radicacion'
   if (state.isFinal) return 'cierre'
   return type === 'novedad_notas' ? 'verificacion' : 'revision'
 }

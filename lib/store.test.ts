@@ -11,7 +11,7 @@ const summary = {
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Estudiante De Prueba',
   studentDocument: '1090234',
-  currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
   createdAt: '2026-09-01T10:00:00',
 }
 
@@ -32,6 +32,20 @@ describe('baseRequest', () => {
     const finalizada = baseRequest(withState('FINALIZADA', 'Finalizada', true))
 
     expect(rechazada.stateName).not.toBe(finalizada.stateName)
+  })
+
+  // El motor renombró el estado inicial de ADICION_CREDITOS en la migración V3.2.0:
+  // `REGISTRADA` pasó a `EN_COORDINACION` para que la devolución de la Coordinación
+  // tuviera dónde registrarse. El contrato no expone `is_initial` —la columna existe en
+  // `workflow_state`, pero el schema `State` solo declara code/name/isFinal—, así que el
+  // cliente no tiene más remedio que reconocerlo por su código.
+  it('reconoce el estado inicial vigente como pendiente de radicación', () => {
+    const recienRadicada = baseRequest(
+      withState('EN_COORDINACION', 'En coordinación (revisión)', false),
+    )
+
+    expect(recienRadicada.status).toBe('pendiente')
+    expect(recienRadicada.currentStage).toBe('radicacion')
   })
 
   // Los seis estados intermedios del motor se colapsan a 'en_revision' en `status`;

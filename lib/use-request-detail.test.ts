@@ -13,7 +13,7 @@ const REQUEST: Request = {
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Ana Pérez',
   studentDocument: '1000000001',
-  currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
   availableTransitions: [
     {
       targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
@@ -28,7 +28,7 @@ const TIMELINE: TimelineEntry[] = [
   {
     id: 1,
     fromState: null,
-    toState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+    toState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
     actorEmail: 'coord@uniremington.edu.co',
     responsible: null,
     note: null,
@@ -109,7 +109,7 @@ describe('useRequestDetail', () => {
     const spy = stubFetch(() => json(200, current))
 
     const { result } = renderHook(() => useRequestDetail('req-1'))
-    await waitFor(() => expect(result.current.request?.currentState.code).toBe('REGISTRADA'))
+    await waitFor(() => expect(result.current.request?.currentState.code).toBe('EN_COORDINACION'))
 
     current = avanzada
     act(() => result.current.reload())
