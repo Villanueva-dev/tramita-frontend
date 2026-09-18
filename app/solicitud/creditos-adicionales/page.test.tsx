@@ -237,18 +237,49 @@ describe('PublicAdditionalCreditsPage', () => {
     expect((document.getElementById('studentName') as HTMLInputElement).value).toBe(completeValues.studentName)
   })
 
-  it('maps 422 problem fields to their controls and reuses Retry-After messaging for 429', async () => {
+  it('maps missing and invalid 422 fields separately, with missing-field precedence, and reuses Retry-After messaging for 429', async () => {
     vi.mocked(submitPublicRequest)
-      .mockRejectedValueOnce(new ApiError(422, 'Formato inválido', undefined, undefined, ['studentEmail']))
+      .mockRejectedValueOnce(new ApiError(
+        422,
+        'Formato inválido',
+        undefined,
+        undefined,
+        undefined,
+        ['studentName', 'studentEmail', 'unknownField'],
+        ['studentEmail', 'semester', 'anotherUnknownField'],
+      ))
       .mockRejectedValueOnce(new ApiError(429, 'Demasiados intentos', undefined, 17))
     render(<PublicAdditionalCreditsPage />)
     completeForm()
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
-    expect(await screen.findByText('Revise este campo.')).toBeDefined()
+    expect(await screen.findAllByText('Este campo es obligatorio.')).toHaveLength(2)
+    expect(screen.getAllByText('Revise este campo.')).toHaveLength(1)
+    expect(document.getElementById('studentName')?.getAttribute('aria-invalid')).toBe('true')
     expect(document.getElementById('studentEmail')?.getAttribute('aria-invalid')).toBe('true')
+    expect(document.getElementById('semester')?.getAttribute('aria-invalid')).toBe('true')
+    expect(document.getElementById('unknownField')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
     expect(await screen.findByText('Demasiados intentos. Reintente en 17 segundos.')).toBeDefined()
+  })
+
+  it('shows a form-level error when a 422 names only unknown fields', async () => {
+    vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(
+      422,
+      'Formato inválido',
+      undefined,
+      undefined,
+      undefined,
+      ['unknownMissing'],
+      ['unknownInvalid'],
+    ))
+    render(<PublicAdditionalCreditsPage />)
+    completeForm()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/no pudimos identificar los campos/i)
+    expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(0)
   })
 })

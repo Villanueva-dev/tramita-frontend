@@ -25,6 +25,21 @@ const INITIAL_VALUES: PublicRequestFormValues = {
 
 type FormField = keyof PublicRequestFormValues | 'signature'
 type FormErrors = Partial<Record<FormField, string>>
+const FORM_FIELDS = new Set<FormField>([...Object.keys(INITIAL_VALUES), 'signature'] as FormField[])
+
+function fieldErrorsFromProblem(error: ApiError): FormErrors {
+  const errors: FormErrors = {}
+  const invalidFields = error.invalidFields ?? error.fieldNames ?? []
+
+  for (const field of invalidFields) {
+    if (FORM_FIELDS.has(field as FormField)) errors[field as FormField] = 'Revise este campo.'
+  }
+  for (const field of error.missingFields ?? []) {
+    if (FORM_FIELDS.has(field as FormField)) errors[field as FormField] = 'Este campo es obligatorio.'
+  }
+
+  return errors
+}
 
 function validate(values: PublicRequestFormValues, signature: SignatureCapture): FormErrors {
   const errors: FormErrors = {}
@@ -62,8 +77,10 @@ export default function PublicAdditionalCreditsPage() {
       setSubmitted(true)
     } catch (error) {
       if (error instanceof ApiError) {
-        if (error.status === 422 && error.fieldNames?.length) {
-          setErrors(Object.fromEntries(error.fieldNames.map((field) => [field, 'Revise este campo.'])) as FormErrors)
+        if (error.status === 422) {
+          const problemErrors = fieldErrorsFromProblem(error)
+          if (Object.keys(problemErrors).length > 0) setErrors(problemErrors)
+          else setFormError('No pudimos identificar los campos que requieren corrección. Revise la información e inténtelo de nuevo.')
         } else if (error.status === 404) {
           setFormError('Este enlace no está disponible. Escríbale a la Coordinación.')
         } else if (error.status === 413) {

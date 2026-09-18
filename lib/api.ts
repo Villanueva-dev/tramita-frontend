@@ -27,9 +27,20 @@ export class ApiError extends Error {
   readonly detail?: string
   /** Segundos a esperar (header Retry-After); presente en 429. */
   readonly retryAfter?: number
+  /** Compatibilidad para consumidores que aún usan un único arreglo de campos. */
   readonly fieldNames?: string[]
+  readonly missingFields?: string[]
+  readonly invalidFields?: string[]
 
-  constructor(status: number, title: string, detail?: string, retryAfter?: number, fieldNames?: string[]) {
+  constructor(
+    status: number,
+    title: string,
+    detail?: string,
+    retryAfter?: number,
+    fieldNames?: string[],
+    missingFields?: string[],
+    invalidFields?: string[],
+  ) {
     super(detail ? `${title}: ${detail}` : title)
     this.name = 'ApiError'
     this.status = status
@@ -37,6 +48,8 @@ export class ApiError extends Error {
     this.detail = detail
     this.retryAfter = retryAfter
     this.fieldNames = fieldNames
+    this.missingFields = missingFields
+    this.invalidFields = invalidFields
   }
 }
 
@@ -62,7 +75,8 @@ function readXsrfToken(): string | null {
 export async function parseProblem(res: Response): Promise<ApiError> {
   let title = res.statusText || 'Error de solicitud'
   let detail: string | undefined
-  let fieldNames: string[] | undefined
+  let missingFields: string[] | undefined
+  let invalidFields: string[] | undefined
 
   try {
     const body = (await res.json()) as {
@@ -73,10 +87,12 @@ export async function parseProblem(res: Response): Promise<ApiError> {
     }
     if (typeof body.title === 'string' && body.title) title = body.title
     if (typeof body.detail === 'string' && body.detail) detail = body.detail
-    const fields = [body.missingFields, body.invalidFields].flatMap((value) =>
-      Array.isArray(value) ? value.filter((field): field is string => typeof field === 'string') : [],
-    )
-    if (fields.length > 0) fieldNames = fields
+    const fieldsFrom = (value: unknown) =>
+      Array.isArray(value) ? value.filter((field): field is string => typeof field === 'string') : []
+    const missing = fieldsFrom(body.missingFields)
+    const invalid = fieldsFrom(body.invalidFields)
+    if (missing.length > 0) missingFields = missing
+    if (invalid.length > 0) invalidFields = invalid
   } catch {
     // Sin cuerpo JSON: nos quedamos con el statusText.
   }
@@ -85,7 +101,16 @@ export async function parseProblem(res: Response): Promise<ApiError> {
   const retryAfter =
     retryHeader && Number.isFinite(Number(retryHeader)) ? Number(retryHeader) : undefined
 
-  return new ApiError(res.status, title, detail, retryAfter, fieldNames)
+  const fieldNames = [...(missingFields ?? []), ...(invalidFields ?? [])]
+  return new ApiError(
+    res.status,
+    title,
+    detail,
+    retryAfter,
+    fieldNames.length > 0 ? fieldNames : undefined,
+    missingFields,
+    invalidFields,
+  )
 }
 
 interface RequestOptions {

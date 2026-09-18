@@ -95,14 +95,15 @@ describe('parseProblem', () => {
     expect(err.retryAfter).toBe(120)
   })
 
-  it('preserves public problem field arrays for field-level 422 rendering', async () => {
+  it('preserves missing and invalid public problem field arrays separately for 422 rendering', async () => {
     const err = await parseProblem(problem(422, {
       title: 'Formato inválido',
-      missingFields: ['campus'],
-      invalidFields: ['studentEmail'],
+      missingFields: ['campus', 'studentEmail'],
+      invalidFields: ['studentEmail', 'semester'],
     }))
 
-    expect(err.fieldNames).toEqual(['campus', 'studentEmail'])
+    expect(err.missingFields).toEqual(['campus', 'studentEmail'])
+    expect(err.invalidFields).toEqual(['studentEmail', 'semester'])
   })
 
   it('cae al statusText cuando no hay cuerpo JSON', async () => {
