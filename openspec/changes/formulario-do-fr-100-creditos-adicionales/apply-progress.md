@@ -353,7 +353,7 @@ Two criteria remain open, deliberately:
 
 - **Zero real personal data in the repository.** Still unmet. `lib/mock-data.ts` holds six records
   with realistic full names and addresses under the real institutional domain
-  `@estudiante.remington.edu.co`, and `ORDEN.md` is still tracked. Issue #14 owns this; closing it
+  un dominio estudiantil institucional, and `ORDEN.md` is still tracked. Issue #14 owns this; closing it
   here would claim work that was not done.
 - **Deployment checklist note about the public origin in the CORS allowlist** (task 0.3). Not
   written yet. No test fails because of it, which is exactly why it is easy to lose.
@@ -365,3 +365,122 @@ Two criteria remain open, deliberately:
 - artifacts: `tasks.md` records 3.19 and the measured closing criteria; this cumulative `apply-progress.md` preserves every phase.
 - next_recommended: Resolve issue #14 for the personal-data criterion, and write the deployment note for task 0.3.
 - risks: `pnpm audit` still reports 13 vulnerabilities (3 moderate, 10 high) in transitive dependencies; none are in `next` and none are critical. Signature legal validity and the biometric-data question remain open with the Coordination.
+
+## Confirmed issue correction batch — #24, #26, #30
+
+**Scope:** Only behavior reproduced from current code. No GitHub issue, remote, staging, or commit was changed. Delivery remains a single PR with maintainer-approved `size:exception`.
+
+### Completed tasks
+
+- [x] 4.1 #24: deferred PNG serialization until the end of a meaningful stroke; each drawn segment has an independent path that starts at the prior rendered endpoint; cancellation now emits the visible signature.
+- [x] 4.2 #26 (confirmed subset only): added an assertion that canvas preparation ends with `lineWidth = 2`, `lineCap = 'round'`, and `lineJoin = 'round'` from a `1`/`butt`/`miter` mock.
+- [x] 4.3 #30: retained separate `missingFields` and `invalidFields` in `ApiError`; the public form maps known missing fields to required, known invalid fields to review, gives missing precedence, filters unknown names, and renders a generic form error for unknown-only 422 responses.
+- [ ] 4.4 #26 remainder: pending independent verification. No broader mutation-survivor claim was implemented or marked complete.
+
+### TDD Cycle Evidence
+
+| Task | RED | GREEN | REFACTOR |
+| --- | --- | --- | --- |
+| 4.1 #24 | `pnpm test components/firma/canvas-firma.test.tsx lib/api.test.ts app/solicitud/creditos-adicionales/page.test.tsx` → failed: `beginPath` was called once instead of twice; PNG was emitted on move; cancellation did not emit. | Same focused command → 71 passing. | Extracted the rendered-endpoint ref, retaining separate raw and rendered points to make each midpoint segment continuous. |
+| 4.2 #26 confirmed subset | The new assertion was written against the existing `1`/`butt`/`miter` mock, but it passed immediately because `resizeCanvas` already sets all three required values. No production correction was warranted, so there is no honest RED result. | Focused command → 71 passing. | None; the scope was an already-satisfied invariant, not a new code path. |
+| 4.3 #30 | Focused command → failed: `missingFields` was undefined and the page neither differentiated messages nor surfaced unknown-only 422 errors. | Same focused command → 71 passing. | Preserved the legacy flattened `fieldNames` property for existing consumers while adding separate typed arrays. |
+
+### Work Unit Evidence
+
+| Evidence | Result |
+| --- | --- |
+| Focused test command | `pnpm test components/firma/canvas-firma.test.tsx lib/api.test.ts app/solicitud/creditos-adicionales/page.test.tsx` → 3 files, 71 passing. |
+| Runtime harness | N/A: the corrections are canvas event and mocked RFC 9457 error-boundary behavior; this workspace has no E2E runner. |
+| Full test suite | `pnpm test` → 15 files, 124 passing. |
+| Type checking | `pnpm exec tsc --noEmit` → exit 0. |
+| Linting | `pnpm lint` → exit 0. |
+| Build | N/A — not required for this correction batch: it changes existing client behavior and tests without adding a route or build-time integration boundary. |
+| Diff whitespace | `git diff --check -- <changed paths>` → exit 0. |
+| Rollback boundary | Revert only `components/firma/canvas-firma.{tsx,test.tsx}`, `lib/api.{ts,test.ts}`, `app/solicitud/creditos-adicionales/page.{tsx,test.tsx}`, and this correction's OpenSpec entries; earlier public-form work remains intact. |
+
+### Result Contract
+
+- status: success
+- executive_summary: Implemented and verified only the current-code-confirmed portions of #24, #26, and #30. The unverified #26 remainder remains explicitly pending.
+- artifacts: `tasks.md` marks 4.1–4.3 complete and keeps 4.4 unchecked; this append-only cumulative `apply-progress.md` records RED/GREEN and work-unit evidence.
+- next_recommended: Run SDD verification or independently reproduce the remaining #26 claims before authorizing any further correction.
+- risks: Canvas behavior is covered in jsdom pointer-event tests, not a real device. The broader #26 mutation-survivor report remains unverified and intentionally unimplemented.
+- skill_resolution: paths-injected
+
+## Issue #26 final guard — task 4.4
+
+### Completed task
+
+- [x] 4.4: Audited the confirmed remaining local-state-reset survivor. Of 12 applied mutants, 11 were previously killed and one survivor remained; the clear-button disabled-state assertion now kills that exact survivor. No production source change was required because the base behavior was already correct.
+
+### TDD Cycle Evidence
+
+| Task | Safety Net | RED / GUARD | GREEN | TRIANGULATE | REFACTOR |
+| --- | --- | --- | --- | --- | --- |
+| 4.4 #26 local-state reset | `pnpm exec vitest run components/firma/canvas-firma.test.tsx` → 10 passing before the assertion. | Conventional RED is N/A: the assertion first ran green against correct current behavior. Mutation RED/GUARD: a disposable copy replaced `setHayFirma(capture.hayFirma)` with `if (capture.hayFirma) setHayFirma(true)`; the focused test failed exactly at the post-clear disabled-button assertion (1 failed, 9 passed). | `pnpm exec vitest run components/firma/canvas-firma.test.tsx` → 10 passing. | One state transition is in scope: meaningful draw enables the control, clear disables it. The disposable mutant proves the reset branch is exercised. | None; production source was not changed. |
+
+### Audit disposition
+
+- The historical `19/23` count and the `pointerMove`/`onChange` claim are obsolete.
+- jsdom does not rasterize real canvas pixels; manual Chrome/mobile evidence remains runtime evidence, not automated raster proof.
+- The broader audit result is now 12 applied mutants, 11 previously killed, and one confirmed survivor killed by this regression guard.
+
+### Work Unit Evidence
+
+| Evidence | Result |
+| --- | --- |
+| Focused test command | `pnpm exec vitest run components/firma/canvas-firma.test.tsx` → 10 passing. |
+| Disposable mutation proof | Temporary copy under `/tmp/canvas-mutation-proof.*`; exact local-state-reset mutant applied and verified at its changed line; focused run → 1 failed, 9 passed at the post-clear disabled-button assertion. |
+| Runtime harness | N/A: this is a jsdom component-state regression guard; existing manual Chrome/mobile evidence is runtime evidence but not automated raster proof. |
+| Full test suite | `pnpm test` → 15 files, 124 passing. |
+| Type checking | `pnpm exec tsc --noEmit` → exit 0. |
+| Linting | `pnpm lint` → exit 0. |
+| Build | N/A — not required for this correction batch: it changes an existing client regression guard without adding a route or build-time integration boundary. |
+| Diff whitespace | `git diff --check -- components/firma/canvas-firma.test.tsx openspec/changes/formulario-do-fr-100-creditos-adicionales/tasks.md openspec/changes/formulario-do-fr-100-creditos-adicionales/apply-progress.md` → exit 0. |
+| Rollback boundary | Revert `components/firma/canvas-firma.test.tsx` and this task-4.4 OpenSpec evidence only; production behavior is unchanged. |
+
+### Result Contract
+
+- status: success
+- executive_summary: Added the final #26 local-state-reset regression guard, proved it kills the confirmed survivor, and completed the required repository checks.
+- artifacts: `tasks.md` marks 4.4 complete and this cumulative `apply-progress.md` records the guard and mutation validation.
+- next_recommended: Proceed to SDD verification or archive; only the unrelated task 0.3 and zero-real-PII criterion remain open.
+- risks: jsdom cannot prove raster pixels; manual Chrome/mobile evidence is retained as runtime evidence only.
+- skill_resolution: paths-injected
+
+## Final closure batch — deployment checklist and fixture hygiene
+
+### Completed tasks
+
+- [x] 0.3: Added `docs/deployment-checklist.md`; cross-origin deployments must allowlist the exact public frontend origin, never a wildcard.
+- [x] Zero-real-PII criterion: moved `ORDEN.md` to ignored `notas-locales/`, split UI constants into `lib/ui-constants.ts`, and moved anonymized role-based fixtures to `lib/fixtures/mock-requests.ts`.
+
+### TDD / GUARD Evidence
+
+| Task | RED / GUARD | GREEN |
+| --- | --- | --- |
+| Fixture hygiene | RED: `pnpm exec vitest run lib/fixtures/mock-requests.test.ts` failed because the fixture module did not exist. | Focused fixtures plus impacted store/new-request tests: 6 passing. |
+| Deployment checklist | GUARD: structural readback confirmed the exact-origin/no-wildcard instruction. | Readback passed. |
+| Tracked-tree scan | GUARD: current-worktree scan for the known institutional domain and six original names returned no paths; `ORDEN.md` is absent and `notas-locales/ORDEN.md` is ignored. | Criteria satisfied locally. |
+
+### Work Unit Evidence
+
+| Evidence | Result |
+| --- | --- |
+| Focused tests | `pnpm exec vitest run lib/fixtures/mock-requests.test.ts lib/store.test.ts app/requests/new/page.test.tsx` → 6 passing. |
+| Full suite | `pnpm test` → 16 files, 125 passing. |
+| Type checking | `pnpm exec tsc --noEmit` → exit 0. |
+| Linting | `pnpm lint` → exit 0. |
+| Build | Repeated bounded `pnpm build` attempts, including escalated execution, were blocked by Turbopack `creating new process → binding to a port → Operation not permitted` at `app/globals.css`; exit 1 is not a code verdict. |
+| Diff whitespace | `git diff --check` → exit 0. |
+| Task A rollback | Revert `docs/deployment-checklist.md` and task evidence. |
+| Task B rollback | Revert `lib/ui-constants.ts`, `lib/fixtures/`, importer changes, ignored-note move, and hygiene evidence together. |
+
+### Result Contract
+
+- status: partial
+- executive_summary: Both final task criteria are complete locally; all tests, type checking, linting, scans, and diff checks passed. Build is environment-blocked by Turbopack port permission.
+- artifacts: tasks and cumulative apply-progress updated; deployment checklist, separated UI constants, anonymized fixture, and fixture test added.
+- next_recommended: SDD verification may treat the build as an environment blocker and confirm it in a permitted build environment before archive.
+- risks: Build remains unavailable in this runtime; no remote issue was changed.
+- skill_resolution: paths-injected
