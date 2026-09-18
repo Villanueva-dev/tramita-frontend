@@ -100,24 +100,24 @@ pantalla completa.
 
 ## Fase 3 (PR 3) — Envío, validación, errores y acuse
 
-- [ ] 3.1 RED `lib/api.test.ts`: `submitPublicRequest('ADICION_CREDITOS', body)` llama a `/public/requests/ADICION_CREDITOS`.
-- [ ] 3.2 RED: el cuerpo emitido contiene **exactamente los once campos** y **no** contiene `definitionCode`.
-- [ ] 3.3 GREEN: agregar `submitPublicRequest` en `lib/api.ts` con allowlist propio por desestructuración, y los tipos en `lib/types.ts`. **`createRequest` no se toca.**
-- [ ] 3.4 RED `page.test.tsx`: por **cada uno de los once campos**, vaciarlo impide el envío y lo marca inválido.
-- [ ] 3.5 RED: un campo con solo espacios tampoco pasa (validación tras `trim()`).
-- [ ] 3.6 RED: cada campo sobre su límite (120/20/255/30/120/120/120/50/50/2000) impide el envío.
-- [ ] 3.7 GREEN: `validate()` con obligatoriedad y límites de los once.
-- [ ] 3.8 RED: `semester` viaja `"8"` sin transformar.
-- [ ] 3.9 RED: `404` → mensaje accionable que **no** revela si el trámite existe; los datos diligenciados se conservan.
-- [ ] 3.10 RED: `413` → mensaje que orienta a limpiar la firma y volver a trazarla.
-- [ ] 3.11 RED: `422` → error atado al campo que nombra el `problem+json`.
-- [ ] 3.12 RED: `429` → mensaje con los segundos de espera, reusando `apiErrorMessages` (`lib/api-errors.ts:31-36`, ya existente).
-- [ ] 3.13 GREEN: `handleSubmit` con el `catch` de `ApiError` y el ruteo de errores.
-- [ ] 3.14 RED: tras el `201`, el formulario **deja de mostrarse**, aparece el acuse, y **no hay navegación**.
-- [ ] 3.15 RED: el acuse **no contiene** identificador, estado ni enlace de consulta, y menciona que la Coordinación responde al correo diligenciado.
-- [ ] 3.16 GREEN: estado de envío y acuse in situ.
-- [ ] 3.17 RED: ninguna frase de la pantalla ni del acuse afirma validez legal de la firma.
-- [ ] 3.18 Verificar `pnpm test` completo, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`.
+- [x] 3.1 RED `lib/api.test.ts`: `submitPublicRequest('ADICION_CREDITOS', body)` llama a `/public/requests/ADICION_CREDITOS`.
+- [x] 3.2 RED: el cuerpo emitido contiene **exactamente los once campos** y **no** contiene `definitionCode`.
+- [x] 3.3 GREEN: agregar `submitPublicRequest` en `lib/api.ts` con allowlist propio por desestructuración, y los tipos en `lib/types.ts`. **`createRequest` no se toca.**
+- [x] 3.4 RED `page.test.tsx`: por **cada uno de los once campos**, vaciarlo impide el envío y lo marca inválido.
+- [x] 3.5 RED: un campo con solo espacios tampoco pasa (validación tras `trim()`).
+- [x] 3.6 RED: cada campo sobre su límite (120/20/255/30/120/120/120/50/50/2000) impide el envío.
+- [x] 3.7 GREEN: `validate()` con obligatoriedad y límites de los once.
+- [x] 3.8 RED: `semester` viaja `"8"` sin transformar.
+- [x] 3.9 RED: `404` → mensaje accionable que **no** revela si el trámite existe; los datos diligenciados se conservan.
+- [x] 3.10 RED: `413` → mensaje que orienta a limpiar la firma y volver a trazarla.
+- [x] 3.11 RED: `422` → error atado al campo que nombra el `problem+json`.
+- [x] 3.12 RED: `429` → mensaje con los segundos de espera, reusando `apiErrorMessages` (`lib/api-errors.ts:31-36`, ya existente).
+- [x] 3.13 GREEN: `handleSubmit` con el `catch` de `ApiError` y el ruteo de errores.
+- [x] 3.14 RED: tras el `201`, el formulario **deja de mostrarse**, aparece el acuse, y **no hay navegación**.
+- [x] 3.15 RED: el acuse **no contiene** identificador, estado ni enlace de consulta, y menciona que la Coordinación responde al correo diligenciado.
+- [x] 3.16 GREEN: estado de envío y acuse in situ.
+- [x] 3.17 RED: ninguna frase de la pantalla ni del acuse afirma validez legal de la firma.
+- [x] 3.18 Verificar `pnpm test` completo, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`.
 - [ ] 3.19 ⚠️ **Bloqueada por el backend**: enviar una solicitud real contra el endpoint público. No se puede cerrar hasta que existan las 45 tareas de `../Tramita/specs/004-public-request-capture/`.
 
 ## Cierre — Success Criteria (medidos)

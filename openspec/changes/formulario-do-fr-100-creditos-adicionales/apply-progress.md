@@ -262,3 +262,62 @@ Phase 2 is complete. Phase 3 remains pending and was not implemented in this bou
 
 La corrección crítica pre-Fase 3 está completa. La Fase 3 de envío/API sigue pendiente y no se
 implementó.
+
+## Phase 3 — Submission, validation, error handling, and receipt
+
+- Scope: public DO-FR-100 submission only. The internal `createRequest` flow and
+  `app/requests/new/**` were not changed.
+- Delivery mode: single PR + maintainer-authorized `size:exception`.
+- Artifact store: OpenSpec, per native SDD status.
+- Status: implementation and local verification complete for 3.1–3.18. Task 3.19 remains
+  pending because no backend was reachable at `127.0.0.1:8080`; no synthetic submission was made.
+
+### Completed Tasks
+
+- [x] 3.1–3.3 Added `submitPublicRequest` with route-scoped definition code and an explicit
+  eleven-field allowlist; added `PublicRequestBody` and the intentionally identifier-free receipt.
+- [x] 3.4–3.7 Added trimmed required-field and contract-limit UX validation for all eleven fields.
+- [x] 3.8 Preserved the semester as its submitted string value.
+- [x] 3.9–3.13 Added in-place error handling: 404 does not disclose definition state, 413 directs
+  the student to clear and redraw the signature, RFC 9457 422 field arrays attach errors to named
+  controls, and 429 reuses `apiErrorMessages` / `Retry-After` text without resetting entered data.
+- [x] 3.14–3.16 Replaced the form in the same route after 201; the receipt contains neither an ID,
+  state, nor query link and says Coordination will reply to the supplied email.
+- [x] 3.17 Verified the new screen and receipt make no claim of signature legal validity.
+- [x] 3.18 Ran focused, full, type, lint, build, diff, and route-protection checks below.
+- [ ] 3.19 Real synthetic public submission: blocked. `curl --connect-timeout 2` to
+  `127.0.0.1:8080/api/public/requests/ADICION_CREDITOS` returned connection failure / HTTP 000.
+  The backend was not started or altered; therefore no request was created.
+
+### TDD Cycle Evidence
+
+| Tasks | Test layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|
+| 3.1–3.3 | `lib/api.test.ts` unit | Existing API suite passed before this cycle | `pnpm exec vitest run lib/api.test.ts` → 2 failures: `submitPublicRequest is not a function` | Same focused command → 27/27 passed after API/types implementation | Route, exact eleven-field allowlist, absent `definitionCode`, and preserved semester exercise separate contract paths | Explicit destructuring isolates the body from UI state. |
+| 3.4–3.8, 3.14–3.16 | `page.test.tsx` integration | Existing page suite was present; new baseline was 6 passing Phase 1/2 tests | After adding submit/validation tests, focused page command → 22 failures because no submit action existed | Focused API+page command → 58/58 passed after validation, submit, and in-place receipt implementation | Each field is tested blank, all ten limited strings are tested over-limit, signature has its own absence path, and 201 preserves semester | Centralized limits and validation reduce repeated UI rules. |
+| 3.9–3.13, 3.17 | `page.test.tsx` integration | Same focused suite | **FAILED ordering:** error-specific regression tests were added after the initial production handler. They passed, but they are not represented as RED-first evidence. | 58/58 focused tests passed; 404, 413, 422, and 429 preserve populated inputs and display the specified outcome | Separate status paths and a real `parseProblem` extension-array unit test | `ApiError.fieldNames` retains RFC 9457 extension arrays instead of parsing Spanish detail text. |
+| 3.18 | Workspace verification | N/A | N/A — verification task | All listed checks passed | Focused and workspace commands cover separate layers | None needed. |
+
+### Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused RED/GREEN API command | `pnpm exec vitest run lib/api.test.ts`: RED 2 failed, then GREEN 27/27 passed. |
+| Focused Phase 3 command | `pnpm exec vitest run lib/api.test.ts app/solicitud/creditos-adicionales/page.test.tsx` → 2 files / 58 tests passed. |
+| Full suite | `pnpm test` → 15 files / 121 tests passed. |
+| Typecheck | `pnpm exec tsc --noEmit` → exit 0. `.next` was not deleted because it may belong to a live user dev server. |
+| Lint | `pnpm lint` (`eslint .`) → exit 0. |
+| Build | `pnpm build` → exit 0; Next 16.3.5 generated 9/9 static pages including `/solicitud/creditos-adicionales`. |
+| Internal-route protection | `rg -c '^\s*it\(' app/requests/new/page.test.tsx` → `2`; `git diff -- app/requests/new/page.tsx app/requests/new/page.test.tsx` → empty. |
+| Runtime/public-route harness | No backend was reachable: GET and POST probes to local `127.0.0.1:8080` returned connection failure / HTTP 000. No backend process, config, or source was changed. |
+| Diff hygiene | `git diff --check --` limited to Phase 3 paths → exit 0. Before/after status preserved unrelated staged `next.config.mjs` and unstaged OpenSpec/configuration work. |
+| Rollback boundary | Revert `lib/api.ts`, `lib/api.test.ts`, `lib/types.ts`, `app/solicitud/creditos-adicionales/page.tsx`, `app/solicitud/creditos-adicionales/page.test.tsx`, and `components/do-fr-100/sections.tsx`; retain Phase 1/2 signature work and internal request pages. |
+
+### Result Contract
+
+- status: partial
+- executive_summary: Phase 3 source and verification are complete through 3.18; 3.19 is honestly pending because the local backend was unavailable. Strict TDD evidence records the late test-ordering defect for 3.9–3.13 and 3.17 rather than inventing RED evidence.
+- artifacts: tasks.md marks 3.1–3.18 complete and leaves 3.19 pending; this cumulative apply-progress preserves Phase 1, Phase 2, corrections, and Phase 3 evidence.
+- next_recommended: make a single synthetic submission only after a local backend is already reachable, then run SDD verification.
+- risks: a live public submission has not been observed; browser-level signature behavior retains the previously recorded maintainer evidence. No submission was attempted against a remote or unavailable local host.
+- skill_resolution: paths-injected

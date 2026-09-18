@@ -7,7 +7,14 @@
 // - CSRF double-submit: cookie XSRF-TOKEN (legible) -> header X-XSRF-TOKEN en cada POST.
 // - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
-import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+import type {
+  PublicReceipt,
+  PublicRequestBody,
+  Request,
+  RequestSummary,
+  TimelineEntry,
+  WorkflowDefinition,
+} from './types'
 
 const BASE = '/api'
 const XSRF_COOKIE = 'XSRF-TOKEN'
@@ -20,14 +27,16 @@ export class ApiError extends Error {
   readonly detail?: string
   /** Segundos a esperar (header Retry-After); presente en 429. */
   readonly retryAfter?: number
+  readonly fieldNames?: string[]
 
-  constructor(status: number, title: string, detail?: string, retryAfter?: number) {
+  constructor(status: number, title: string, detail?: string, retryAfter?: number, fieldNames?: string[]) {
     super(detail ? `${title}: ${detail}` : title)
     this.name = 'ApiError'
     this.status = status
     this.title = title
     this.detail = detail
     this.retryAfter = retryAfter
+    this.fieldNames = fieldNames
   }
 }
 
@@ -53,11 +62,21 @@ function readXsrfToken(): string | null {
 export async function parseProblem(res: Response): Promise<ApiError> {
   let title = res.statusText || 'Error de solicitud'
   let detail: string | undefined
+  let fieldNames: string[] | undefined
 
   try {
-    const body = (await res.json()) as { title?: unknown; detail?: unknown }
+    const body = (await res.json()) as {
+      title?: unknown
+      detail?: unknown
+      missingFields?: unknown
+      invalidFields?: unknown
+    }
     if (typeof body.title === 'string' && body.title) title = body.title
     if (typeof body.detail === 'string' && body.detail) detail = body.detail
+    const fields = [body.missingFields, body.invalidFields].flatMap((value) =>
+      Array.isArray(value) ? value.filter((field): field is string => typeof field === 'string') : [],
+    )
+    if (fields.length > 0) fieldNames = fields
   } catch {
     // Sin cuerpo JSON: nos quedamos con el statusText.
   }
@@ -66,7 +85,7 @@ export async function parseProblem(res: Response): Promise<ApiError> {
   const retryAfter =
     retryHeader && Number.isFinite(Number(retryHeader)) ? Number(retryHeader) : undefined
 
-  return new ApiError(res.status, title, detail, retryAfter)
+  return new ApiError(res.status, title, detail, retryAfter, fieldNames)
 }
 
 interface RequestOptions {
@@ -207,6 +226,47 @@ export async function createRequest(body: CreateRequestBody): Promise<Request> {
   })
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as Request
+}
+
+/**
+ * Registers a public form submission. The workflow definition belongs exclusively
+ * to the route; the explicit destructuring keeps UI-only values out of the request.
+ */
+export async function submitPublicRequest(
+  definitionCode: string,
+  body: PublicRequestBody,
+): Promise<PublicReceipt> {
+  const {
+    studentName,
+    studentDocument,
+    studentEmail,
+    studentPhone,
+    program,
+    campus,
+    faculty,
+    modality,
+    semester,
+    reason,
+    signature,
+  } = body
+  const res = await apiFetch(`/public/requests/${encodeURIComponent(definitionCode)}`, {
+    method: 'POST',
+    body: {
+      studentName,
+      studentDocument,
+      studentEmail,
+      studentPhone,
+      program,
+      campus,
+      faculty,
+      modality,
+      semester,
+      reason,
+      signature,
+    },
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicReceipt
 }
 
 /** Localiza solicitudes por nombre o cédula (US3, FR-011). El backend exige `minLength: 2`. */

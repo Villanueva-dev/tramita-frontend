@@ -11,9 +11,11 @@ import {
   getRequestTimeline,
   advanceRequest,
   ADVANCE_REQUEST_422_FIELD,
+  submitPublicRequest,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
 import type { CreateRequestBody } from './api'
+import type { PublicRequestBody, PublicReceipt } from './types'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -91,6 +93,16 @@ describe('parseProblem', () => {
     )
     expect(err.status).toBe(429)
     expect(err.retryAfter).toBe(120)
+  })
+
+  it('preserves public problem field arrays for field-level 422 rendering', async () => {
+    const err = await parseProblem(problem(422, {
+      title: 'Formato inválido',
+      missingFields: ['campus'],
+      invalidFields: ['studentEmail'],
+    }))
+
+    expect(err.fieldNames).toEqual(['campus', 'studentEmail'])
   })
 
   it('cae al statusText cuando no hay cuerpo JSON', async () => {
@@ -238,6 +250,54 @@ describe('createRequest', () => {
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(JSON.parse(init.body as string).semester).toBe('8')
+  })
+})
+
+describe('submitPublicRequest', () => {
+  const body: PublicRequestBody = {
+    studentName: 'Estudiante Sintético',
+    studentDocument: 'SIN-DATO-REAL-100',
+    studentEmail: 'estudiante.sintetico@example.test',
+    studentPhone: '000 000 0000',
+    program: 'Programa de Prueba',
+    campus: 'Sede Sintética',
+    faculty: 'Facultad de Prueba',
+    modality: 'Presencial',
+    semester: '8',
+    reason: 'Solicitud sintética de prueba.',
+    signature: 'data:image/png;base64,c2ludGV0aWM=',
+  }
+
+  it('sends the definition code in the public route and returns the receipt', async () => {
+    const receipt: PublicReceipt = { message: 'Tu solicitud llegó a la Coordinación.' }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, receipt))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(submitPublicRequest('ADICION_CREDITOS', body)).resolves.toEqual(receipt)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/public/requests/ADICION_CREDITOS')
+    expect(init.method).toBe('POST')
+  })
+
+  it('emits exactly the eleven public fields and never definitionCode or UI-only data', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, { message: 'ok' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await submitPublicRequest('ADICION_CREDITOS', {
+      ...body,
+      definitionCode: 'INJECTED',
+      uiOnlyValue: 'must not be sent',
+    } as PublicRequestBody & { definitionCode: string; uiOnlyValue: string })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const sent = JSON.parse(init.body as string)
+    expect(Object.keys(sent).sort()).toEqual([
+      'campus', 'faculty', 'modality', 'program', 'reason', 'semester', 'signature',
+      'studentDocument', 'studentEmail', 'studentName', 'studentPhone',
+    ])
+    expect(sent).not.toHaveProperty('definitionCode')
+    expect(sent.semester).toBe('8')
   })
 })
 
