@@ -37,8 +37,8 @@ pantalla completa.
 
 ### Fase 0 — Antes de escribir código
 
-- [ ] 0.1 🔴 **Decisión del responsable sobre `tramita-frontend#7`**: subir `next` a `>=16.3.3` antes de publicar la pantalla, o dejar por escrito que se acepta publicar un canal sin sesión sobre dos RCE críticas sin autenticar. **No es una tarea técnica: es una decisión que hay que poder defender.** Si se actualiza: `pnpm test`, `rm -rf .next && pnpm exec tsc --noEmit` y `pnpm build` deben seguir verdes, y se mide de nuevo con `pnpm audit`.
-- [ ] 0.2 Verificar que `APP_CORS_ALLOWED_ORIGINS` del backend incluye el origen del front (`Tramita#20`: `.env.example:4` trae el `5173` de Vite, no el `3000` de Next). Sin esto, PR 3 no se puede probar contra el backend local.
+- [x] 0.1 🔴 **Decisión del responsable sobre `tramita-frontend#7`**: subir `next` a `>=16.3.3` antes de publicar la pantalla, o dejar por escrito que se acepta publicar un canal sin sesión sobre dos RCE críticas sin autenticar. **No es una tarea técnica: es una decisión que hay que poder defender.** Si se actualiza: `pnpm test`, `rm -rf .next && pnpm exec tsc --noEmit` y `pnpm build` deben seguir verdes, y se mide de nuevo con `pnpm audit`. **Resuelto por actualización, medido el 2026-09-18**: `package.json` declara `next 16.3.5` (≥ 16.3.3) y el issue #7 se cerró el 2026-09-16. Las tres verificaciones quedaron verdes con la caché borrada. La nueva medición de `pnpm audit` da **13 vulnerabilidades: 3 moderate y 10 high, ninguna crítica y ninguna de `next`** — todas en transitivas (`brace-expansion`, `postcss`, `nanoid`, `browserslist`). Las dos RCE sin autenticar que motivaron la tarea ya no aparecen.
+- [x] 0.2 Verificar que `APP_CORS_ALLOWED_ORIGINS` del backend incluye el origen del front (`Tramita#20`: `.env.example:4` traía el `5173` de Vite, no el `3000` de Next). **Verificado empíricamente el 2026-09-18**, que es la prueba más fuerte disponible: el envío real de la tarea 3.19 salió desde `http://localhost:3000` y el backend lo aceptó, así que la allowlist contiene el origen del front. `Tramita#20` se corrigió y se mergeó en la PR #32 del backend.
 - [ ] 0.3 Anotar en el checklist de despliegue que **el origen público debe entrar en la allowlist de CORS** cuando el front y el backend queden en dominios distintos. No lo rompe ningún test: se pierde si no se escribe.
 
 ## Fase 1 (PR 1) — La ruta pública y el formato
@@ -118,17 +118,30 @@ pantalla completa.
 - [x] 3.16 GREEN: estado de envío y acuse in situ.
 - [x] 3.17 RED: ninguna frase de la pantalla ni del acuse afirma validez legal de la firma.
 - [x] 3.18 Verificar `pnpm test` completo, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`.
-- [ ] 3.19 ⚠️ **Bloqueada por el backend**: enviar una solicitud real contra el endpoint público. No se puede cerrar hasta que existan las 45 tareas de `../Tramita/specs/004-public-request-capture/`.
+- [x] 3.19 Envío real contra el endpoint público. **Ejecutado el 2026-09-18 en navegador**, con los
+  tres servicios arriba y datos sintéticos. El bloqueo se levantó: `../Tramita/specs/004-public-request-capture/tasks.md`
+  tiene sus 47 tareas marcadas (eran 47, no 45), y `PUBLIC_CAPTURE_ENABLED` está en `true` para
+  `ADICION_CREDITOS` en `workflow_parameter`. Evidencia en base de datos, fila `request`
+  `a571f358-608d-4d2c-833c-b0f3ab910973` (`created_at 2026-09-18 00:52:17`): trámite `ADICION_CREDITOS`,
+  estado inicial `EN_COORDINACION`, los diez campos de texto íntegros —incluidos los cinco de la
+  migración `V3.3.0`—, `semester` persistido como `'8'` sin transformar, y `student_signature` de 9774
+  caracteres con cabecera `data:image/png;base64,iVBORw0KGg`, que es el encabezado PNG en base64 y no
+  un JPEG. El tramo de auditoría en `request_transition_log` quedó con actor `portal-publico@tramita.local`
+  y `active = false`, sin `from_state_id`.
 
 ## Cierre — Success Criteria (medidos)
 
-- [ ] Un visitante sin sesión abre la ruta, diligencia, firma y recibe acuse, sin redirección.
-- [ ] El cuerpo emitido tiene exactamente los once campos y ningún `definitionCode`.
-- [ ] Ningún campo vacío (ni con espacios) permite enviar.
-- [ ] Un lienzo en blanco no cuenta como firma.
+- [x] Un visitante sin sesión abre la ruta, diligencia, firma y recibe acuse, sin redirección. Medido en navegador el 2026-09-18: la URL no cambió y el acuse reemplazó el formulario en la misma ruta.
+- [x] El cuerpo emitido tiene exactamente los once campos y ningún `definitionCode`. Lo aserta `lib/api.test.ts` («emits exactly the eleven public fields and never definitionCode or UI-only data») y lo confirma la fila persistida, con los once valores completos.
+- [x] Ningún campo vacío (ni con espacios) permite enviar. Cubierto campo por campo por los `it.each` de `page.test.tsx` sobre los diez campos, validando tras `trim()`.
+- [x] Un lienzo en blanco no cuenta como firma. Lo cubren «does not sign on a tap or sub-threshold movement» y «blocks submission when the signature has not been captured».
 - [x] La firma se probó **con el dedo en un dispositivo táctil real** (tarea 2.8): el maintainer confirmó que el canvas corregido permite dibujar con el dedo.
-- [ ] El acuse no expone identificador, estado ni enlace de consulta.
-- [ ] `pnpm test` verde; `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint` y `pnpm build` sin errores.
-- [ ] `app/requests/new/page.test.tsx` intacto y con todos sus `it(...)` verdes. El conteo se mide al cerrar con `rg -c '^\s*it\(' app/requests/new/page.test.tsx`: el «9» original venció al integrar `ede7bc3`.
-- [ ] Cero datos personales reales en cualquier archivo del repo.
-- [ ] Preguntas a la Coordinación: **1, 2, 3 y 4 respondidas**; **5 y 6 explícitamente pendientes** (validez legal de la firma, y si el trazo es dato biométrico bajo la Ley 1581).
+- [x] El acuse no expone identificador, estado ni enlace de consulta. Verificado en pantalla el 2026-09-18: dice «Solicitud recibida» y que la Coordinación responderá al correo diligenciado, nada más.
+- [x] `pnpm test` verde; `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm lint` y `pnpm build` sin errores. Medido el 2026-09-18 con la caché borrada: 122 tests en 15 archivos, `tsc` exit 0, `lint` exit 0, build compilado con `/solicitud/creditos-adicionales` como ruta estática.
+- [x] `app/requests/new/page.test.tsx` intacto y con todos sus `it(...)` verdes. Medido el 2026-09-18: `rg -c '^\s*it\(' app/requests/new/page.test.tsx` → **2**, y `git diff 94a49f3 HEAD` sobre la pantalla y su test sale vacío. El «9» original ya había vencido al integrar `ede7bc3`.
+- [ ] Cero datos personales reales en cualquier archivo del repo. **Sin cumplir, medido el 2026-09-18.**
+  `lib/mock-data.ts` conserva seis registros con nombre completo verosímil y correo bajo el dominio
+  institucional real `@estudiante.remington.edu.co`, y `ORDEN.md` sigue trackeado
+  (`git ls-files --error-unmatch ORDEN.md`). Ambos los rastrea el issue #14, que sigue abierto: este
+  criterio se cierra allí, no acá.
+- [x] Preguntas a la Coordinación: **1, 2, 3 y 4 respondidas**; **5 y 6 explícitamente pendientes** (validez legal de la firma, y si el trazo es dato biométrico bajo la Ley 1581). El estado de cada una está fechado en `proposal.md:136-147`.
