@@ -14,15 +14,15 @@ configurable (feature `002-workflow-engine`).
 
 ## Stack detectado (verificado, no asumido)
 
-- **Next.js** 16.2.6 (App Router) · **React** 19 · **TypeScript** 5.7.3 (`strict: true`,
+- **Next.js** 16.3.5 (App Router) · **React** 19 · **TypeScript** 5.7.3 (`strict: true`,
   `noEmit: true`, `moduleResolution: bundler`) — `tsconfig.json`.
 - **Tailwind** 4 (`@tailwindcss/postcss` + `tailwindcss` ^4.2.0) + `tw-animate-css`.
-- UI: `@base-ui/react`, `shadcn` ^4.8.0, `class-variance-authority`, `clsx`, `tailwind-merge`,
+- UI: `@base-ui/react`, `shadcn` ^4.10.0, `class-variance-authority`, `clsx`, `tailwind-merge`,
   `lucide-react`.
 - Gestor de paquetes: **pnpm** (`pnpm-lock.yaml`, `pnpm-workspace.yaml`). ⚠️ El campo
   `"pnpm".overrides` de `package.json` declara `hono` a `4.12.25` pero **pnpm ya no lo lee** y lo
   avisa en cada corrida (<https://pnpm.io/settings>): el override **no se está aplicando**.
-- Test runner: **Vitest** ^4.1.10 con `vitest.config.mts` propio en la raíz
+- Test runner: **Vitest** ^4.1.11 con `vitest.config.mts` propio en la raíz
   (`environment: 'jsdom'`, `resolve.tsconfigPaths: true`), agregado el 2026-08-15.
 
 ## Arquitectura y convenciones (de `CLAUDE.md` y `docs/constitucion.md`)
@@ -59,12 +59,12 @@ contrato OpenAPI. Se mantiene **byte-idéntica** a su copia del backend
 
 | Capacidad | Estado | Detalle |
 |---|---|---|
-| Unit runner | ✅ | Vitest, `pnpm test` → `vitest run`. 4 archivos en `lib/*.test.ts`: `api.test.ts`, `api-errors.test.ts`, `identity.test.ts`, `password-policy.test.ts`. **27 tests, verdes.** |
+| Unit runner | ✅ | Vitest, `pnpm test` → `vitest run`. Correr el comando para obtener el inventario y conteo vigentes. |
 | Integration (componentes) | ✅ | **Instalado el 2026-08-15**: `@testing-library/react ^16.3.2` (la línea que soporta React 19), `@testing-library/dom ^10.4.1`, `jsdom ^30.0.1`, `@vitejs/plugin-react ^6.0.5`, más `vitest.config.mts` en la raíz (`environment: 'jsdom'`, `resolve.tsconfigPaths: true`). Verificado montando un componente real. |
 | E2E | ❌ | No hay Playwright ni Cypress. |
 | Coverage | ❌ | No hay `@vitest/coverage-v8` ni equivalente. |
-| Linter | ❌ (roto) | Script `lint: eslint .` existe en `package.json`, pero **`eslint` no está instalado** (`node_modules/.bin/eslint` ausente, no aparece en `dependencies`/`devDependencies`) y no existe ningún archivo de config (`eslint.config.*`, `.eslintrc*`). El script fallaría si se ejecuta hoy. |
-| Type checker | ✅ | `typescript` 5.7.3 instalado, `tsconfig.json` con `strict: true`. Sin script npm dedicado — invocar `pnpm exec tsc --noEmit`. |
+| Linter | ✅ | ESLint 9.39.3 y `eslint.config.mjs` están presentes. Medición 2026-09-16: `pnpm lint` terminó con código 0. |
+| Type checker | ✅ | `typescript` 5.7.3 instalado, `tsconfig.json` con `strict: true`. Sin script npm dedicado — invocar `pnpm exec tsc --noEmit`; medición 2026-09-16 limpia. |
 | Formatter | ❌ | No hay Prettier ni Biome. |
 
 **Implicación para Strict TDD**: el modo está en `enabled` (marcador global del usuario +
@@ -76,8 +76,8 @@ para resolver el alias `@/*`, pero la versión de Vite que trae Vitest 4 lo resu
 nativa y avisa por consola que el plugin sobra. Se usó `resolve: { tsconfigPaths: true }` y se
 desinstaló el plugin — una dependencia menos en un repositorio compartido.
 
-Lo que **sigue faltando**: cobertura (`@vitest/coverage-v8`), E2E, formatter, y sobre todo el
-**linter, que está roto** (el script existe, ESLint no está instalado ni configurado).
+Lo que **sigue faltando**: cobertura (`@vitest/coverage-v8`), E2E y formatter. El linter ya está
+disponible y pasa la medición vigente.
 
 ## Encuadre del producto (decidido 2026-08-15) — leer antes de diseñar cualquier pantalla
 

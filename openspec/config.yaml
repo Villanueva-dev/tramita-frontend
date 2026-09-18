@@ -2,12 +2,12 @@
 schema: spec-driven
 
 context: |
-  Stack: Next.js 16.2.6 (App Router) + React 19 + TS 5.7.3 strict + Tailwind 4.
+  Stack: Next.js 16.3.5 (App Router) + React 19 + TS 5.7.3 strict + Tailwind 4.
   Arquitectura: estructura idiomática del App Router (app/, components/, lib/), atomic
   design + container/presentational.
   Testing: Vitest 4 + jsdom + @testing-library/react. Hay tests de lógica (lib/*.test.ts) y
-  de componentes (app/**/*.test.tsx); sin E2E ni coverage. Inventario y conteo se miden
-  corriendo `pnpm test` — este archivo no transcribe cifras, porque vencen.
+  de componentes (app/**/*.test.tsx); sin E2E ni coverage. El inventario y el conteo se miden
+  corriendo `pnpm test`; no se transcriben aquí porque son volátiles.
   Principios rectores: KISS + YAGNI, y toda afirmación sobre el repo se sostiene con la
   medición que la produjo, nunca con un dato recordado (docs/constitucion.md).
   Estilo: español en docs/commits/comentarios; identificadores en inglés.
@@ -17,20 +17,30 @@ context: |
 strict_tdd: true
 
 testing:
-  strict_tdd_source: "marker (Strict TDD Mode: enabled en CLAUDE.md global) + runner detectado (vitest)"
-  detected: "2026-08-15"
+  strict_tdd_source: "marker (Strict TDD Mode: enabled en CLAUDE.md global) + comando workspace explícito (pnpm test)"
+  detected: "2026-09-16"
+  projects:
+    - relative_path: "."
+      stack: "Next.js 16.3.5 + React 19 + TypeScript 5.7.3"
+      test_command: "pnpm test"
+      test_layers: [unit, integration]
+      coverage_command: null
+      quality_tools:
+        linter: "pnpm lint"
+        type_checker: "pnpm exec tsc --noEmit"
+        formatter: null
   test_runner:
     command: "pnpm test"
-    framework: "vitest ^4.1.10 (vitest run)"
+    framework: "vitest ^4.1.11 (vitest run)"
   layers:
     unit:
       available: true
       tool: "vitest"
-      note: "lib/*.test.ts — lógica pura y hooks de dominio. Entorno jsdom configurado en vitest.config.mts. Inventario vigente: correr `pnpm test`, que lista los archivos ejecutados."
+      note: "lib/*.test.ts — lógica pura y hooks de dominio. Entorno jsdom configurado en vitest.config.mts. Para el inventario vigente, correr `pnpm test`."
     integration:
       available: true
       tool: "vitest + @testing-library/react (entorno jsdom)"
-      note: "@testing-library/react ^16.3.2, @testing-library/dom ^10.4.1, jsdom ^30.0.1 y @vitejs/plugin-react ^6.0.5 instalados y commiteados en 4e63077 (2026-08-15); vitest.config.mts declara environment jsdom. Hay tests de componentes escritos bajo app/**/*.test.tsx. El conteo se mide con `pnpm test`, no se transcribe acá."
+      note: "@testing-library/react ^16.3.2, @testing-library/dom ^10.4.1, jsdom ^30.0.1 y @vitejs/plugin-react ^6.0.5 instalados; vitest.config.mts declara environment jsdom. Hay tests de componentes escritos bajo app/**/*.test.tsx. Para el inventario vigente, correr `pnpm test`."
     e2e:
       available: false
       tool: null
@@ -41,9 +51,9 @@ testing:
     note: "No hay @vitest/coverage-v8 (ni equivalente) instalado."
   quality_tools:
     linter:
-      available: false
+      available: true
       command: "pnpm lint (eslint .)"
-      note: "El script existe pero ESLint NO está en package.json ni instalado (node_modules/.bin/eslint ausente) y no hay archivo de config (eslint.config.*/.eslintrc*). El script falla tal cual está hoy. Trackeado en el issue #4."
+      note: "ESLint 9.39.3 y eslint.config.mjs están presentes. Medición 2026-09-16: `pnpm lint` terminó con código 0."
     type_checker:
       available: true
       command: "pnpm exec tsc --noEmit"

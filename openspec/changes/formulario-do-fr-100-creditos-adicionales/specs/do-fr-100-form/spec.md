@@ -142,15 +142,22 @@ no se evalúa por este canal: quedó fuera del alcance del sistema el 2026-09-15
 - WHEN se buscan campos de asignatura, código de asignatura o créditos
 - THEN no existe ninguno
 
-### Requirement: Firma trazada en pantalla
+### Requirement: Firma trazada en pantalla con alternativa accesible
 
 El sistema **MUST** permitir al estudiante trazar su firma en pantalla con el dedo o el puntero,
 **MUST** enviarla como URL de datos en `signature`, y **MUST** ofrecer una acción para limpiar el
 trazo y volver a firmar.
 
-El sistema **MUST** considerar el campo diligenciado **solo si hubo al menos un trazo**: un lienzo
-en blanco produce una imagen válida, de modo que la existencia de una URL de datos **MUST NOT**
-usarse como prueba de que el estudiante firmó.
+El sistema **MUST** ofrecer además un `<input type="file">` nativo, etiquetado y operable por
+teclado, para cargar una imagen PNG o JPEG de la firma como alternativa accesible al canvas. La
+imagen cargada **MUST** alimentar el mismo contrato `{ dataUrl, hayFirma }`; no crea una segunda
+clase de firma ni una vía de envío distinta. Limpiar la firma **MUST** reiniciar el trazo, la
+selección del archivo y su estado visible.
+
+El sistema **MUST** considerar el canvas diligenciado solo después de un trazo significativo: la
+distancia desde el inicio del gesto alcanza al menos 4 píxeles CSS. Un toque o un
+movimiento menor no cuenta. Un lienzo en blanco produce una imagen válida, de modo que la
+existencia de una URL de datos **MUST NOT** usarse como prueba de que el estudiante firmó.
 
 El sistema **MUST NOT** afirmar que la firma tiene valor probatorio o validez legal.
 
@@ -165,6 +172,21 @@ El sistema **MUST NOT** afirmar que la firma tiene valor probatorio o validez le
 - GIVEN el formulario diligenciado por completo pero sin ningún trazo en el recuadro
 - WHEN se intenta enviar
 - THEN el sistema marca la firma como faltante y no emite la petición
+
+#### Scenario: La alternativa accesible usa el mismo contrato
+
+- GIVEN el formulario renderizado
+- WHEN el estudiante carga una imagen PNG o JPEG mediante el control nativo etiquetado
+- THEN `signature` recibe la URL de datos cargada
+- AND `hayFirma` es `true`
+- AND limpiar reinicia la selección del archivo y el estado de ambas alternativas
+
+#### Scenario: Un toque no cuenta como firma trazada
+
+- GIVEN el formulario renderizado
+- WHEN el estudiante hace un toque o desplaza menos de 4 píxeles CSS en el canvas
+- THEN `hayFirma` sigue en `false`
+- AND no se emite una imagen de firma
 
 #### Scenario: La pantalla no afirma validez legal
 

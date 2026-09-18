@@ -52,6 +52,26 @@ export interface RequestSummary {
   createdAt: string
 }
 
+/** Body accepted by the anonymous public request-capture endpoint. */
+export interface PublicRequestBody {
+  studentName: string
+  studentDocument: string
+  studentEmail: string
+  studentPhone: string
+  program: string
+  campus: string
+  faculty: string
+  modality: string
+  semester: string
+  reason: string
+  signature: string
+}
+
+/** Deliberately minimal public receipt: it exposes no request identifier or state. */
+export interface PublicReceipt {
+  message: string
+}
+
 export type RequestType = 'adicion_creditos' | 'novedad_notas'
 export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
 export type SignatureType = 'DIGITAL' | 'ESCANEADA'
