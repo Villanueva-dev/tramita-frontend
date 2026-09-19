@@ -1,0 +1,71 @@
+name: CI
+
+# Dos gatillos, cada uno con su motivo:
+#  - push a main: nada roto sobrevive en la rama principal
+#  - pull_request: verifica ANTES del merge, que es donde el error todavía es barato
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Mínimo privilegio: el job solo necesita leer el repositorio.
+# Sin esto, el token heredaría permisos de escritura que no usa.
+permissions:
+  contents: read
+
+jobs:
+  # El id del job es el nombre del status check que después se exige en la
+  # protección de rama. Se deja sin 'name:' a propósito, igual que en el
+  # backend: el check aparece como "build", sin espacios.
+  build:
+    runs-on: ubuntu-latest
+    # Sin tope explícito, un job trabado quema minutos hasta el default de 6 h.
+    # La corrida completa mide ~1,5 min en local; 10 deja aire sin costar una tarde.
+    timeout-minutes: 10
+
+    steps:
+      # El runner arranca vacío: sin checkout no hay código que verificar.
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7
+
+      # pnpm va ANTES que Node, porque el caché necesita un gestor ya instalado.
+      # Sin 'version:' a propósito: la acción lee el campo "packageManager" de
+      # package.json, que es la única fuente de verdad de qué pnpm usa este repo.
+      # Declararla acá también la duplicaría, y las copias derivan en silencio.
+      # 'cache: true' persiste el store de pnpm entre corridas.
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # --frozen-lockfile: si package.json y el lock quedaron desincronizados,
+      # el CI falla en vez de arreglarlo en silencio y terminar verificando un
+      # árbol de dependencias distinto del de quien abrió la PR.
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Los cuatro pasos van de barato a caro, para que el feedback llegue antes.
+      - name: Lint
+        run: pnpm lint
+
+      # No es redundante con 'pnpm build': next build tipa el código de la
+      # aplicación, pero no compila los archivos de test. Este sí.
+      #
+      # El consejo de borrar .next antes de tipar solo vale en local, donde el
+      # artefacto sobrevive entre comandos. Acá el checkout siempre llega limpio.
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+
+      - name: Tests
+        run: pnpm test
+
+      # No hacen falta secretos: ninguno de los cuatro pasos habla con el backend.
+      # proxy.ts lee BACKEND_ORIGIN, pero con fallback y solo en tiempo de ejecución.
+      - name: Compilar la aplicación
+        run: pnpm build
