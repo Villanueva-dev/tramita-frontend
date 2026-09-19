@@ -12,6 +12,7 @@ import {
 
 import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
 import { apiErrorMessages } from './api-errors'
+import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
 import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
@@ -125,38 +126,28 @@ const TramitaContext = createContext<TramitaContextValue | null>(null)
 // El mínimo lo fija el contrato del backend (@Size(min = 2) en RequestController).
 const MIN_SEARCH_LENGTH = 2
 
-// Código del estado inicial de cada trámite. La migración V3.2.0 renombró el de adición
-// de créditos (`REGISTRADA` -> `EN_COORDINACION`) para dar lugar a la devolución que hace
-// la Coordinación, pero su UPDATE lleva `AND d.code = 'ADICION_CREDITOS'`: novedad de notas
-// sigue naciendo en `REGISTRADA`. Por eso el inicio se resuelve POR TRÁMITE y no con una
-// constante única — con una sola, arreglar un trámite rompe el otro.
-// El cliente se ve obligado a reconocerlos por su código porque el contrato no expone
-// `is_initial`: la columna existe en `workflow_state`, pero el schema `State` del OpenAPI
-// declara solo code, name e isFinal. Mientras siga así, cada renombre del motor rompe en
-// silencio las dos funciones de abajo.
-const INITIAL_STATE_CODE_BY_TYPE: Record<RequestType, string> = {
-  adicion_creditos: 'EN_COORDINACION',
-  novedad_notas: 'REGISTRADA',
-}
-
 const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
-function isInitialState(state: ApiState, type: RequestType): boolean {
-  return state.code === INITIAL_STATE_CODE_BY_TYPE[type]
-}
-
+// `status` es vocabulario de PRESENTACIÓN: agrupa para colorear el badge y poblar el
+// filtro. Las decisiones no se toman con él —para eso están los predicados de
+// `request-state`, que responden una pregunta cada uno—, así que colapsar aquí es
+// aceptable mientras nadie derive de este valor si un trámite está cerrado o devuelto.
 function statusFromState(state: ApiState, type: RequestType): RequestStatus {
-  if (state.isFinal) return 'finalizado'
-  if (isInitialState(state, type)) return 'pendiente'
-  if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
+  const request = { currentState: state, type }
+  if (isClosed(request)) return 'finalizado'
+  if (isInitialState(request)) return 'pendiente'
+  if (isReturnedForCorrection(request)) return 'devuelto'
+  // Heurística residual, solo para la etiqueta: `APROBADA_FACULTAD` no es un estado final
+  // ni cambia ninguna decisión. Si algún día decide algo, le toca su propio predicado.
   if (state.code.includes('APROBADA') || state.code === 'APROBADO') return 'aprobado'
   return 'en_revision'
 }
 
 function stageFromState(state: ApiState, type: RequestType) {
-  if (isInitialState(state, type)) return 'radicacion'
-  if (state.isFinal) return 'cierre'
+  const request = { currentState: state, type }
+  if (isInitialState(request)) return 'radicacion'
+  if (isClosed(request)) return 'cierre'
   return type === 'novedad_notas' ? 'verificacion' : 'revision'
 }
 
@@ -175,6 +166,7 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     type,
     status,
     stateName: apiRequest.currentState.name,
+    currentState: apiRequest.currentState,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
     dueDate: deriveDueDate(apiRequest.createdAt),

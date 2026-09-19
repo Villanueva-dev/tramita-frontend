@@ -5,13 +5,22 @@ import {
   isInitialState,
   isReturnedForCorrection,
   isSuccessfullyClosed,
+  type StatefulRequest,
 } from './request-state'
-import type { State } from './types'
 
-const ADICION = 'ADICION_CREDITOS'
-const NOVEDAD = 'NOVEDAD_NOTAS'
+/**
+ * Los predicados reciben el trámite entero, así que un caso de prueba no puede declarar una
+ * combinación que el motor nunca produce: el estado y el trámite viajan juntos.
+ */
+const adicion = (code: string, isFinal = false): StatefulRequest => ({
+  currentState: { code, name: code, isFinal },
+  type: 'adicion_creditos',
+})
 
-const state = (code: string, isFinal = false): State => ({ code, name: code, isFinal })
+const novedad = (code: string, isFinal = false): StatefulRequest => ({
+  currentState: { code, name: code, isFinal },
+  type: 'novedad_notas',
+})
 
 /**
  * Estados reales del motor, tomados de las migraciones del backend:
@@ -20,36 +29,38 @@ const state = (code: string, isFinal = false): State => ({ code, name: code, isF
  * renombra un estado, esta lista es lo primero que hay que actualizar.
  */
 const ADICION_STATES = [
-  state('EN_COORDINACION'),
-  state('EN_FACULTAD'),
-  state('APROBADA_FACULTAD'),
-  state('EN_REGISTRO_CALI'),
-  state('EN_REGISTRO_NACIONAL'),
-  state('FINALIZADA', true),
-  state('DEVUELTA'),
-  state('RECHAZADA', true),
+  adicion('EN_COORDINACION'),
+  adicion('EN_FACULTAD'),
+  adicion('APROBADA_FACULTAD'),
+  adicion('EN_REGISTRO_CALI'),
+  adicion('EN_REGISTRO_NACIONAL'),
+  adicion('FINALIZADA', true),
+  adicion('DEVUELTA'),
+  adicion('RECHAZADA', true),
 ]
 
 const NOVEDAD_STATES = [
-  state('REGISTRADA'),
-  state('EN_PREPARACION'),
-  state('EN_FACULTAD'),
-  state('EN_REVISION_FINANCIERA'),
-  state('EN_REGISTRO_CONTROL'),
-  state('FINALIZADA', true),
+  novedad('REGISTRADA'),
+  novedad('EN_PREPARACION'),
+  novedad('EN_FACULTAD'),
+  novedad('EN_REVISION_FINANCIERA'),
+  novedad('EN_REGISTRO_CONTROL'),
+  novedad('FINALIZADA', true),
 ]
+
+const codesOf = (requests: StatefulRequest[]) => requests.map((r) => r.currentState.code)
 
 // «¿Está cerrado?» es la única de las cuatro preguntas que el contrato responde:
 // el schema State declara `isFinal` (openapi.yaml:212-218). No lleva heurística.
 describe('isClosed', () => {
   it('cierra exactamente los estados que el motor marca como finales', () => {
-    expect(ADICION_STATES.filter(isClosed).map((s) => s.code)).toEqual(['FINALIZADA', 'RECHAZADA'])
-    expect(NOVEDAD_STATES.filter(isClosed).map((s) => s.code)).toEqual(['FINALIZADA'])
+    expect(codesOf(ADICION_STATES.filter(isClosed))).toEqual(['FINALIZADA', 'RECHAZADA'])
+    expect(codesOf(NOVEDAD_STATES.filter(isClosed))).toEqual(['FINALIZADA'])
   })
 
   it('no consulta el código del estado, así que un estado desconocido sigue respondiendo', () => {
-    expect(isClosed(state('ESTADO_QUE_NO_EXISTE', true))).toBe(true)
-    expect(isClosed(state('ESTADO_QUE_NO_EXISTE'))).toBe(false)
+    expect(isClosed(adicion('ESTADO_QUE_NO_EXISTE', true))).toBe(true)
+    expect(isClosed(adicion('ESTADO_QUE_NO_EXISTE'))).toBe(false)
   })
 })
 
@@ -57,23 +68,23 @@ describe('isClosed', () => {
 // Es la causa del issue #35, donde el dashboard contaba los rechazos como completados.
 describe('isSuccessfullyClosed', () => {
   it('separa el cierre exitoso del rechazo, que el contrato colapsa en isFinal', () => {
-    expect(isSuccessfullyClosed(state('FINALIZADA', true), ADICION)).toBe(true)
-    expect(isSuccessfullyClosed(state('RECHAZADA', true), ADICION)).toBe(false)
+    expect(isSuccessfullyClosed(adicion('FINALIZADA', true))).toBe(true)
+    expect(isSuccessfullyClosed(adicion('RECHAZADA', true))).toBe(false)
   })
 
   it('no considera exitoso un trámite que sigue abierto', () => {
-    expect(isSuccessfullyClosed(state('EN_FACULTAD'), ADICION)).toBe(false)
-    expect(isSuccessfullyClosed(state('APROBADA_FACULTAD'), ADICION)).toBe(false)
+    expect(isSuccessfullyClosed(adicion('EN_FACULTAD'))).toBe(false)
+    expect(isSuccessfullyClosed(adicion('APROBADA_FACULTAD'))).toBe(false)
   })
 })
 
 describe('isReturnedForCorrection', () => {
   it('reconoce la devolución de adición de créditos, que el motor modela como estado', () => {
-    expect(isReturnedForCorrection(state('DEVUELTA'), ADICION)).toBe(true)
+    expect(isReturnedForCorrection(adicion('DEVUELTA'))).toBe(true)
   })
 
   it('no confunde el rechazo definitivo con una devolución', () => {
-    expect(isReturnedForCorrection(state('RECHAZADA', true), ADICION)).toBe(false)
+    expect(isReturnedForCorrection(adicion('RECHAZADA', true))).toBe(false)
   })
 
   // LIMITACIÓN CONOCIDA Y ACEPTADA DE A1, no un descuido.
@@ -83,8 +94,8 @@ describe('isReturnedForCorrection', () => {
   // estar ahí por primera vez— y ningún dato del contrato permite responderlo hoy.
   // Este test fija el hueco para que sea visible y deje de ser una ceguera silenciosa.
   it('no puede reconocer la devolución de novedad de notas, que el motor modela como transición', () => {
-    for (const s of NOVEDAD_STATES) {
-      expect(isReturnedForCorrection(s, NOVEDAD)).toBe(false)
+    for (const request of NOVEDAD_STATES) {
+      expect(isReturnedForCorrection(request)).toBe(false)
     }
   })
 })
@@ -93,40 +104,37 @@ describe('isInitialState', () => {
   // V3.2.0 renombró el inicial SOLO de adición de créditos (su UPDATE lleva
   // `AND d.code = 'ADICION_CREDITOS'`), así que cada trámite nombra su inicio distinto.
   it('reconoce el inicio propio de cada trámite', () => {
-    expect(isInitialState(state('EN_COORDINACION'), ADICION)).toBe(true)
-    expect(isInitialState(state('REGISTRADA'), NOVEDAD)).toBe(true)
+    expect(isInitialState(adicion('EN_COORDINACION'))).toBe(true)
+    expect(isInitialState(novedad('REGISTRADA'))).toBe(true)
   })
 
   it('no acepta el inicio de un trámite como inicio del otro', () => {
-    expect(isInitialState(state('EN_COORDINACION'), NOVEDAD)).toBe(false)
-    expect(isInitialState(state('REGISTRADA'), ADICION)).toBe(false)
+    expect(isInitialState(novedad('EN_COORDINACION'))).toBe(false)
+    expect(isInitialState(adicion('REGISTRADA'))).toBe(false)
   })
 
   it('reconoce exactamente un estado inicial por trámite', () => {
-    expect(ADICION_STATES.filter((s) => isInitialState(s, ADICION))).toHaveLength(1)
-    expect(NOVEDAD_STATES.filter((s) => isInitialState(s, NOVEDAD))).toHaveLength(1)
+    expect(ADICION_STATES.filter(isInitialState)).toHaveLength(1)
+    expect(NOVEDAD_STATES.filter(isInitialState)).toHaveLength(1)
   })
 })
 
-// Degradación segura: si el motor agrega un estado o un trámite que la tabla no conoce,
-// la app no se rompe — el estado simplemente no habilita ninguna acción. `isClosed` sigue
-// funcionando porque no depende de la tabla.
-describe('degradación ante lo que la tabla no conoce', () => {
-  it('no atribuye semántica a un estado ausente de la tabla', () => {
-    const desconocido = state('ESTADO_QUE_NO_EXISTE')
+// Degradación segura: si el motor agrega un estado que la tabla no conoce, la pantalla no
+// se rompe —ese estado no habilita ninguna acción— y `isClosed` sigue funcionando porque no
+// depende de la tabla. No hay un caso equivalente para un trámite desconocido: `RequestType`
+// es una unión cerrada y la tabla es un `Record` sobre ella, así que el compilador exige la
+// fila. Testear ese caso sería testear algo inalcanzable.
+describe('degradación ante un estado que la tabla no conoce', () => {
+  it('no le atribuye semántica', () => {
+    const desconocido = adicion('ESTADO_QUE_NO_EXISTE')
 
-    expect(isInitialState(desconocido, ADICION)).toBe(false)
-    expect(isReturnedForCorrection(desconocido, ADICION)).toBe(false)
-    expect(isSuccessfullyClosed(desconocido, ADICION)).toBe(false)
+    expect(isInitialState(desconocido)).toBe(false)
+    expect(isReturnedForCorrection(desconocido)).toBe(false)
+    expect(isSuccessfullyClosed(desconocido)).toBe(false)
   })
 
-  it('no atribuye semántica a un trámite ausente de la tabla', () => {
-    expect(isInitialState(state('EN_COORDINACION'), 'TRAMITE_NUEVO')).toBe(false)
-    expect(isReturnedForCorrection(state('DEVUELTA'), 'TRAMITE_NUEVO')).toBe(false)
-  })
-
-  it('sigue reconociendo el cierre de un trámite que la tabla no conoce', () => {
-    expect(isClosed(state('LO_QUE_SEA', true))).toBe(true)
-    expect(isSuccessfullyClosed(state('LO_QUE_SEA', true), 'TRAMITE_NUEVO')).toBe(true)
+  it('sigue reconociendo su cierre si el motor lo marca como final', () => {
+    expect(isClosed(adicion('LO_QUE_SEA', true))).toBe(true)
+    expect(isSuccessfullyClosed(adicion('LO_QUE_SEA', true))).toBe(true)
   })
 })

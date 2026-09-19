@@ -21,6 +21,20 @@ const withState = (code: string, name: string, isFinal: boolean) => ({
 })
 
 describe('baseRequest', () => {
+  // El modelo del cliente descartaba el estado crudo y se quedaba solo con su nombre, así
+  // que ninguna pantalla podía preguntar nada sobre él y todo se derivaba de `status`, que
+  // colapsa cuatro preguntas distintas en un valor. Conservarlo es lo que permite que los
+  // predicados de `request-state` respondan sin adivinar.
+  it('conserva el estado crudo que envía el backend, no solo su nombre', () => {
+    const rechazada = baseRequest(withState('RECHAZADA', 'Rechazada', true))
+
+    expect(rechazada.currentState).toEqual({
+      code: 'RECHAZADA',
+      name: 'Rechazada',
+      isFinal: true,
+    })
+  })
+
   it('conserva el nombre del estado que envía el backend', () => {
     expect(baseRequest(withState('RECHAZADA', 'Rechazada', true)).stateName).toBe('Rechazada')
   })

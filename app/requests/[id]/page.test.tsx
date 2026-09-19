@@ -19,7 +19,8 @@ const request: AcademicRequest = {
   radicado: 'request-1',
   type: 'adicion_creditos',
   status: 'pendiente',
-  stateName: 'Registrada',
+  stateName: 'En coordinación (revisión)',
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
@@ -70,7 +71,7 @@ describe('RequestDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
     // El estado se muestra con el nombre del motor de workflow, no con la
     // etiqueta genérica de la categoría interna.
-    expect(screen.getByText('Registrada')).toBeDefined()
+    expect(screen.getByText('En coordinación (revisión)')).toBeDefined()
     expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined()
   })
 
