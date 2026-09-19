@@ -1,3 +1,13 @@
+# Política de build scripts de las dependencias. pnpm trata como «sin revisar»
+# todo paquete que no esté listado acá y, con strictDepBuilds activo por defecto,
+# falla la instalación. El error solo aparece instalando desde cero, así que una
+# máquina que ya tiene node_modules no lo ve: lo descubrió la primera corrida del CI.
+# https://pnpm.io/settings/build#allowbuilds
 allowBuilds:
   msw: false
   sharp: false
+  # Su postinstall es el fallback de napi-postinstall, pensado para gestores que
+  # no instalan optionalDependencies. pnpm sí las instala, así que el binario de
+  # la plataforma ya llega como @unrs/resolver-binding-<plataforma> y ejecutar el
+  # script no aporta nada. Entra por eslint-config-next, y solo se usa al lintear.
+  unrs-resolver: false
