@@ -156,6 +156,30 @@ function deriveDueDate(createdAt: string): string {
   return addBusinessDays(createdAt, 6)
 }
 
+/** Asignatura tal como la acepta `POST /api/requests`: sin créditos cuando no aplican. */
+type ApiSubjectBody = Omit<SubjectInfo, 'credits'> & { credits?: number }
+
+/**
+ * Traduce las asignaturas del formulario al vocabulario del contrato.
+ *
+ * `credits: 0` es el centinela de «vacío» del FORMULARIO —`emptySubject()` lo inicializa
+ * así y el input controlado lo lee como `s.credits || ''`—, pero el backend declara
+ * `@Min(1)` en `SubjectRequestBody`: para él «sin créditos» es la clave AUSENTE, no un
+ * cero. Traducir entre ambos vocabularios es trabajo de esta capa, igual que `typeToCode`.
+ *
+ * Sin esto la novedad de notas era IRRADICABLE: su formulario no pide créditos, así que
+ * el cuerpo salía con `credits: 0` y el POST respondía 400 siempre. El 400 llegaba como
+ * «Invalid request content.», sin nombrar el campo, de modo que en pantalla no había
+ * ninguna pista de la causa.
+ *
+ * No se condiciona por tipo de trámite a propósito: la adición valida que los créditos
+ * existan antes de enviar (`page.tsx`, «Requerido»), así que un cero solo puede venir de
+ * un formulario que no los pide. Si mañana otro trámite tampoco los pide, ya funciona.
+ */
+export function subjectsForApi(subjects: SubjectInfo[]): ApiSubjectBody[] {
+  return subjects.map(({ credits, ...rest }) => (credits ? { ...rest, credits } : rest))
+}
+
 export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   const type = typeFromCode(apiRequest.definition.code)
   const status = statusFromState(apiRequest.currentState, type)
@@ -404,7 +428,7 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
         semester: input.semester,
         reason: input.reason,
         priority: input.priority,
-        subjects: input.subjects,
+        subjects: subjectsForApi(input.subjects),
       }),
     })
     if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo registrar la solicitud'))

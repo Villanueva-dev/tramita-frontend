@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { baseRequest } from './store'
+import { baseRequest, subjectsForApi } from './store'
 
 /**
  * Resumen tal como lo devuelve `GET /api/requests` (RequestSummaryResponse):
@@ -85,5 +85,42 @@ describe('baseRequest', () => {
     )
 
     expect(enRegistro.stateName).toBe('En registro Cali (carga en QF)')
+  })
+})
+
+/**
+ * `credits: 0` es el sentinel de «vacío» del FORMULARIO: `emptySubject()` lo inicializa
+ * así y el input controlado lo lee como `s.credits || ''`. El backend no comparte ese
+ * vocabulario — declara `@Min(1)` en `SubjectRequestBody`, de modo que para él «sin
+ * créditos» es la clave AUSENTE, no un cero.
+ *
+ * Sin la traducción, la novedad de notas era irradicable: su formulario no pide créditos,
+ * así que el cuerpo salía con `credits: 0` y `POST /api/requests` respondía 400 SIEMPRE.
+ * Medido en vivo el 2026-09-19 — `credits: 0` → 400; ausente o null → 201.
+ */
+describe('subjectsForApi', () => {
+  const notas = { code: 'IS-704', name: 'Arquitectura', credits: 0, group: '', currentGrade: '2.9', proposedGrade: '3.5' }
+  const creditos = { code: 'IS-704', name: 'Arquitectura', credits: 3, group: 'A1', currentGrade: '', proposedGrade: '' }
+
+  // Se afirma sobre el JSON porque es lo que realmente viaja: `{credits: undefined}`
+  // también se serializaría sin la clave, y el contrato que importa es el del cuerpo.
+  const enviado = (s: object) => JSON.parse(JSON.stringify(subjectsForApi([s] as never)))[0]
+
+  it('omite los créditos cuando el formulario no los pide y deja el cero centinela', () => {
+    expect(enviado(notas)).not.toHaveProperty('credits')
+  })
+
+  // Mata al mutante «borrar credits siempre»: eso arreglaría notas y rompería la adición,
+  // donde los créditos son el dato que origina el trámite.
+  it('conserva los créditos reales de una adición', () => {
+    expect(enviado(creditos).credits).toBe(3)
+  })
+
+  // Mata al mutante «devolver solo {code, name}»: omitir el centinela no puede costar
+  // las notas, que en novedad de notas son TODO el contenido del trámite.
+  it('no pierde ningún otro campo al omitir el centinela', () => {
+    expect(enviado(notas)).toEqual({
+      code: 'IS-704', name: 'Arquitectura', group: '', currentGrade: '2.9', proposedGrade: '3.5',
+    })
   })
 })
