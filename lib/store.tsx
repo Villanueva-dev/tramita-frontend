@@ -140,9 +140,9 @@ const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? '
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
 function statusFromState(state: ApiState): RequestStatus {
+  if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
   if (state.isFinal) return 'finalizado'
   if (state.code === 'REGISTRADA') return 'pendiente'
-  if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
   if (state.code.includes('APROBADA') || state.code === 'APROBADO') return 'aprobado'
   return 'en_revision'
 }
