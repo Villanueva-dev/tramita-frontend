@@ -61,7 +61,7 @@ export default function DocumentoPage() {
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'No se pudo generar el PDF.'))
       .finally(() => {
-      setDownloading(false)
+        setDownloading(false)
       })
   }
 
@@ -85,43 +85,10 @@ export default function DocumentoPage() {
     )
   }
 
-  // OJO: este candado lo inventó el cliente y contradice al backend. `GET /requests/{id}/document`
-  // no gatea por estado, y `RequestController` documenta que el DO-FR-100 «se emite en cualquier
-  // momento de la vida de la solicitud: si solo saliera al cerrar el trámite, no serviría para
-  // aquello por lo que existe» — es el formato que circula PARA ser firmado. Con esta guarda, la
-  // Coordinación no puede imprimirlo en el caso de uso principal, y el mensaje de abajo afirma
-  // algo falso. Se migra preservando el comportamiento: quitarlo es decisión de producto, no un
-  // refactor de semántica de estado.
-  if (!isClosed(req)) {
-    return (
-      <AppShell title="Documento">
-        <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-20 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-warning/15 text-warning">
-            <FileText className="size-7" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">
-              El documento aún no ha sido generado
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              El documento formal se genera automáticamente cuando el trámite{' '}
-              <span className="font-medium">{req.radicado}</span> se finaliza.
-              Complete el flujo de trabajo para habilitar la descarga.
-            </p>
-          </div>
-          <Link href={`/requests/${req.id}`}>
-            <Button variant="outline" className="gap-2">
-              <ArrowLeft className="size-4" />
-              Volver a la solicitud
-            </Button>
-          </Link>
-        </div>
-      </AppShell>
-    )
-  }
+  const closed = isClosed(req)
 
   return (
-    <AppShell title="Documento formal">
+    <AppShell title={closed ? 'Documento formal' : 'Documento de la solicitud'}>
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <Link
           href={`/requests/${req.id}`}
@@ -131,23 +98,30 @@ export default function DocumentoPage() {
           Volver a la solicitud
         </Link>
 
-        {/* Header banner emphasizing formal closure */}
         <Card className="border-primary/20 bg-primary/[0.03]">
           <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                <ShieldCheck className="size-5" />
+                {closed ? <ShieldCheck className="size-5" /> : <FileText className="size-5" />}
               </span>
               <div>
                 <h2 className="font-serif text-lg font-bold tracking-tight">
-                  Documento oficial de cierre
+                  {closed ? 'Documento oficial de cierre' : 'Documento de la solicitud'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Este documento constituye la constancia formal del trámite{' '}
-                  <span className="font-medium text-foreground">
-                    {req.radicado}
-                  </span>{' '}
-                  y fue notificado al estudiante.
+                  {closed ? (
+                    <>
+                      Este documento constituye la constancia formal del trámite{' '}
+                      <span className="font-medium text-foreground">{req.radicado}</span>{' '}
+                      y fue notificado al estudiante.
+                    </>
+                  ) : (
+                    <>
+                      Información registrada para el trámite{' '}
+                      <span className="font-medium text-foreground">{req.radicado}</span>{' '}
+                      en su estado actual.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -203,9 +177,9 @@ export default function DocumentoPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ['Radicado', req.radicado],
-            ['Estado', 'Finalizado'],
+            ['Estado', req.stateName],
             ['Estudiante', req.studentName],
-            ['Generado', formatDateTime(req.updatedAt)],
+            ['Última actualización', formatDateTime(req.updatedAt)],
           ].map(([k, v]) => (
             <div
               key={k}

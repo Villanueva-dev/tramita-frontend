@@ -1,8 +1,10 @@
 import type { AcademicRequest } from '@/lib/types'
 import { formatDate } from '@/lib/format'
+import { isClosed } from '@/lib/request-state'
 import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 
 export function PdfDocument({ request }: { request: AcademicRequest }) {
+  const closed = isClosed(request)
   const completed = request.timeline.find((h) => h.toStatus === 'finalizado')
   const folio = `RC-${request.id.replace(/\D/g, '').padStart(6, '0')}`
   const isNotas = request.type === 'novedad_notas'
@@ -27,7 +29,9 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
             </div>
           </div>
           <div className="text-right text-xs text-[#555]">
-            <p className="font-semibold text-[#b00020]">DOCUMENTO OFICIAL</p>
+            <p className="font-semibold text-[#b00020]">
+              {closed ? 'DOCUMENTO OFICIAL' : 'DOCUMENTO DEL TRÁMITE'}
+            </p>
             <p>Folio: {folio}</p>
             <p>Radicado: {request.radicado}</p>
             <p>
@@ -42,10 +46,10 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
         {/* Title */}
         <div className="mt-8 text-center">
           <h1 className="font-serif text-xl font-bold uppercase tracking-wide text-[#0a2a66]">
-            Constancia de {REQUEST_TYPE_LABELS[request.type]}
+            {closed ? 'Constancia' : 'Solicitud'} de {REQUEST_TYPE_LABELS[request.type]}
           </h1>
           <p className="mt-1 text-sm text-[#666]">
-            Resolución de solicitud académica
+            {closed ? 'Resolución de solicitud académica' : `Estado actual: ${request.stateName}`}
           </p>
         </div>
 
@@ -53,8 +57,9 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
         <div className="mt-8 space-y-5 text-sm leading-relaxed text-[#333]">
           <p>
             La Coordinación Académica de la Universidad Remington, Sede Cali,
-            hace constar que se ha tramitado y resuelto la siguiente solicitud
-            académica conforme al procedimiento institucional vigente:
+            {closed
+              ? ' hace constar que se ha tramitado y resuelto la siguiente solicitud académica conforme al procedimiento institucional vigente:'
+              : ' presenta la información registrada para la siguiente solicitud académica en curso:'}
           </p>
 
           <table className="w-full border-collapse text-sm">
@@ -82,7 +87,7 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
             <p className="font-semibold text-[#0a2a66]">Detalle del trámite</p>
             {isNotas ? (
               <p className="mt-1">
-                Se autoriza la novedad de notas para la asignatura{' '}
+                {closed ? 'Se autoriza' : 'Se solicita'} la novedad de notas para la asignatura{' '}
                 <strong>{primary?.name}</strong> ({primary?.code}), modificando
                 la calificación de{' '}
                 <strong>{primary?.currentGrade ?? '—'}</strong> a{' '}
@@ -90,7 +95,7 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
               </p>
             ) : (
               <p className="mt-1">
-                Se autoriza la adición de{' '}
+                {closed ? 'Se autoriza' : 'Se solicita'} la adición de{' '}
                 <strong>
                   {request.subjects.reduce((sum, s) => sum + s.credits, 0)}{' '}
                   créditos
@@ -122,31 +127,32 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
           )}
         </div>
 
-        {/* Signatures */}
-        <div className="mt-14 flex items-end justify-between gap-8">
-          <div className="flex-1 text-center">
-            <div className="border-t border-[#333] pt-2">
-              <p className="text-sm font-semibold text-[#1a1a1a]">
-                {completed?.actor ?? request.assignedTo}
-              </p>
-              <p className="text-xs text-[#666]">
-                Coordinador(a) Académico · Sede Cali
-              </p>
-            </div>
-          </div>
-          <div className="flex-1 text-center">
-            <div className="mb-1 grid h-16 place-items-center">
-              <div className="grid size-16 place-items-center rounded-md border-2 border-dashed border-[#b00020] text-[9px] font-semibold uppercase text-[#b00020]">
-                Sello
+        {closed && (
+          <div className="mt-14 flex items-end justify-between gap-8">
+            <div className="flex-1 text-center">
+              <div className="border-t border-[#333] pt-2">
+                <p className="text-sm font-semibold text-[#1a1a1a]">
+                  {completed?.actor ?? request.assignedTo}
+                </p>
+                <p className="text-xs text-[#666]">
+                  Coordinador(a) Académico · Sede Cali
+                </p>
               </div>
             </div>
-            <div className="border-t border-[#333] pt-2">
-              <p className="text-xs text-[#666]">
-                Registro y Control Académico
-              </p>
+            <div className="flex-1 text-center">
+              <div className="mb-1 grid h-16 place-items-center">
+                <div className="grid size-16 place-items-center rounded-md border-2 border-dashed border-[#b00020] text-[9px] font-semibold uppercase text-[#b00020]">
+                  Sello
+                </div>
+              </div>
+              <div className="border-t border-[#333] pt-2">
+                <p className="text-xs text-[#666]">
+                  Registro y Control Académico
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Footer */}
         <footer className="mt-12 border-t border-[#e5e5e5] pt-4 text-center text-[10px] leading-relaxed text-[#999]">
