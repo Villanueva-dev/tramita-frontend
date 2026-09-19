@@ -49,7 +49,7 @@ tipo de trámite.
   - Neutralizar o condicionar el contenido exclusivo de cierre sin agregar flags de dominio.
   - Comprobación: pruebas enfocadas en verde, suite completa, TypeScript y lint.
 
-- [ ] **T3 — Cerrar la unidad de trabajo**
+- [x] **T3 — Cerrar la unidad de trabajo**
   - Revisar diff, ejecutar comprobación puntual del padre y crear un commit convencional.
   - Registrar commit, conteo de líneas y evidencia final.
 
@@ -65,7 +65,8 @@ tipo de trámite.
 
 - Estado inicial: worktree limpio; issue #38 abierto; PR #37 abierto y mergeable.
 - Backend comprobado en el issue: `200 application/pdf` para `EN_COORDINACION`.
-- Pronóstico: 120–220 líneas autorales; una sola unidad de commit.
+- Pronóstico inicial: 120–220 líneas autorales. Resultado: 340 líneas cambiadas incluyendo pruebas
+  y seguimiento; se mantuvo dentro del presupuesto de entrega de 400 líneas.
 - T1 RED observado:
   `pnpm exec vitest run 'app/requests/[id]/page.test.tsx' 'app/requests/[id]/documento/page.test.tsx'`
   terminó con código 1: 3 pruebas fallaron y 2 pasaron. El detalle no encontró el enlace
@@ -84,8 +85,10 @@ tipo de trámite.
 - Archivos de producto y regresión modificados: `app/requests/[id]/page.tsx`,
   `app/requests/[id]/page.test.tsx`, `app/requests/[id]/documento/page.tsx`,
   `app/requests/[id]/documento/page.test.tsx` y `components/pdf-document.tsx`.
-- Siguiente paso: T3 queda pendiente para comprobación puntual, revisión del diff y commit por el
-  padre.
+- Commit de la unidad: `d7ed387` —
+  `fix(documento): permite descargar el formato durante coordinación`.
+- Siguiente paso: decidir si se publica la rama y se abre un PR encadenado al #37; esas operaciones
+  remotas no forman parte de esta autorización local.
 
 ## Rollback
 
