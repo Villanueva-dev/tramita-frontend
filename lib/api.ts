@@ -227,6 +227,23 @@ export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
 /** Campo del formulario al que se ata el 422 de `createRequest` (definición inexistente). */
 export const CREATE_REQUEST_422_FIELD = 'definitionCode'
 
+/**
+ * Nombre del archivo que el backend declara en `Content-Disposition`, con reserva.
+ *
+ * El nombre no es decorativo: `DO-FR-100-{id}.pdf` identifica el formato institucional que
+ * circula para firmarse, y lo fija el backend (`RequestController#getDocument`) junto con la
+ * decisión de no incluir cédula ni nombre del estudiante. Reescribirlo en el cliente rompe esa
+ * correspondencia y además duplica una decisión que ya está tomada del otro lado.
+ *
+ * Un nombre con separadores de ruta se descarta: viaja al disco de quien descarga y permitiría
+ * escribir fuera de la carpeta de descargas.
+ */
+export function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  const name = header?.match(/filename="?([^";]+)"?/i)?.[1]?.trim()
+  if (!name || name.includes('/') || name.includes('\\')) return fallback
+  return name
+}
+
 export interface CreateRequestBody {
   definitionCode: string
   studentName: string

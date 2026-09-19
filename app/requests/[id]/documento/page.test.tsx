@@ -11,7 +11,14 @@ vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/lib/store', () => ({ useTramita }))
-vi.mock('@/lib/api', () => ({ apiFetch, problemMessage }))
+// Se conserva el módulo real y solo se finge lo que el test necesita controlar. Un mock que
+// lo reemplaza entero deja en `undefined` cualquier import nuevo, y el fallo aparece lejos:
+// aquí se manifestó como «click no se llamó», no como «la función no existe».
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiFetch,
+  problemMessage,
+}))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
 }))
@@ -78,12 +85,18 @@ describe('DocumentoPage', () => {
     apiFetch.mockResolvedValue({
       ok: true,
       blob: vi.fn().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' })),
+      headers: new Headers({
+        'Content-Disposition': 'attachment; filename="DO-FR-100-request-1.pdf"',
+      }),
     } as unknown as Response)
     const createObjectURL = vi.fn(() => 'blob:document')
     const revokeObjectURL = vi.fn()
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    // El nombre se lee del anchor en el momento del clic: es el que llega al disco.
+    let downloadedAs = ''
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) { downloadedAs = this.download })
     setup()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }))
@@ -92,5 +105,7 @@ describe('DocumentoPage', () => {
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(click).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:document')
+    // El nombre lo fija el backend: identifica el formato oficial y omite datos personales.
+    expect(downloadedAs).toBe('DO-FR-100-request-1.pdf')
   })
 })

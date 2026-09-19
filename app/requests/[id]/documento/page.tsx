@@ -18,7 +18,7 @@ import { PdfDocument } from '@/components/pdf-document'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTramita } from '@/lib/store'
-import { apiFetch, problemMessage } from '@/lib/api'
+import { apiFetch, filenameFromContentDisposition, problemMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 
 export default function DocumentoPage() {
@@ -54,7 +54,12 @@ export default function DocumentoPage() {
         const url = URL.createObjectURL(blob)
         const anchor = document.createElement('a')
         anchor.href = url
-        anchor.download = `constancia_${params.id}.pdf`
+        // El nombre lo fija el backend: identifica el formato institucional (DO-FR-100) y
+        // omite deliberadamente cédula y nombre. Reescribirlo acá rompía esa correspondencia.
+        anchor.download = filenameFromContentDisposition(
+          response.headers?.get('Content-Disposition') ?? null,
+          `documento_${params.id}.pdf`,
+        )
         anchor.click()
         URL.revokeObjectURL(url)
         setDownloaded(true)

@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { displayNameFromEmail } from '@/lib/identity'
 import { useTramita } from '@/lib/store'
 import { PROGRAMS, REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import type { Attachment, RequestType, SubjectInfo } from '@/lib/types'
@@ -51,7 +52,7 @@ function FieldError({ msg }: { msg?: string }) {
 
 export default function NewRequestPage() {
   const router = useRouter()
-  const { createRequest } = useTramita()
+  const { createRequest, coordinatorName } = useTramita()
 
   const [type, setType] = useState<RequestType>('adicion_creditos')
   const [priority, setPriority] = useState<'normal' | 'urgente'>('normal')
@@ -159,7 +160,7 @@ export default function NewRequestPage() {
     {
       id: 'novedad_notas',
       icon: BookOpen,
-      desc: 'Corregir o modificar una calificación ya registrada.',
+      desc: 'Registrar una calificación faltante o no cargada tras el cierre del periodo.',
     },
   ]
 
@@ -604,7 +605,7 @@ export default function NewRequestPage() {
                   >
                     {signed ? (
                       <span className="font-serif text-base italic">
-                        A. Restrepo
+                        {displayNameFromEmail(coordinatorName) || 'Coordinación Académica'}
                       </span>
                     ) : (
                       'Espacio para firma'

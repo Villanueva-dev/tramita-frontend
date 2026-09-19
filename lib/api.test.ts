@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   ApiError,
+  filenameFromContentDisposition,
   parseCookie,
   parseProblem,
   listWorkflowDefinitions,
@@ -445,5 +446,40 @@ describe('advanceRequest', () => {
     )
 
     await expect(advanceRequest('uuid-1', 'EN_FACULTAD')).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+/**
+ * El backend nombra el archivo en `Content-Disposition`
+ * (`attachment; filename="DO-FR-100-{id}.pdf"`), y ese nombre no es decorativo: identifica
+ * el formato institucional que circula para firmarse. La pantalla lo descartaba y guardaba
+ * `constancia_{id}.pdf`, un nombre que ese formato no tiene.
+ */
+describe('filenameFromContentDisposition', () => {
+  const FB = 'descarga.pdf'
+
+  it('toma el nombre que declara el backend', () => {
+    expect(filenameFromContentDisposition(
+      'attachment; filename="DO-FR-100-abc.pdf"', FB)).toBe('DO-FR-100-abc.pdf')
+  })
+
+  it('acepta el nombre sin comillas', () => {
+    expect(filenameFromContentDisposition('attachment; filename=DO-FR-100-abc.pdf', FB))
+      .toBe('DO-FR-100-abc.pdf')
+  })
+
+  // Sin cabecera no hay nombre que respetar: la descarga no puede quedarse sin nombre.
+  it('cae al nombre de reserva cuando no hay cabecera', () => {
+    expect(filenameFromContentDisposition(null, FB)).toBe(FB)
+  })
+
+  it('cae al nombre de reserva cuando la cabecera no trae filename', () => {
+    expect(filenameFromContentDisposition('attachment', FB)).toBe(FB)
+  })
+
+  // Guarda de seguridad: el nombre viaja al disco de quien descarga. Un separador de rutas
+  // permitiría escribir fuera de la carpeta de descargas.
+  it('descarta un nombre con separadores de ruta', () => {
+    expect(filenameFromContentDisposition('attachment; filename="../../x.pdf"', FB)).toBe(FB)
   })
 })
