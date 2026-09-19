@@ -65,6 +65,15 @@ function setup() {
 }
 
 describe('RequestDetailPage', () => {
+  it('muestra el enlace al documento para ADICION_CREDITOS en EN_COORDINACION', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const documentLink = screen.getByRole('link', { name: 'Ver documento PDF' })
+    expect(documentLink.getAttribute('href')).toBe('/requests/request-1/documento')
+  })
+
   it('carga el detalle desde el store', async () => {
     setup()
 

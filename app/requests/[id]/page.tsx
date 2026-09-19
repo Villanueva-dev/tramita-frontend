@@ -305,14 +305,12 @@ export default function RequestDetailPage() {
                   {action.confirmLabel}
                 </Button>
               ))}
-              {isFinalized && (
-                <Link href={`/requests/${req.id}/documento`}>
-                  <Button className="gap-2">
-                    <Download className="size-4" />
-                    Ver documento PDF
-                  </Button>
-                </Link>
-              )}
+              <Link href={`/requests/${req.id}/documento`}>
+                <Button className="gap-2">
+                  <Download className="size-4" />
+                  Ver documento PDF
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
