@@ -120,6 +120,41 @@ describe('DashboardPage — localización de solicitudes', () => {
 })
 
 describe('DashboardPage', () => {
+  it('excluye los rechazos al filtrar por Completadas', () => {
+    const rejected: AcademicRequest = {
+      ...request,
+      id: 'request-rejected',
+      radicado: 'RAD-REJECTED',
+      studentName: 'Solicitud Rechazada',
+      status: 'finalizado',
+      stateName: 'Rechazada',
+      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true },
+    }
+    const finalized: AcademicRequest = {
+      ...request,
+      id: 'request-finalized',
+      radicado: 'RAD-FINALIZED',
+      studentName: 'Solicitud Finalizada',
+      status: 'finalizado',
+      stateName: 'Finalizada',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true },
+    }
+    useTramita.mockReturnValue({
+      requests: [rejected, finalized],
+      metrics: null,
+      coordinatorName: 'coord@example.com',
+      searchRequests: vi.fn(),
+      searched: true,
+      searchErrors: [],
+    })
+
+    render(<DashboardPage />)
+    fireEvent.click(screen.getByRole('button', { name: /completadas/i }))
+
+    expect(screen.getAllByText('Solicitud Finalizada').length).toBeGreaterThan(0)
+    expect(screen.queryAllByText('Solicitud Rechazada')).toHaveLength(0)
+  })
+
   it('renderiza la bandeja con datos provenientes del store', () => {
     useTramita.mockReturnValue({
       requests: [request],
