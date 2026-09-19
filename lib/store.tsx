@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
+import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm, updateRequest as saveRequest } from './api'
 import { apiErrorMessages } from './api-errors'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
@@ -115,9 +115,20 @@ interface TramitaContextValue {
   refreshRequest: (id: string) => Promise<void>
   createRequest: (input: NewRequestInput) => Promise<AcademicRequest>
   transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
+  updateRequest: (id: string, input: UpdateRequestInput) => Promise<void>
   uploadDocument: (requestId: string, file: File) => Promise<Attachment>
   registerDocumentApproval: (requestId: string, documentId: string, input: DocumentApprovalInput) => Promise<AttachmentApproval>
   updateWorkflowConfig: (config: RequestTypeConfig[]) => void
+}
+
+export interface UpdateRequestInput {
+  studentName: string
+  studentCedula: string
+  studentCode: string
+  program: string
+  semester: string
+  reason: string
+  subjects: SubjectInfo[]
 }
 
 const TramitaContext = createContext<TramitaContextValue | null>(null)
@@ -349,6 +360,28 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateRequest = useCallback(async (id: string, input: UpdateRequestInput) => {
+    const updated = await saveRequest(id, {
+      studentName: input.studentName,
+      studentDocument: input.studentCedula,
+      studentCode: input.studentCode,
+      program: input.program,
+      semester: input.semester,
+      reason: input.reason,
+      subjects: input.subjects.map((subject) => ({
+        code: subject.code,
+        name: subject.name,
+        credits: subject.credits,
+        group: subject.group,
+        currentGrade: subject.currentGrade,
+        proposedGrade: subject.proposedGrade,
+      })),
+    })
+    const refreshed = await loadRequest(id)
+    const mapped = refreshed ?? baseRequest(updated)
+    setRequests((current) => current.map((request) => request.id === id ? mapped : request))
+  }, [])
+
   const uploadDocument = useCallback(async (requestId: string, file: File) => {
     const form = new FormData()
     form.append('file', file)
@@ -466,7 +499,8 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     uploadDocument,
     registerDocumentApproval,
     updateWorkflowConfig,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
+    updateRequest,
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, updateRequest, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 

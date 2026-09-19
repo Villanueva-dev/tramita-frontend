@@ -264,6 +264,23 @@ export interface CreateRequestBody {
   reason?: string
 }
 
+export interface UpdateRequestBody {
+  studentName: string
+  studentDocument: string
+  studentCode?: string
+  program?: string
+  semester?: string
+  reason?: string
+  subjects?: Array<{
+    code: string
+    name: string
+    credits?: number | null
+    group?: string | null
+    currentGrade?: number | string | null
+    proposedGrade?: number | string | null
+  }>
+}
+
 /** Registra una solicitud de trámite (US1). */
 export async function createRequest(body: CreateRequestBody): Promise<Request> {
   // Allowlist explícito: guarda de privacidad, no una preferencia de estilo. La pantalla
@@ -274,6 +291,15 @@ export async function createRequest(body: CreateRequestBody): Promise<Request> {
   const res = await apiFetch('/requests', {
     method: 'POST',
     body: { definitionCode, studentName, studentDocument, program, semester, reason },
+  })
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as Request
+}
+
+export async function updateRequest(id: string, body: UpdateRequestBody): Promise<Request> {
+  const res = await apiFetch(`/requests/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as Request

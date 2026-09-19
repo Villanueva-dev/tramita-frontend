@@ -144,7 +144,7 @@ export interface AcademicRequest {
    * filtrar y colorear, pero no puede distinguir dos estados finales distintos
    * (RECHAZADA y FINALIZADA) ni los seis intermedios que colapsa.
    */
-  stateName: string
+  stateName?: string
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string

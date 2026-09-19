@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   CornerUpLeft,
   Download,
+  Edit3,
   FileText,
   GraduationCap,
   Mail,
@@ -35,7 +36,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useTramita } from '@/lib/store'
+import { useTramita, type UpdateRequestInput } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
 import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
@@ -83,7 +84,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function RequestDetailPage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { getRequest, refreshRequest, transition, registerDocumentApproval, workflowConfig } = useTramita()
+  const { getRequest, refreshRequest, transition, updateRequest, registerDocumentApproval, workflowConfig } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
   const [toast, setToast] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -91,6 +92,8 @@ export default function RequestDetailPage() {
   const [approvalError, setApprovalError] = useState<string>('')
   const [approvalSavingId, setApprovalSavingId] = useState<string | null>(null)
   const [openApprovalId, setOpenApprovalId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<UpdateRequestInput | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
 
   const req = getRequest(params.id)
 
@@ -174,6 +177,37 @@ export default function RequestDetailPage() {
       setDialog(null)
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'No se pudo aplicar la transición.')
+    }
+  }
+
+  function beginEdit() {
+    if (!req) return
+    setEditDraft({
+      studentName: req.studentName,
+      studentCedula: req.studentCedula,
+      studentCode: req.studentCode,
+      program: req.program,
+      semester: req.semester,
+      reason: req.reason,
+      subjects: req.subjects.map((subject) => ({ ...subject })),
+    })
+  }
+
+  async function saveEdit() {
+    if (!editDraft) return
+    if (!editDraft.studentName.trim() || !editDraft.studentCedula.trim()) {
+      setToast('El nombre y la cédula son obligatorios.')
+      return
+    }
+    try {
+      setEditSaving(true)
+      await updateRequest(requestId, editDraft)
+      setEditDraft(null)
+      setToast('Cambios guardados. El trámite conserva su historial.')
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -304,6 +338,12 @@ export default function RequestDetailPage() {
                   {action.confirmLabel}
                 </Button>
               ))}
+              {req.status === 'devuelto' && (
+                <Button variant="outline" className="gap-2" onClick={beginEdit}>
+                  <Edit3 className="size-4" />
+                  Editar trámite
+                </Button>
+              )}
               {isFinalized && (
                 <Link href={`/requests/${req.id}/documento`}>
                   <Button className="gap-2">
@@ -315,6 +355,101 @@ export default function RequestDetailPage() {
             </div>
           </div>
         </div>
+
+        {editDraft && (
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-base">Corregir trámite</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Corrija los datos solicitados y guarde los cambios para continuar el flujo.
+                </p>
+              </div>
+              <Button variant="ghost" size="icon-sm" aria-label="Cancelar edición" onClick={() => setEditDraft(null)}>
+                <X className="size-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([
+                  ['studentName', 'Nombre completo'],
+                  ['studentCedula', 'Cédula'],
+                  ['studentCode', 'Código'],
+                  ['program', 'Programa'],
+                  ['semester', 'Semestre'],
+                ] as const).map(([field, label]) => (
+                  <div key={field} className="flex flex-col gap-1.5">
+                    <Label htmlFor={`edit-${field}`}>{label}</Label>
+                    <Input
+                      id={`edit-${field}`}
+                      value={editDraft[field]}
+                      onChange={(event) => setEditDraft({ ...editDraft, [field]: event.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-reason">Motivo / justificación</Label>
+                <Textarea
+                  id="edit-reason"
+                  value={editDraft.reason}
+                  onChange={(event) => setEditDraft({ ...editDraft, reason: event.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Label>Asignaturas</Label>
+                {editDraft.subjects.map((subject, index) => (
+                  <div key={`${subject.code}-${index}`} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
+                    <Input aria-label={`Código de asignatura ${index + 1}`} value={subject.code} onChange={(event) => {
+                      const subjects = [...editDraft.subjects]
+                      subjects[index] = { ...subject, code: event.target.value }
+                      setEditDraft({ ...editDraft, subjects })
+                    }} />
+                    <Input aria-label={`Nombre de asignatura ${index + 1}`} value={subject.name} onChange={(event) => {
+                      const subjects = [...editDraft.subjects]
+                      subjects[index] = { ...subject, name: event.target.value }
+                      setEditDraft({ ...editDraft, subjects })
+                    }} />
+                    {req.type === 'novedad_notas' ? (
+                      <>
+                        <Input aria-label={`Nota actual ${index + 1}`} value={subject.currentGrade ?? ''} onChange={(event) => {
+                          const subjects = [...editDraft.subjects]
+                          subjects[index] = { ...subject, currentGrade: event.target.value }
+                          setEditDraft({ ...editDraft, subjects })
+                        }} />
+                        <Input aria-label={`Nota propuesta ${index + 1}`} value={subject.proposedGrade ?? ''} onChange={(event) => {
+                          const subjects = [...editDraft.subjects]
+                          subjects[index] = { ...subject, proposedGrade: event.target.value }
+                          setEditDraft({ ...editDraft, subjects })
+                        }} />
+                      </>
+                    ) : (
+                      <>
+                        <Input type="number" aria-label={`Créditos ${index + 1}`} value={subject.credits} onChange={(event) => {
+                          const subjects = [...editDraft.subjects]
+                          subjects[index] = { ...subject, credits: Number(event.target.value) }
+                          setEditDraft({ ...editDraft, subjects })
+                        }} />
+                        <Input aria-label={`Grupo ${index + 1}`} value={subject.group ?? ''} onChange={(event) => {
+                          const subjects = [...editDraft.subjects]
+                          subjects[index] = { ...subject, group: event.target.value }
+                          setEditDraft({ ...editDraft, subjects })
+                        }} />
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditDraft(null)}>Cancelar</Button>
+                <Button onClick={() => void saveEdit()} disabled={editSaving} className="gap-2">
+                  <Check className="size-4" />
+                  {editSaving ? 'Guardando...' : 'Guardar cambios'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Workflow stepper */}
         <Card>

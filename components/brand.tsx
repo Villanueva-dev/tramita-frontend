@@ -25,7 +25,7 @@ export function Logo({
         fill
         priority
         sizes="(min-width: 640px) 240px, 208px"
-        className="object-cover object-center"
+        className="object-contain object-center"
       />
     </div>
   )
