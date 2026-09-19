@@ -59,9 +59,15 @@
 
 - [x] **4.1** Artefactos de la change, escritos **antes del merge** para que la especificación
       gobierne lo que entra a `main`.
-- [ ] **4.2** Verificación diagnóstica contra la spec (`verify`).
-- [ ] **4.3** Archivar tras el merge, fusionando el delta en la capability.
-- [ ] **4.4** Cerrar #15 y #35 una vez mergeado, no antes.
+- [x] **4.2** Verificación diagnóstica contra la spec (`verify`). — `verify-report.md` generado
+      por el orquestador; diagnóstico: 0 CRITICAL, 2 WARNING, 2 SUGGESTION. Todos los escenarios
+      tienen respaldo en código y tests.
+- [x] **4.3** Archivar tras el merge, fusionando el delta en la capability. — Delta spec
+      anexado a `openspec/specs/workflow-requests/spec.md` con `gentle-ai sdd-archive-compose`;
+      carpeta movida a `openspec/changes/archive/2026-09-19-semantica-de-estado-del-tramite/` con
+      `git mv`; readback: identical.
+- [ ] **4.4** Cerrar #15 y #35 una vez mergeado, no antes. — #35 ya cerrado (`2026-09-19T13:28:23Z`);
+      #15 será cerrado por el orquestador tras este archivado.
 
 ## Fuera de alcance, con su destino
 
