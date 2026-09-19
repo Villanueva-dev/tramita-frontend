@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import type { AcademicRequest } from '@/lib/types'
 import { isOverdue } from '@/lib/format'
+import { isSuccessfullyClosed } from '@/lib/request-state'
 
 interface CardDef {
   key: string
@@ -35,8 +36,13 @@ export function SummaryCards({
   const inProgress = requests.filter(
     (r) => r.status === 'en_revision' || r.status === 'devuelto',
   ).length
+  // Un rechazo es final, así que contarlo por el cierre lo presentaba como trabajo
+  // cumplido (#35). `isSuccessfullyClosed` separa el cierre exitoso del negado, que el
+  // contrato colapsa en un mismo `isFinal`. El 'aprobado' se conserva tal cual: nace de
+  // APROBADA_FACULTAD, que NO es un estado final, y sacarlo cambiaría lo que la tarjeta
+  // cuenta hoy — es otra decisión, no la que esta corrección viene a hacer.
   const completed = requests.filter(
-    (r) => r.status === 'aprobado' || r.status === 'finalizado',
+    (r) => isSuccessfullyClosed(r) || r.status === 'aprobado',
   ).length
   const urgent = requests.filter(
     (r) =>

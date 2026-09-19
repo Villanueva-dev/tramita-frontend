@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
 import { businessDaysUntil, isOverdue } from '@/lib/format'
+import { isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
 
 type CardFilter =
@@ -44,9 +45,10 @@ export default function DashboardPage() {
         !(r.status === 'en_revision' || r.status === 'devuelto')
       )
         return false
+      // Espeja el contador de SummaryCards: el rechazo es final pero no completó (#35).
       if (
         cardFilter === 'completado' &&
-        !(r.status === 'aprobado' || r.status === 'finalizado')
+        !(isSuccessfullyClosed(r) || r.status === 'aprobado')
       )
         return false
       if (
