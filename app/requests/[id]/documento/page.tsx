@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
+import { isClosed } from '@/lib/request-state'
 import { PdfDocument } from '@/components/pdf-document'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -84,7 +85,14 @@ export default function DocumentoPage() {
     )
   }
 
-  if (req.status !== 'finalizado') {
+  // OJO: este candado lo inventó el cliente y contradice al backend. `GET /requests/{id}/document`
+  // no gatea por estado, y `RequestController` documenta que el DO-FR-100 «se emite en cualquier
+  // momento de la vida de la solicitud: si solo saliera al cerrar el trámite, no serviría para
+  // aquello por lo que existe» — es el formato que circula PARA ser firmado. Con esta guarda, la
+  // Coordinación no puede imprimirlo en el caso de uso principal, y el mensaje de abajo afirma
+  // algo falso. Se migra preservando el comportamiento: quitarlo es decisión de producto, no un
+  // refactor de semántica de estado.
+  if (!isClosed(req)) {
     return (
       <AppShell title="Documento">
         <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-20 text-center">

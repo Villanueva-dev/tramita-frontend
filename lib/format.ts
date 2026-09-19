@@ -59,8 +59,11 @@ export function businessDaysUntil(iso: string) {
   return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-export function isOverdue(iso: string, status: string) {
-  return status !== 'finalizado' && businessDaysUntil(iso) < 0
+// Recibe si el trámite está cerrado en vez de deducirlo de `status`: preguntarle a la
+// etiqueta obligaba a este módulo de formato a conocer el vocabulario del dominio, y esa
+// decisión vive en `lib/request-state.ts`.
+export function isOverdue(iso: string, isClosed: boolean) {
+  return !isClosed && businessDaysUntil(iso) < 0
 }
 
 export type StatusVariant = 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'info'

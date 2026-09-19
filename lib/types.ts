@@ -145,6 +145,13 @@ export interface AcademicRequest {
    * (RECHAZADA y FINALIZADA) ni los seis intermedios que colapsa.
    */
   stateName: string
+  /**
+   * El estado tal como lo envía el motor. `stateName` sigue siendo lo que se muestra, pero
+   * el nombre no permite razonar: las preguntas sobre el trámite (¿cerrado?, ¿devuelto?,
+   * ¿terminó bien?) se responden con los predicados de `lib/request-state.ts`, que necesitan
+   * el código y `isFinal`. Descartarlos acá fue la razón de que todo colgara de `status`.
+   */
+  currentState: State
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string

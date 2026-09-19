@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
 import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
+import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
 import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
 
@@ -221,10 +222,10 @@ export default function RequestDetailPage() {
     }
   }
 
-  const overdue = isOverdue(req.dueDate, req.status)
+  const overdue = isOverdue(req.dueDate, isClosed(req))
   const days = businessDaysUntil(req.dueDate)
 
-  const isFinalized = req.status === 'finalizado'
+  const isFinalized = isClosed(req)
   const transitionActions = (req.availableTransitions ?? []).map((availableTransition): ActionConfig => ({
     action: availableTransition.targetState.code,
     targetStateCode: availableTransition.targetState.code,
@@ -325,7 +326,7 @@ export default function RequestDetailPage() {
             <WorkflowStepper
               stages={stages}
               currentStageId={req.currentStage}
-              returned={req.status === 'devuelto'}
+              returned={isReturnedForCorrection(req)}
             />
           </CardContent>
         </Card>

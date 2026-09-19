@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
 import { businessDaysUntil, isOverdue } from '@/lib/format'
+import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
 
 type CardFilter =
@@ -41,19 +42,20 @@ export default function DashboardPage() {
       if (cardFilter === 'pendiente' && r.status !== 'pendiente') return false
       if (
         cardFilter === 'en_proceso' &&
-        !(r.status === 'en_revision' || r.status === 'devuelto')
+        !(r.status === 'en_revision' || isReturnedForCorrection(r))
       )
         return false
+      // Espeja el contador de SummaryCards: el rechazo es final pero no completó (#35).
       if (
         cardFilter === 'completado' &&
-        !(r.status === 'aprobado' || r.status === 'finalizado')
+        !(isSuccessfullyClosed(r) || r.status === 'aprobado')
       )
         return false
       if (
         cardFilter === 'urgente' &&
         !(
-          (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-          r.status !== 'finalizado'
+          (r.priority === 'urgente' || isOverdue(r.dueDate, isClosed(r))) &&
+          !isClosed(r)
         )
       )
         return false
@@ -100,13 +102,13 @@ export default function DashboardPage() {
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
   const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
-  const openRequests = requests.filter((request) => request.status !== 'finalizado')
-  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, request.status))
+  const openRequests = requests.filter((request) => !isClosed(request))
+  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, isClosed(request)))
   const dueSoonRequests = openRequests.filter((request) => {
     const days = businessDaysUntil(request.dueDate)
     return days >= 0 && days <= 2
   })
-  const returnedRequests = requests.filter((request) => request.status === 'devuelto')
+  const returnedRequests = requests.filter(isReturnedForCorrection)
   const averageOpenAge = openRequests.length === 0
     ? 0
     : Math.round(openRequests.reduce((total, request) => total + Math.max(0, now - new Date(request.createdAt).getTime()) / 86400000, 0) / openRequests.length)
@@ -126,7 +128,7 @@ export default function DashboardPage() {
               {
                 requests.filter(
                   (r) =>
-                    r.priority === 'urgente' && r.status !== 'finalizado',
+                    r.priority === 'urgente' && !isClosed(r),
                 ).length
               }{' '}
               con atención prioritaria.

@@ -12,6 +12,7 @@ import {
 
 import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
 import { apiErrorMessages } from './api-errors'
+import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
 import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
@@ -128,17 +129,25 @@ const MIN_SEARCH_LENGTH = 2
 const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
-function statusFromState(state: ApiState): RequestStatus {
-  if (state.isFinal) return 'finalizado'
-  if (state.code === 'REGISTRADA') return 'pendiente'
-  if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
+// `status` es vocabulario de PRESENTACIÓN: agrupa para colorear el badge y poblar el
+// filtro. Las decisiones no se toman con él —para eso están los predicados de
+// `request-state`, que responden una pregunta cada uno—, así que colapsar aquí es
+// aceptable mientras nadie derive de este valor si un trámite está cerrado o devuelto.
+function statusFromState(state: ApiState, type: RequestType): RequestStatus {
+  const request = { currentState: state, type }
+  if (isClosed(request)) return 'finalizado'
+  if (isInitialState(request)) return 'pendiente'
+  if (isReturnedForCorrection(request)) return 'devuelto'
+  // Heurística residual, solo para la etiqueta: `APROBADA_FACULTAD` no es un estado final
+  // ni cambia ninguna decisión. Si algún día decide algo, le toca su propio predicado.
   if (state.code.includes('APROBADA') || state.code === 'APROBADO') return 'aprobado'
   return 'en_revision'
 }
 
 function stageFromState(state: ApiState, type: RequestType) {
-  if (state.code === 'REGISTRADA') return 'radicacion'
-  if (state.isFinal) return 'cierre'
+  const request = { currentState: state, type }
+  if (isInitialState(request)) return 'radicacion'
+  if (isClosed(request)) return 'cierre'
   return type === 'novedad_notas' ? 'verificacion' : 'revision'
 }
 
@@ -149,7 +158,7 @@ function deriveDueDate(createdAt: string): string {
 
 export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   const type = typeFromCode(apiRequest.definition.code)
-  const status = statusFromState(apiRequest.currentState)
+  const status = statusFromState(apiRequest.currentState, type)
   const priority = apiRequest.priority ?? 'normal'
   return {
     id: apiRequest.id,
@@ -157,6 +166,7 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     type,
     status,
     stateName: apiRequest.currentState.name,
+    currentState: apiRequest.currentState,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
     dueDate: deriveDueDate(apiRequest.createdAt),
@@ -193,8 +203,8 @@ function applyTimeline(request: AcademicRequest, entries: ApiTimelineEntry[]): A
       date: entry.occurredAt,
       actor: entry.actorEmail,
       action: entry.fromState ? `Transición a ${entry.toState.name}` : 'Solicitud radicada',
-      fromStatus: entry.fromState ? statusFromState(entry.fromState) : undefined,
-      toStatus: statusFromState(entry.toState),
+      fromStatus: entry.fromState ? statusFromState(entry.fromState, request.type) : undefined,
+      toStatus: statusFromState(entry.toState, request.type),
       comment: entry.note ?? undefined,
     })),
   }
