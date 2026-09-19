@@ -48,6 +48,21 @@ describe('baseRequest', () => {
     expect(recienRadicada.currentStage).toBe('radicacion')
   })
 
+  // El renombre de V3.2.0 alcanzó SOLO a ADICION_CREDITOS: su UPDATE lleva
+  // `AND d.code = 'ADICION_CREDITOS'`. Novedad de notas sigue naciendo en `REGISTRADA`,
+  // así que una constante única no puede reconocer los dos inicios a la vez: al mover
+  // el literal para arreglar un trámite, se rompe el otro.
+  it('reconoce el estado inicial de novedad de notas, que el motor no renombró', () => {
+    const recienRadicada = baseRequest({
+      ...summary,
+      definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+    })
+
+    expect(recienRadicada.status).toBe('pendiente')
+    expect(recienRadicada.currentStage).toBe('radicacion')
+  })
+
   // Los seis estados intermedios del motor se colapsan a 'en_revision' en `status`;
   // el nombre real es el único dato que dice de quién depende ahora el trámite.
   it('conserva los estados intermedios sin aplanarlos', () => {
