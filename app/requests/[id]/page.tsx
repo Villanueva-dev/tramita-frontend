@@ -38,7 +38,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
 import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
-import { isClosed } from '@/lib/request-state'
+import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
 import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
 
@@ -326,7 +326,7 @@ export default function RequestDetailPage() {
             <WorkflowStepper
               stages={stages}
               currentStageId={req.currentStage}
-              returned={req.status === 'devuelto'}
+              returned={isReturnedForCorrection(req)}
             />
           </CardContent>
         </Card>

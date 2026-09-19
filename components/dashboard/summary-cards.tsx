@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import type { AcademicRequest } from '@/lib/types'
 import { isOverdue } from '@/lib/format'
-import { isClosed, isSuccessfullyClosed } from '@/lib/request-state'
+import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 
 interface CardDef {
   key: string
@@ -34,7 +34,7 @@ export function SummaryCards({
 }) {
   const pending = requests.filter((r) => r.status === 'pendiente').length
   const inProgress = requests.filter(
-    (r) => r.status === 'en_revision' || r.status === 'devuelto',
+    (r) => r.status === 'en_revision' || isReturnedForCorrection(r),
   ).length
   // Un rechazo es final, así que contarlo por el cierre lo presentaba como trabajo
   // cumplido (#35). `isSuccessfullyClosed` separa el cierre exitoso del negado, que el
