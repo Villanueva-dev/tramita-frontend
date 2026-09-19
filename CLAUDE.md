@@ -59,6 +59,12 @@ versión. Preferir esto a la búsqueda web para docs de librerías.
 - Documentación, commits y comentarios: **español** (neutral/profesional).
 - Identificadores de código (componentes, funciones, variables): **inglés**.
 - Commits: **conventional commits** (sin atribución de IA).
+- **Única excepción al español**: la línea que vincula un PR con su issue va literal en inglés
+  (`Closes #15`, `Fixes #15`, `Resolves #15`). GitHub solo reconoce esas palabras clave en inglés
+  ([docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)),
+  así que un «Cierra #15» deja el issue abierto: ya pasó con el PR #37, que se mergeó dejando
+  abiertos #15 y #35. El resto del cuerpo, y las demás menciones («Relacionado: #9, #36»), siguen
+  en español. Verificar igual tras el merge con `gh issue view <N> --json state`.
 
 ## Integración con el backend
 
