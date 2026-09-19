@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
 import { businessDaysUntil, isOverdue } from '@/lib/format'
-import { isSuccessfullyClosed } from '@/lib/request-state'
+import { isClosed, isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
 
 type CardFilter =
@@ -54,8 +54,8 @@ export default function DashboardPage() {
       if (
         cardFilter === 'urgente' &&
         !(
-          (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-          r.status !== 'finalizado'
+          (r.priority === 'urgente' || isOverdue(r.dueDate, isClosed(r))) &&
+          !isClosed(r)
         )
       )
         return false
@@ -102,8 +102,8 @@ export default function DashboardPage() {
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
   const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
-  const openRequests = requests.filter((request) => request.status !== 'finalizado')
-  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, request.status))
+  const openRequests = requests.filter((request) => !isClosed(request))
+  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, isClosed(request)))
   const dueSoonRequests = openRequests.filter((request) => {
     const days = businessDaysUntil(request.dueDate)
     return days >= 0 && days <= 2
@@ -128,7 +128,7 @@ export default function DashboardPage() {
               {
                 requests.filter(
                   (r) =>
-                    r.priority === 'urgente' && r.status !== 'finalizado',
+                    r.priority === 'urgente' && !isClosed(r),
                 ).length
               }{' '}
               con atención prioritaria.

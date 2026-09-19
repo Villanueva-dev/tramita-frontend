@@ -9,13 +9,14 @@ import { TypeBadge } from '@/components/type-badge'
 import { Button } from '@/components/ui/button'
 import type { AcademicRequest } from '@/lib/types'
 import { formatDate, businessDaysUntil, isOverdue } from '@/lib/format'
+import { isClosed } from '@/lib/request-state'
 
 function DueCell({ req }: { req: AcademicRequest }) {
-  if (req.status === 'finalizado') {
+  if (isClosed(req)) {
     return <span className="text-muted-foreground">—</span>
   }
   const days = businessDaysUntil(req.dueDate)
-  const overdue = isOverdue(req.dueDate, req.status)
+  const overdue = isOverdue(req.dueDate, isClosed(req))
   return (
     <span
       className={cn(

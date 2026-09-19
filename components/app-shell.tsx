@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { useTramita } from '@/lib/store'
+import { isClosed } from '@/lib/request-state'
 import { useAuth } from '@/lib/auth-store'
 
 const NAV = [
@@ -49,7 +50,7 @@ export function AppShell({
   }, [authStatus, isAuthenticated, router])
 
   const urgentCount = requests.filter(
-    (r) => r.priority === 'urgente' && r.status !== 'finalizado',
+    (r) => r.priority === 'urgente' && !isClosed(r),
   ).length
 
   async function handleLogout() {

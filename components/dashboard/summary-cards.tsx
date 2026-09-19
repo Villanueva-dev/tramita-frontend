@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import type { AcademicRequest } from '@/lib/types'
 import { isOverdue } from '@/lib/format'
-import { isSuccessfullyClosed } from '@/lib/request-state'
+import { isClosed, isSuccessfullyClosed } from '@/lib/request-state'
 
 interface CardDef {
   key: string
@@ -46,8 +46,8 @@ export function SummaryCards({
   ).length
   const urgent = requests.filter(
     (r) =>
-      (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-      r.status !== 'finalizado',
+      (r.priority === 'urgente' || isOverdue(r.dueDate, isClosed(r))) &&
+      !isClosed(r),
   ).length
 
   const cards: CardDef[] = [
