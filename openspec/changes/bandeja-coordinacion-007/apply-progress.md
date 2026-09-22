@@ -610,7 +610,8 @@ persona**, al integrante que la restauró — tal como exige `tasks.md` 5.12 y t
 
 `e9d585b` — `refactor(configuracion): retira la pantalla de Configuración y workflowConfig` —
 8 archivos, 16 inserciones, 401 borrados (incluye `tasks.md`, checkboxes 5.1–5.13). Lleva el pie
-`Refs:`/`Verificado:` de `.gitmessage` (ver «Enmienda del mensaje de commit» abajo). Este archivo
+`Refs:`/`Verificado:` de `.gitmessage` (ver «Pie del commit de C5 según `.gitmessage`» abajo).
+Este archivo
 (`apply-progress.md`) se registra en un commit `docs(openspec)` aparte, siguiendo el patrón ya
 usado para A-1/A-2/A-3.
 
