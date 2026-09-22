@@ -55,15 +55,20 @@ function problem(title: string, status: number) {
 }
 
 /**
- * El provider consulta el catálogo al montar, así que el stub enruta por URL.
- * `onSearch` decide qué responde cada búsqueda, en orden de llamada.
+ * El stub enruta por URL. `/requests/inbox` (la bandeja, C7) responde por separado de
+ * `/requests?search=` (la búsqueda): antes de este endurecimiento, una carga de la
+ * bandeja al montar habría consumido la primera respuesta encolada para una búsqueda
+ * (design.md, «Arreglo del stub de fetch en la integración»). `onSearch` sigue
+ * decidiendo qué responde cada búsqueda, en orden de llamada. Cualquier otra URL —
+ * incluida `/workflow-definitions`, sin consumidor desde que C5 borró el efecto que la
+ * llamaba— sigue arrojando, para que una llamada inesperada se vea como error.
  */
 function stubFetch(...onSearch: Response[]) {
   const queue = [...onSearch]
   const spy = vi.fn((input: RequestInfo | URL) => {
     const url = String(input)
-    if (url.includes('/workflow-definitions')) return Promise.resolve(json([]))
-    if (url.includes('/requests')) {
+    if (url.includes('/requests/inbox')) return Promise.resolve(json([]))
+    if (url.includes('/requests?search=')) {
       return Promise.resolve(queue.shift() ?? json([]))
     }
     throw new Error(`URL no esperada en la prueba: ${url}`)

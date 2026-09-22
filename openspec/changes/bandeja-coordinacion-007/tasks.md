@@ -491,17 +491,17 @@ P3)` (C7b).
 
 ### C7a — Endurecer el stub de `fetch` de la integración (primer paso, obligatorio antes de C7b)
 
-- [ ] 7.1 GREEN (sin RED — arreglo de infraestructura de test, verde sobre el código actual) —
+- [x] 7.1 GREEN (sin RED — arreglo de infraestructura de test, verde sobre el código actual) —
       `app/dashboard/page.integration.test.tsx`: reescribir `stubFetch` (`:66-69`) para que
       `/requests/inbox` responda con su propia respuesta (por defecto `json([])`),
       `/requests?search=` siga usando la cola existente, y cualquier otra URL siga arrojando
       `throw` como hoy. Correr `pnpm test` sobre este archivo y confirmar que sigue verde: la
       carga aún no está conectada (C7b no empezó).
-- [ ] 7.2 GREEN — Borrar la ruta `/workflow-definitions` del stub (`:65`) — sin consumidor desde
+- [x] 7.2 GREEN — Borrar la ruta `/workflow-definitions` del stub (`:65`) — sin consumidor desde
       que C5 borró el efecto que la llamaba.
-- [ ] 7.3 Verificación — `pnpm exec vitest run app/dashboard/page.integration.test.tsx` en verde,
+- [x] 7.3 Verificación — `pnpm exec vitest run app/dashboard/page.integration.test.tsx` en verde,
       sin fallos nuevos.
-- [ ] 7.4 Commit `test(integracion): el stub distingue /requests/inbox de /requests?search=`
+- [x] 7.4 Commit `test(integracion): el stub distingue /requests/inbox de /requests?search=`
 
 ### C7b — La sección de la bandeja y la frase del encabezado
 
