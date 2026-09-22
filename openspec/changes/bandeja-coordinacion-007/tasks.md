@@ -600,27 +600,40 @@ producción.
 **Depende de**: todas las unidades anteriores que entren en la PR (según el corte que el humano
 elija).
 
-- [ ] 8.1 Redactar el checklist del cuerpo de la PR: `Closes #9` **en inglés, en texto plano,
+> **Nota (2026-09-22)**: la entrega se hizo en cinco PRs apiladas (Corte A, `stacked-to-main`), así
+> que las obligaciones 8.1–8.5 se repartieron entre ellas según la unidad que cada una contiene:
+> #44 (A-1, C1), #45 (A-2, C2+C3), #46 (A-3, C4), #47 (A-4, C5) y la PR de A-5 (C6+C7).
+
+- [x] 8.1 Redactar el checklist del cuerpo de la PR: `Closes #9` **en inglés, en texto plano,
       nunca entre backticks** (`CLAUDE.md`, «Idioma y convenciones»; `proposal.md`, «Issues
-      relacionados»); «Relacionado: #10, #12, #13 (parcial)».
-- [ ] 8.2 Declarar en el cuerpo de la PR las tres decisiones del backend: sin plazos ni
+      relacionados»); «Relacionado: #10, #12, #13 (parcial)». *Hecho*: `Closes #9` en texto plano
+      en el cuerpo de #46 (la PR que contiene C4); «Relacionado» repartido: #9/#10 en #44, #9/#10 en
+      #45, #10 en #46, #13 (parcial)/#10/#9 en #47, #12/#10/#36 en A-5.
+- [x] 8.2 Declarar en el cuerpo de la PR las tres decisiones del backend: sin plazos ni
       vencimiento (`Tramita#42` abierto, sin ventana institucional citable); sin orden lineal de
       estados (FR-011b del contrato 007); la espera se mide desde `waitingSince`
-      (bandeja)/última entrada del timeline (detalle), nunca desde `createdAt`.
-- [ ] 8.3 Señalar en el cuerpo de la PR, sin nombrar a la persona, que este cambio retira la
+      (bandeja)/última entrada del timeline (detalle), nunca desde `createdAt`. *Hecho*: las tres
+      en #44 («Por qué desaparece el vencimiento»); la 2 de nuevo en #46; la 1 y la 3 de nuevo en A-5.
+- [x] 8.3 Señalar en el cuerpo de la PR, sin nombrar a la persona, que este cambio retira la
       pantalla de Configuración y `workflowConfig` que `ede7bc3` (2026-09-09) restauró — con la
       tabla de evidencia de `proposal.md`, «Decisión consciente: baja de la pantalla de
-      Configuración».
-- [ ] 8.4 Señalar en el cuerpo de la PR el cambio visible de mayúsculas del tipo («Adición de
+      Configuración». *Hecho*: #47, sección «Por qué», con la remisión a la tabla de la propuesta.
+- [x] 8.4 Señalar en el cuerpo de la PR el cambio visible de mayúsculas del tipo («Adición de
       Créditos» → «Adición de créditos», forma del seed del backend) y que el ícono por trámite se
-      conserva, con respaldo neutro para códigos desconocidos.
-- [ ] 8.5 Citar en el cuerpo de la PR las referencias `archivo:línea` reales tocadas (de la tabla
+      conserva, con respaldo neutro para códigos desconocidos. *Hecho*: #45, sección «Cambio visible».
+- [x] 8.5 Citar en el cuerpo de la PR las referencias `archivo:línea` reales tocadas (de la tabla
       *File Changes* de `design.md`) y el resumen final de `pnpm test` (archivos y tests),
       comparado contra la línea base medida el 2026-09-22: 21 archivos, 165 tests, verde, 12,3 s.
+      *Hecho*: cada PR cita los archivos de su unidad y su resumen de vitest (#44: 21/165; #45:
+      21/176; #46: 22/196; #47: 22/196; A-5: 24/231, +66 tests sobre la línea base).
 - [ ] 8.6 Chequeo opcional en vivo contra el backend de desarrollo:
       `GET /api/requests/inbox?responsible=COORDINACION` con sesión válida. Reiniciar el backend
       mata las sesiones existentes — reautenticar antes de este chequeo. No bloquea la PR.
+      *Pendiente, a cargo del responsable del proyecto*: exige una sesión con la contraseña del
+      entorno, que el agente no lee. Declarado en el cuerpo de la PR A-5.
 - [ ] 8.7 Tras el merge: `gh issue view 9 --json state,closedAt` → confirmar `CLOSED`.
+      *Pendiente*: el merge de las cinco PRs es decisión del responsable del proyecto; #9 se cierra
+      cuando #46 llegue a `main`.
 
 **Criterios de aceptación**: todos los bullets de *Success Criteria* en `proposal.md` marcados; el
 cuerpo de la PR incluye las cuatro declaraciones de 8.1–8.4.
