@@ -375,38 +375,38 @@ inexistente); C4a no tiene efecto visible por sí solo.
 antes).
 **Commit planeado**: `refactor(configuracion): retira la pantalla de Configuración y workflowConfig`
 
-- [ ] 5.1 RED — `app/requests/new/page.test.tsx`: renombrar el primer test (afirma usar «el
+- [x] 5.1 RED — `app/requests/new/page.test.tsx`: renombrar el primer test (afirma usar «el
       catálogo del store», pero la página lee `GET /workflow-definitions` directo,
       `app/requests/new/page.tsx:55`) a lo que realmente prueba; quitar las claves mock de
       `workflowConfig` (`:15-23,34,46`).
-- [ ] 5.2 RED — `app/requests/[id]/page.test.tsx`: quitar la clave mock inocua `workflowConfig`
+- [x] 5.2 RED — `app/requests/[id]/page.test.tsx`: quitar la clave mock inocua `workflowConfig`
       (`:61`) del mock de `@/lib/store` — confirma que nada la sigue leyendo.
-- [ ] 5.3 RED — Confirmar (sin cambio, con medición) que `components/app-shell.test.tsx` no fija
+- [x] 5.3 RED — Confirmar (sin cambio, con medición) que `components/app-shell.test.tsx` no fija
       los ítems de navegación: `rg -n "'/settings'|Settings" components/app-shell.test.tsx` → si
       hay coincidencias, actualizar el test para no depender del ítem retirado.
-- [ ] 5.4 GREEN — Borrar `app/settings/page.tsx` (296 líneas).
-- [ ] 5.5 GREEN — Quitar la entrada de navegación `/settings` y el import del ícono `Settings` en
+- [x] 5.4 GREEN — Borrar `app/settings/page.tsx` (296 líneas).
+- [x] 5.5 GREEN — Quitar la entrada de navegación `/settings` y el import del ícono `Settings` en
       `components/app-shell.tsx:27`.
-- [ ] 5.6 GREEN — Borrar `workflowConfig` — estado, efecto y campos de contexto, incluida
+- [x] 5.6 GREEN — Borrar `workflowConfig` — estado, efecto y campos de contexto, incluida
       `updateWorkflowConfig` — de `lib/store.tsx`
       (`:18,27,112,121,290,344-360,476,493,502-503`).
-- [ ] 5.7 GREEN — Borrar la tabla escrita a mano `lib/ui-constants.ts:29-56` y su import de
+- [x] 5.7 GREEN — Borrar la tabla escrita a mano `lib/ui-constants.ts:29-56` y su import de
       `RequestTypeConfig`.
-- [ ] 5.8 GREEN — Borrar `RequestTypeConfig` de `lib/types.ts:118-124` (confirmar con `rg` que
+- [x] 5.8 GREEN — Borrar `RequestTypeConfig` de `lib/types.ts:118-124` (confirmar con `rg` que
       `WorkflowStageConfig` ya se borró en C4 — si no, borrarla aquí).
-- [ ] 5.9 REFACTOR — Parar `pnpm dev`, `rm -rf .next && pnpm exec tsc --noEmit`: un `TS2307` cuya
+- [x] 5.9 REFACTOR — Parar `pnpm dev`, `rm -rf .next && pnpm exec tsc --noEmit`: un `TS2307` cuya
       ruta empieza con `.next/` es de tipos obsoletos, no del código (`revisar-frontend-next`,
       «Trampas del entorno»).
-- [ ] 5.10 Verificación — `rg -n
+- [x] 5.10 Verificación — `rg -n
       "workflowConfig|updateWorkflowConfig|RequestTypeConfig|WorkflowStageConfig|'/settings'" app
       components lib` → 0.
-- [ ] 5.11 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 5.11 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 5.12 Nota para el cuerpo de la PR (no bloquea el commit): señalar, sin nombrar a la persona,
+- [x] 5.12 Nota para el cuerpo de la PR (no bloquea el commit): señalar, sin nombrar a la persona,
       que este cambio retira lo que `ede7bc3` (2026-09-09) restauró — la tabla de evidencia de
       `proposal.md`, «Decisión consciente: baja de la pantalla de Configuración» va citada en la
       *Fase 8*.
-- [ ] 5.13 Commit `refactor(configuracion): retira la pantalla de Configuración y workflowConfig`
+- [x] 5.13 Commit `refactor(configuracion): retira la pantalla de Configuración y workflowConfig`
 
 **Criterios de aceptación**: `app/settings/` no existe; la búsqueda de 5.10 da 0.
 **Rollback**: revertir el commit de C5; recupera la pantalla y `workflowConfig`; también

@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   FilePlus2,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -24,7 +23,6 @@ import { useAuth } from '@/lib/auth-store'
 const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
   { href: '/requests/new', label: 'Nueva solicitud', icon: FilePlus2 },
-  { href: '/settings', label: 'Configuración', icon: Settings },
   { href: '/assistant', label: 'Asistente académico', icon: MessageCircleQuestion },
 ]
 

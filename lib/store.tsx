@@ -14,7 +14,6 @@ import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from 
 import { apiErrorMessages } from './api-errors'
 import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
-import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
 import type {
   AcademicRequest,
   Attachment,
@@ -23,7 +22,6 @@ import type {
   RequestStatus,
   RequestMetrics,
   RequestType,
-  RequestTypeConfig,
   SignatureType,
   SubjectInfo,
   TimelineEvent,
@@ -108,7 +106,6 @@ interface TramitaContextValue {
   /** True cuando la última búsqueda se completó: distingue «aún no buscó» de «sin coincidencias». */
   searched: boolean
   searchErrors: string[]
-  workflowConfig: RequestTypeConfig[]
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   getRequest: (id: string) => AcademicRequest | undefined
@@ -117,7 +114,6 @@ interface TramitaContextValue {
   transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
   uploadDocument: (requestId: string, file: File) => Promise<Attachment>
   registerDocumentApproval: (requestId: string, documentId: string, input: DocumentApprovalInput) => Promise<AttachmentApproval>
-  updateWorkflowConfig: (config: RequestTypeConfig[]) => void
 }
 
 const TramitaContext = createContext<TramitaContextValue | null>(null)
@@ -281,7 +277,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
   const { status: authStatus, user, login: authLogin, logout: authLogout } = useAuth()
   const [requests, setRequests] = useState<AcademicRequest[]>([])
   const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
-  const [workflowConfig, setWorkflowConfig] = useState(defaultWorkflowConfig)
 
   const [searched, setSearched] = useState(false)
   const [searchErrors, setSearchErrors] = useState<string[]>([])
@@ -334,32 +329,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     window.addEventListener('tramita:session-expired', expireSession)
     return () => window.removeEventListener('tramita:session-expired', expireSession)
   }, [])
-
-  useEffect(() => {
-    // El catálogo real evita que el formulario dependa de tipos hardcodeados.
-    if (!isAuthenticated) return
-    apiFetch('/workflow-definitions').then(async (response) => {
-      if (!response.ok) return
-      const definitions = await response.json() as ApiDefinition[]
-      // `workflowConfig` se retira por completo en C5 (`design.md`, D5/D6); hasta entonces,
-      // una definición que el cliente no reconoce (#9 b) simplemente no gana una entrada
-      // acá — no hay un `RequestType` con el que indexarla, y ninguna pantalla la consume
-      // hoy (`rg -n 'workflowConfig' app components lib` solo la usa Configuración).
-      setWorkflowConfig((current) => definitions.flatMap((definition) => {
-        const type = typeFromCode(definition.code)
-        if (type === null) return []
-        return [
-          current.find((item) => item.id === type) ?? {
-            id: type,
-            label: definition.name,
-            description: definition.name,
-            enabled: true,
-            stages: [],
-          },
-        ]
-      }))
-    })
-  }, [isAuthenticated])
 
   const login = useCallback(async (email: string, password: string) => {
     await authLogin(email, password)
@@ -474,7 +443,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     } : item))
   }, [getRequest])
 
-  const updateWorkflowConfig = useCallback((config: RequestTypeConfig[]) => setWorkflowConfig(config), [])
   const visibleRequests = useMemo(
     () => isAuthenticated ? requests : [],
     [isAuthenticated, requests],
@@ -491,7 +459,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     searchRequests,
     searched,
     searchErrors,
-    workflowConfig,
     login,
     logout,
     getRequest,
@@ -500,8 +467,7 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     transition,
     uploadDocument,
     registerDocumentApproval,
-    updateWorkflowConfig,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 
