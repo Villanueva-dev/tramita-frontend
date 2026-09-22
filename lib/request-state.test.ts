@@ -12,13 +12,13 @@ import {
  * Los predicados reciben el trámite entero, así que un caso de prueba no puede declarar una
  * combinación que el motor nunca produce: el estado y el trámite viajan juntos.
  */
-const adicion = (code: string, isFinal = false): StatefulRequest => ({
-  currentState: { code, name: code, isFinal },
+const adicion = (code: string, { isFinal = false, isInitial = false } = {}): StatefulRequest => ({
+  currentState: { code, name: code, isFinal, isInitial },
   type: 'adicion_creditos',
 })
 
-const novedad = (code: string, isFinal = false): StatefulRequest => ({
-  currentState: { code, name: code, isFinal },
+const novedad = (code: string, { isFinal = false, isInitial = false } = {}): StatefulRequest => ({
+  currentState: { code, name: code, isFinal, isInitial },
   type: 'novedad_notas',
 })
 
@@ -29,23 +29,23 @@ const novedad = (code: string, isFinal = false): StatefulRequest => ({
  * renombra un estado, esta lista es lo primero que hay que actualizar.
  */
 const ADICION_STATES = [
-  adicion('EN_COORDINACION'),
+  adicion('EN_COORDINACION', { isInitial: true }),
   adicion('EN_FACULTAD'),
   adicion('APROBADA_FACULTAD'),
   adicion('EN_REGISTRO_CALI'),
   adicion('EN_REGISTRO_NACIONAL'),
-  adicion('FINALIZADA', true),
+  adicion('FINALIZADA', { isFinal: true }),
   adicion('DEVUELTA'),
-  adicion('RECHAZADA', true),
+  adicion('RECHAZADA', { isFinal: true }),
 ]
 
 const NOVEDAD_STATES = [
-  novedad('REGISTRADA'),
+  novedad('REGISTRADA', { isInitial: true }),
   novedad('EN_PREPARACION'),
   novedad('EN_FACULTAD'),
   novedad('EN_REVISION_FINANCIERA'),
   novedad('EN_REGISTRO_CONTROL'),
-  novedad('FINALIZADA', true),
+  novedad('FINALIZADA', { isFinal: true }),
 ]
 
 const codesOf = (requests: StatefulRequest[]) => requests.map((r) => r.currentState.code)
@@ -59,7 +59,7 @@ describe('isClosed', () => {
   })
 
   it('no consulta el código del estado, así que un estado desconocido sigue respondiendo', () => {
-    expect(isClosed(adicion('ESTADO_QUE_NO_EXISTE', true))).toBe(true)
+    expect(isClosed(adicion('ESTADO_QUE_NO_EXISTE', { isFinal: true }))).toBe(true)
     expect(isClosed(adicion('ESTADO_QUE_NO_EXISTE'))).toBe(false)
   })
 })
@@ -68,8 +68,8 @@ describe('isClosed', () => {
 // Es la causa del issue #35, donde el dashboard contaba los rechazos como completados.
 describe('isSuccessfullyClosed', () => {
   it('separa el cierre exitoso del rechazo, que el contrato colapsa en isFinal', () => {
-    expect(isSuccessfullyClosed(adicion('FINALIZADA', true))).toBe(true)
-    expect(isSuccessfullyClosed(adicion('RECHAZADA', true))).toBe(false)
+    expect(isSuccessfullyClosed(adicion('FINALIZADA', { isFinal: true }))).toBe(true)
+    expect(isSuccessfullyClosed(adicion('RECHAZADA', { isFinal: true }))).toBe(false)
   })
 
   it('no considera exitoso un trámite que sigue abierto', () => {
@@ -84,7 +84,7 @@ describe('isReturnedForCorrection', () => {
   })
 
   it('no confunde el rechazo definitivo con una devolución', () => {
-    expect(isReturnedForCorrection(adicion('RECHAZADA', true))).toBe(false)
+    expect(isReturnedForCorrection(adicion('RECHAZADA', { isFinal: true }))).toBe(false)
   })
 
   // LIMITACIÓN CONOCIDA Y ACEPTADA DE A1, no un descuido.
@@ -102,12 +102,16 @@ describe('isReturnedForCorrection', () => {
 
 describe('isInitialState', () => {
   // V3.2.0 renombró el inicial SOLO de adición de créditos (su UPDATE lleva
-  // `AND d.code = 'ADICION_CREDITOS'`), así que cada trámite nombra su inicio distinto.
+  // `AND d.code = 'ADICION_CREDITOS'`), así que cada trámite nombra su inicio distinto —
+  // ahora como dato propio de `isInitial` (contrato 007), no como una fila por código.
   it('reconoce el inicio propio de cada trámite', () => {
-    expect(isInitialState(adicion('EN_COORDINACION'))).toBe(true)
-    expect(isInitialState(novedad('REGISTRADA'))).toBe(true)
+    expect(isInitialState(adicion('EN_COORDINACION', { isInitial: true }))).toBe(true)
+    expect(isInitialState(novedad('REGISTRADA', { isInitial: true }))).toBe(true)
   })
 
+  // `EN_COORDINACION` y `REGISTRADA` solo llegan con `isInitial: true` en su propia
+  // definición: el fixture no le pone esa marca al inicio del otro trámite, así que no hay
+  // combinación que confundirlos.
   it('no acepta el inicio de un trámite como inicio del otro', () => {
     expect(isInitialState(novedad('EN_COORDINACION'))).toBe(false)
     expect(isInitialState(adicion('REGISTRADA'))).toBe(false)
@@ -116,6 +120,48 @@ describe('isInitialState', () => {
   it('reconoce exactamente un estado inicial por trámite', () => {
     expect(ADICION_STATES.filter(isInitialState)).toHaveLength(1)
     expect(NOVEDAD_STATES.filter(isInitialState)).toHaveLength(1)
+  })
+})
+
+// La 007 expone `isInitial` en el propio `State` (contrato, C:295-301). Estos tres casos
+// prueban que `isInitialState` lee ese campo directamente, no una tabla de códigos por
+// trámite — construidos con literales crudos, sin pasar por los helpers `adicion`/`novedad`,
+// para que la prueba no dependa de cómo se migren esos helpers.
+describe('isInitialState lee isInitial del contrato, no una tabla por código', () => {
+  it('cada trámite reconoce su propio inicio a partir de isInitial, con códigos de inicio distintos', () => {
+    const inicioAdicion: StatefulRequest = {
+      currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
+      type: 'adicion_creditos',
+    }
+    const inicioNovedad: StatefulRequest = {
+      currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false, isInitial: true },
+      type: 'novedad_notas',
+    }
+
+    expect(isInitialState(inicioAdicion)).toBe(true)
+    expect(isInitialState(inicioNovedad)).toBe(true)
+  })
+
+  it('un estado que el cliente no reconoce en su tabla de devolución/rechazo igual se presenta como pendiente de radicación si isInitial lo marca', () => {
+    const desconocidoInicial: StatefulRequest = {
+      currentState: { code: 'ESTADO_QUE_NO_EXISTE', name: 'Estado nuevo', isFinal: false, isInitial: true },
+      type: 'adicion_creditos',
+    }
+
+    expect(isInitialState(desconocidoInicial)).toBe(true)
+  })
+
+  // Mutante «isInitialState vuelve a la tabla por código»: EN_COORDINACION es un código
+  // CONOCIDO que la tabla vieja marcaba inicial para adición de créditos. Con isInitial en
+  // false, ya no debe reportarse como inicial: si la implementación volviera a mirar el
+  // código en lugar del campo, este caso da falso positivo.
+  it('un código conocido con isInitial false no se reporta como inicial', () => {
+    const enCoordinacionNoInicial: StatefulRequest = {
+      currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: false },
+      type: 'adicion_creditos',
+    }
+
+    expect(isInitialState(enCoordinacionNoInicial)).toBe(false)
   })
 })
 
@@ -134,7 +180,7 @@ describe('degradación ante un estado que la tabla no conoce', () => {
   })
 
   it('sigue reconociendo su cierre si el motor lo marca como final', () => {
-    expect(isClosed(adicion('LO_QUE_SEA', true))).toBe(true)
-    expect(isSuccessfullyClosed(adicion('LO_QUE_SEA', true))).toBe(true)
+    expect(isClosed(adicion('LO_QUE_SEA', { isFinal: true }))).toBe(true)
+    expect(isSuccessfullyClosed(adicion('LO_QUE_SEA', { isFinal: true }))).toBe(true)
   })
 })

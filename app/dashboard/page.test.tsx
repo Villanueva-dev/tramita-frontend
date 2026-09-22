@@ -20,7 +20,7 @@ const request: AcademicRequest = {
   type: 'adicion_creditos',
   status: 'pendiente',
   stateName: 'En coordinación (revisión)',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
@@ -127,7 +127,7 @@ describe('DashboardPage', () => {
       studentName: 'Solicitud Rechazada',
       status: 'finalizado',
       stateName: 'Rechazada',
-      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true },
+      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
     }
     const finalized: AcademicRequest = {
       ...request,
@@ -136,7 +136,7 @@ describe('DashboardPage', () => {
       studentName: 'Solicitud Finalizada',
       status: 'finalizado',
       stateName: 'Finalizada',
-      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true },
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
     }
     useTramita.mockReturnValue({
       requests: [rejected, finalized],

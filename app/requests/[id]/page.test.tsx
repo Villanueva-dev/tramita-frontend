@@ -20,7 +20,7 @@ const request: AcademicRequest = {
   type: 'adicion_creditos',
   status: 'pendiente',
   stateName: 'En coordinación (revisión)',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
@@ -38,7 +38,7 @@ const request: AcademicRequest = {
   assignedTo: 'FACULTAD',
   availableTransitions: [
     {
-      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       responsible: 'FACULTAD',
       requiresNote: false,
     },

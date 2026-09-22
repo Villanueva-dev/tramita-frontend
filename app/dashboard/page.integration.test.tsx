@@ -35,7 +35,7 @@ const MATCH = {
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Ana Pérez',
   studentDocument: '1000000001',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   createdAt: '2026-09-01T12:00:00',
 }
 

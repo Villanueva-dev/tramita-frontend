@@ -148,49 +148,49 @@ contrato; `STATE_SEMANTICS` pierde `initial`; reescribir el comentario de deuda.
 **Depende de**: — (independiente, pero `InboxEntry.currentState` es un `State` y C6 la necesita).
 **Commit planeado**: `refactor(estado): isInitial reemplaza el reconocimiento del inicio por código`
 
-- [ ] 2.1 RED — `lib/request-state.test.ts`, escenario «Cada trámite reconoce su propio inicio»
+- [x] 2.1 RED — `lib/request-state.test.ts`, escenario «Cada trámite reconoce su propio inicio»
       (`workflow-requests/spec.md`): dos definiciones con códigos de inicio distintos, ambas con
       `isInitial: true`; cada una se reconoce como pendiente de radicación desde su propio
       `currentState.isInitial`, y el inicio de una no se acepta como inicio de la otra.
-- [ ] 2.2 RED — `lib/request-state.test.ts`, escenario «Un estado que el cliente no reconoce no
+- [x] 2.2 RED — `lib/request-state.test.ts`, escenario «Un estado que el cliente no reconoce no
       rompe la pantalla»: un código de estado desconocido en la tabla de devolución/rechazo, pero
       con `isInitial: true`, se presenta igual como pendiente de radicación; el mismo código con
       `isFinal: true` se presenta igual como cerrado.
-- [ ] 2.3 RED (mutante) — `lib/request-state.test.ts`: un código **conocido** (p. ej.
+- [x] 2.3 RED (mutante) — `lib/request-state.test.ts`: un código **conocido** (p. ej.
       `EN_COORDINACION`) con `isInitial: false` en el fixture **no** se reporta como inicial. Mata
       el mutante «`isInitialState` vuelve a la tabla por código».
-- [ ] 2.4 RED — `lib/store.test.ts`: `status: 'pendiente'` sale de `isInitial`, no del código;
+- [x] 2.4 RED — `lib/store.test.ts`: `status: 'pendiente'` sale de `isInitial`, no del código;
       reescribir los comentarios obsoletos de `:51-55,65-68`.
-- [ ] 2.5 GREEN — Agregar `isInitial: boolean` (requerido) a `State` (`lib/types.ts:18-22`) y a
+- [x] 2.5 GREEN — Agregar `isInitial: boolean` (requerido) a `State` (`lib/types.ts:18-22`) y a
       `ApiState` (`lib/store.tsx:48`).
-- [ ] 2.6 GREEN — Reescribir `isInitialState` en `lib/request-state.ts` para leer
+- [x] 2.6 GREEN — Reescribir `isInitialState` en `lib/request-state.ts` para leer
       `request.currentState.isInitial`; quitar `initial` de `StateSemantics`/`STATE_SEMANTICS`,
       dejando solo `returned`/`rejection` (sin tocar su comportamiento: los tests existentes de
       devolución y rechazo siguen verdes sin editarse); reescribir el comentario de deuda
       (`:1-15`, en particular `:8-12`) con los tres puntos de D3: el tercio pagado (inicio), los
       dos tercios que quedan (devolución, rechazo, sin `isSuccess`), y la corrección de `:3-6` y
       `:42-49`.
-- [ ] 2.7 GREEN (fixture churn) — `lib/request-state.test.ts`: los helpers `adicion`/`novedad`
+- [x] 2.7 GREEN (fixture churn) — `lib/request-state.test.ts`: los helpers `adicion`/`novedad`
       (`:15-23`) reciben `{ isFinal, isInitial }`; `ADICION_STATES` y `NOVEDAD_STATES` marcan
       `EN_COORDINACION` y `REGISTRADA` como iniciales.
-- [ ] 2.8 GREEN (fixture churn) — `lib/store.test.ts`: los helpers `summary`/`withState`
+- [x] 2.8 GREEN (fixture churn) — `lib/store.test.ts`: los helpers `summary`/`withState`
       (`:9-21`) ganan `isInitial`; la aserción `toEqual` de `:31-35` lo incluye.
-- [ ] 2.9 GREEN (fixture churn) — `components/dashboard/requests-table.test.tsx`,
+- [x] 2.9 GREEN (fixture churn) — `components/dashboard/requests-table.test.tsx`,
       `components/dashboard/summary-cards.test.tsx`, `components/app-shell.test.tsx`: los helpers
       `conEstado`/`urgente` agregan `isInitial: false`.
-- [ ] 2.10 GREEN (fixture churn) — Literales tipados `AcademicRequest` y
+- [x] 2.10 GREEN (fixture churn) — Literales tipados `AcademicRequest` y
       `availableTransitions[].targetState` en `app/dashboard/page.test.tsx`,
       `app/requests/[id]/page.test.tsx`, `app/requests/[id]/documento/page.test.tsx`.
-- [ ] 2.11 GREEN (fixture churn) — Literales tipados `Request`, `RequestSummary`, `TimelineEntry`
+- [x] 2.11 GREEN (fixture churn) — Literales tipados `Request`, `RequestSummary`, `TimelineEntry`
       en `lib/api.test.ts`, `lib/use-request-detail.test.ts`.
-- [ ] 2.12 GREEN (fixture churn) — Los seis `currentState` de `lib/fixtures/mock-requests.ts`.
-- [ ] 2.13 GREEN (fixture churn) — `app/dashboard/page.integration.test.tsx`: agregar
+- [x] 2.12 GREEN (fixture churn) — Los seis `currentState` de `lib/fixtures/mock-requests.ts`.
+- [x] 2.13 GREEN (fixture churn) — `app/dashboard/page.integration.test.tsx`: agregar
       `isInitial: true` al fixture `MATCH` (no tipado; sin él, `status` deja de ser `pendiente`).
-- [ ] 2.14 Mutante — Revertir `isInitialState` a la tabla por código temporalmente → confirmar que
+- [x] 2.14 Mutante — Revertir `isInitialState` a la tabla por código temporalmente → confirmar que
       2.3 queda en rojo → revertir.
-- [ ] 2.15 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 2.15 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 2.16 Commit `refactor(estado): isInitial reemplaza el reconocimiento del inicio por código`
+- [x] 2.16 Commit `refactor(estado): isInitial reemplaza el reconocimiento del inicio por código`
 
 **Criterios de aceptación**: `rg -n 'initial: true' lib/request-state.ts` → 0; el comentario de
 deuda nombra qué tercio se pagó; los tests existentes de `returned`/`rejection` siguen verdes sin

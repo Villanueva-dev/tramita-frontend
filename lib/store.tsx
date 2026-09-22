@@ -44,7 +44,7 @@ export interface NewRequestInput {
 }
 
 interface ApiDefinition { code: string; name: string; version: number }
-interface ApiState { code: string; name: string; isFinal: boolean }
+interface ApiState { code: string; name: string; isInitial: boolean; isFinal: boolean }
 interface ApiTransition { targetState: ApiState; responsible: string; requiresNote: boolean }
 interface ApiSubject {
   code: string

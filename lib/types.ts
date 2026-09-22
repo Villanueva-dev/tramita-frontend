@@ -14,10 +14,16 @@ export interface WorkflowDefinition {
   version: number
 }
 
-/** openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. */
+/**
+ * openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. `isInitial`
+ * lo agrega la feature 007 (Tramita/specs/007-coordination-inbox/contracts/openapi.yaml,
+ * StateResponse :284-306): responde «¿es el inicio?» con dato propio del contrato, sin
+ * reconocer códigos de estado en el cliente.
+ */
 export interface State {
   code: string
   name: string
+  isInitial: boolean
   isFinal: boolean
 }
 
