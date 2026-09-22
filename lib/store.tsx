@@ -151,21 +151,6 @@ function statusFromState(state: ApiState, type: RequestType | null): RequestStat
   return 'en_revision'
 }
 
-/**
- * `stageFromState` se retira en C4 junto con el stepper (`design.md`, D6). Hasta entonces
- * sigue existiendo y tiene que tipar `type` igual que el resto del módulo; una definición
- * desconocida cae en `'revision'`, la misma etapa residual que hoy usa cualquier estado
- * intermedio no reconocido — no es una lectura nueva del dato, es la rama por defecto de
- * siempre. Nadie la muestra: `stages` sale de `workflowConfig`, indexado por `req.type`, y
- * con `type: null` ese `find` ya no encuentra nada (`app/requests/[id]/page.tsx`).
- */
-function stageFromState(state: ApiState, type: RequestType | null) {
-  const request = { currentState: state, type }
-  if (isInitialState(request)) return 'radicacion'
-  if (isClosed(request)) return 'cierre'
-  return type === 'novedad_notas' ? 'verificacion' : 'revision'
-}
-
 /** Asignatura tal como la acepta `POST /api/requests`: sin créditos cuando no aplican. */
 type ApiSubjectBody = Omit<SubjectInfo, 'credits'> & { credits?: number }
 
@@ -217,7 +202,6 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     reason: apiRequest.reason ?? '',
     attachments: [],
     timeline: [],
-    currentStage: stageFromState(apiRequest.currentState, type),
     assignedTo: apiRequest.availableTransitions?.[0]?.responsible ?? '',
     // Estos valores ya vienen persistidos desde V2.3.0.
     studentCode: apiRequest.studentCode ?? '',

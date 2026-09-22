@@ -30,7 +30,6 @@ export const mockRequests: AcademicRequest[] = [
       { id: 'a1', name: 'historial_academico.pdf', size: '248 KB', type: 'application/pdf', approvals: [] },
       { id: 'a2', name: 'carta_solicitud.pdf', size: '96 KB', type: 'application/pdf', approvals: [] },
     ],
-    currentStage: 'radicacion',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -75,7 +74,6 @@ export const mockRequests: AcademicRequest[] = [
     attachments: [
       { id: 'a3', name: 'acta_calificaciones.pdf', size: '312 KB', type: 'application/pdf', approvals: [] },
     ],
-    currentStage: 'verificacion',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -118,7 +116,6 @@ export const mockRequests: AcademicRequest[] = [
     ],
     reason: 'Solicito adición de créditos para nivelar el plan de estudios.',
     attachments: [],
-    currentStage: 'revision',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -173,7 +170,6 @@ export const mockRequests: AcademicRequest[] = [
       { id: 'a4', name: 'correo_docente.pdf', size: '84 KB', type: 'application/pdf', approvals: [] },
       { id: 'a5', name: 'acta_correccion.pdf', size: '190 KB', type: 'application/pdf', approvals: [] },
     ],
-    currentStage: 'aprobacion',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2025-01-04T11:45:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
@@ -205,7 +201,6 @@ export const mockRequests: AcademicRequest[] = [
     attachments: [
       { id: 'a6', name: 'historial_academico.pdf', size: '260 KB', type: 'application/pdf', approvals: [] },
     ],
-    currentStage: 'cierre',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2024-12-18T08:00:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
@@ -246,7 +241,6 @@ export const mockRequests: AcademicRequest[] = [
     attachments: [
       { id: 'a7', name: 'acta_jurado.pdf', size: '410 KB', type: 'application/pdf', approvals: [] },
     ],
-    currentStage: 'radicacion',
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2025-01-08T07:40:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },

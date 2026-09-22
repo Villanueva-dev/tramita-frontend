@@ -302,61 +302,61 @@ y `fix(detalle): reemplaza el stepper por el bloque de estado actual (#9a)` (C4b
 
 ### C4b — El bloque del estado actual
 
-- [ ] 4.8 RED — `components/current-state-block.test.tsx`: el nombre del estado (`state.name`)
+- [x] 4.8 RED — `components/current-state-block.test.tsx`: el nombre del estado (`state.name`)
       se renderiza dentro de una región `getByRole('region', { name: /estado actual/i })`
       (convención 3).
-- [ ] 4.9 RED — Extender: una insignia para `isInitial: true` y otra, independiente, para
+- [x] 4.9 RED — Extender: una insignia para `isInitial: true` y otra, independiente, para
       `isFinal: true`; ninguna aparece cuando ambas son `false`.
-- [ ] 4.10 RED — Extender: los tres textos de «Ahora depende de» — `single` → el nombre del
+- [x] 4.10 RED — Extender: los tres textos de «Ahora depende de» — `single` → el nombre del
       responsable; `varies` → «Depende de la acción que se registre»; `closed` → «Trámite
       cerrado» — escenarios «Responsable único», «Responsables divergentes» y «Estado final sin
       responsable» de `workflow-requests/spec.md`, ahora a nivel de componente.
-- [ ] 4.11 RED — Extender: «Antigüedad del estado» muestra «Lleva 1 día» (singular) y «Lleva N
+- [x] 4.11 RED — Extender: «Antigüedad del estado» muestra «Lleva 1 día» (singular) y «Lleva N
       días» (N > 1, plural), calculado con `daysSince` sobre `waitingSince` y `now` inyectado; y
       «Lleva 30 días» renderiza con el **mismo estilo** que cualquier otro N — sin insignia ni
       color de urgencia (escenario «Sin insignia de urgencia aunque N sea alto»,
       `request-timeline/spec.md`).
-- [ ] 4.12 RED — Extender: «Antigüedad del estado» se oculta cuando `state.isFinal` es `true`
+- [x] 4.12 RED — Extender: «Antigüedad del estado» se oculta cuando `state.isFinal` es `true`
       (escenario «La fila se oculta cuando el trámite está cerrado») y también cuando
       `waitingSince` es `null`.
-- [ ] 4.13 RED — Extender: el componente nunca renderiza «paso», un número de paso ni una lista de
+- [x] 4.13 RED — Extender: el componente nunca renderiza «paso», un número de paso ni una lista de
       estados (escenario «Sin recorrido lineal entre estados»).
-- [ ] 4.14 GREEN — Crear `components/current-state-block.tsx`: `CurrentStateBlock({ state,
+- [x] 4.14 GREEN — Crear `components/current-state-block.tsx`: `CurrentStateBlock({ state,
       responsibility, waitingSince, now })` presentacional, según el bloque *Interfaces /
       Contracts* del diseño.
-- [ ] 4.15 RED — `app/requests/[id]/page.test.tsx`, escenario «Antigüedad calculada desde la
+- [x] 4.15 RED — `app/requests/[id]/page.test.tsx`, escenario «Antigüedad calculada desde la
       última entrada» (`request-timeline/spec.md`) y mutante P1/P2: una solicitud con `createdAt`
       hace 60 días y última entrada del timeline hace 1 día muestra «Lleva 1 día». El contenedor
       **debe** derivar `waitingSince` de la última entrada de `req.timeline` (índice `length − 1`,
       o `null` si el timeline está vacío), nunca de `createdAt`.
-- [ ] 4.16 RED — Extender: una solicitud con `currentState.isFinal: true` muestra «Trámite
+- [x] 4.16 RED — Extender: una solicitud con `currentState.isFinal: true` muestra «Trámite
       cerrado» y sin fila de antigüedad.
-- [ ] 4.17 RED — Extender, escenario «No hay una segunda respuesta a quién depende»: la fila
+- [x] 4.17 RED — Extender, escenario «No hay una segunda respuesta a quién depende»: la fila
       «Asignado a» (`:614`) ya no está presente.
-- [ ] 4.18 RED — Extender, escenario «Dos estados intermedios se distinguen en pantalla (#9a)»:
+- [x] 4.18 RED — Extender, escenario «Dos estados intermedios se distinguen en pantalla (#9a)»:
       dos solicitudes en estados intermedios distintos de la misma definición («En facultad», «En
       registro nacional») muestran cada una su propio `currentState.name` y su propio responsable
       dentro de `CurrentStateBlock`, sin agruparlas bajo una etiqueta de etapa compartida.
-- [ ] 4.19 GREEN — En `app/requests/[id]/page.tsx`: derivar `responsibility =
+- [x] 4.19 GREEN — En `app/requests/[id]/page.tsx`: derivar `responsibility =
       currentResponsibility(req)` y `waitingSince` de la última entrada de `req.timeline`; agregar
       `now = useState(() => Date.now())` al tope de la página (mismo patrón que
       `app/dashboard/page.tsx:28`); reemplazar la tarjeta del stepper (`:318-330`) por
       `<CurrentStateBlock>`; borrar el import/uso del stepper (`:24,115-118`), la lectura de
       `workflowConfig` (`:87`), la definición local de `currentResponsibility`, y la fila «Asignado
       a» (`:614`).
-- [ ] 4.20 GREEN — Borrar `components/workflow-stepper.tsx` (68 líneas, sin test).
-- [ ] 4.21 GREEN — Borrar `stageFromState` (`lib/store.tsx:147-152`) y `currentStage`
+- [x] 4.20 GREEN — Borrar `components/workflow-stepper.tsx` (68 líneas, sin test).
+- [x] 4.21 GREEN — Borrar `stageFromState` (`lib/store.tsx:147-152`) y `currentStage`
       (`lib/store.tsx:210`); borrar `currentStage` (`lib/types.ts:169`) y `WorkflowStageConfig`
       (`lib/types.ts:183-187`); quitar `currentStage` de `lib/fixtures/mock-requests.ts`.
-- [ ] 4.22 GREEN — Quitar las aserciones de `currentStage` en `lib/store.test.ts` (`:62,77`).
-- [ ] 4.23 GREEN — Reducir la tarjeta «Resumen» (`app/requests/[id]/page.tsx:592-617`) a una sola
+- [x] 4.22 GREEN — Quitar las aserciones de `currentStage` en `lib/store.test.ts` (`:62,77`).
+- [x] 4.23 GREEN — Reducir la tarjeta «Resumen» (`app/requests/[id]/page.tsx:592-617`) a una sola
       fila: «Tipo de trámite» con `definition.name` (ya sin «Vencimiento», retirado en C1, ni
       «Asignado a», retirado en 4.19).
-- [ ] 4.24 Mutante (P1/P2) — Calcular `waitingSince` desde `createdAt` en vez de la última entrada
+- [x] 4.24 Mutante (P1/P2) — Calcular `waitingSince` desde `createdAt` en vez de la última entrada
       del timeline → confirmar que 4.15 queda en rojo → revertir.
-- [ ] 4.25 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 4.25 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 4.26 Commit `fix(detalle): reemplaza el stepper por el bloque de estado actual (#9a)`
+- [x] 4.26 Commit `fix(detalle): reemplaza el stepper por el bloque de estado actual (#9a)`
 
 **Criterios de aceptación**: `rg -n 'WorkflowStepper|stageFromState|currentStage' app components
 lib` → 0; #9(a) cerrado (dos estados intermedios distinguibles); P1+P2 restaurados con la fuente

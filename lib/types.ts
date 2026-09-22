@@ -182,7 +182,6 @@ export interface AcademicRequest {
   reason: string
   attachments: Attachment[]
   timeline: TimelineEvent[]
-  currentStage: string
   assignedTo: string
   availableTransitions?: AvailableTransition[]
 }
@@ -194,12 +193,6 @@ export interface RequestMetrics {
   completed: number
   averageCycleHours: number | null
   returnCount: number
-}
-
-export interface WorkflowStageConfig {
-  id: string
-  label: string
-  description: string
 }
 
 /** openapi.yaml TimelineEntry (:248-270). `id` es int64 (number), no string. */

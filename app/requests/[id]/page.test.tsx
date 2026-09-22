@@ -40,7 +40,6 @@ const request: AcademicRequest = {
   reason: 'Solicitud académica',
   attachments: [],
   timeline: [],
-  currentStage: 'radicacion',
   assignedTo: 'FACULTAD',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   availableTransitions: [
@@ -56,6 +55,24 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
+
+// Relativo a `Date.now()`, con una hora de margen extra hacia el pasado (design.md, «Trampas
+// de estas pruebas»): el detalle usa `now = useState(() => Date.now())`, no inyectable desde
+// el test, así que la antigüedad se ancla al reloj real. Sin offset: como serializa el backend.
+function daysAgoIso(days: number): string {
+  const then = new Date(Date.now() - days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000)
+  return then.toISOString().slice(0, 19)
+}
+
+function mockTramita(overrides: { getRequest: () => AcademicRequest }) {
+  useTramita.mockReturnValue({
+    getRequest: overrides.getRequest,
+    refreshRequest: vi.fn().mockResolvedValue(undefined),
+    transition: vi.fn(),
+    registerDocumentApproval: vi.fn(),
+    workflowConfig: [],
+  })
+}
 
 function setup() {
   const transition = vi.fn().mockResolvedValue(undefined)
@@ -84,9 +101,10 @@ describe('RequestDetailPage', () => {
     setup()
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
-    // El estado se muestra con el nombre del motor de workflow, no con la
-    // etiqueta genérica de la categoría interna.
-    expect(screen.getByText('En coordinación (revisión)')).toBeDefined()
+    // El estado se muestra con el nombre del motor de workflow, no con la etiqueta genérica
+    // de la categoría interna. Aparece dos veces: la insignia del encabezado y el bloque de
+    // estado actual (`CurrentStateBlock`).
+    expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined()
   })
 
@@ -143,5 +161,112 @@ describe('RequestDetailPage', () => {
     expect(screen.queryByText('Créditos')).toBeNull()
     expect(screen.queryByTestId('type-badge-icon-adicion')).toBeNull()
     expect(screen.getByTestId('type-badge-icon-neutral')).toBeDefined()
+  })
+
+  // Mutante P1/P2: la antigüedad del estado sale de la ÚLTIMA entrada del timeline, nunca de
+  // `createdAt`. `createdAt` hace 60 días y la última transición hace 1 día deben mostrar
+  // «Lleva 1 día», no «Lleva 60 días».
+  it('la antigüedad del estado sale de la última entrada del timeline, no de createdAt (mutante P1/P2)', async () => {
+    const antiguaConTransicionReciente: AcademicRequest = {
+      ...request,
+      id: 'request-3',
+      createdAt: daysAgoIso(60),
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'APROBADA_FACULTAD', name: 'Aprobada por facultad', isFinal: false, isInitial: false },
+          responsible: 'FACULTAD',
+          requiresNote: false,
+        },
+      ],
+      timeline: [
+        { id: 't1', date: daysAgoIso(60), actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
+        { id: 't2', date: daysAgoIso(1), actor: 'Coordinación de prueba', action: 'Transición a En facultad', fromStatus: 'pendiente', toStatus: 'en_revision' },
+      ],
+    }
+    mockTramita({ getRequest: () => antiguaConTransicionReciente })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Lleva 1 día')).toBeDefined()
+    expect(screen.queryByText('Lleva 60 días')).toBeNull()
+  })
+
+  it('un estado final muestra «Trámite cerrado» y sin fila de antigüedad', async () => {
+    const cerrado: AcademicRequest = {
+      ...request,
+      id: 'request-4',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+      timeline: [
+        { id: 't1', date: daysAgoIso(10), actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
+      ],
+    }
+    mockTramita({ getRequest: () => cerrado })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Trámite cerrado')).toBeDefined()
+    expect(screen.queryByText(/Lleva/)).toBeNull()
+  })
+
+  // «Ahora depende de» es el único punto que responde a quién depende el trámite: la fila
+  // «Asignado a» de la tarjeta «Resumen» daba una segunda respuesta, que podía contradecir la
+  // primera cuando los responsables divergían.
+  it('no muestra una fila «Asignado a»: el bloque de estado es la única respuesta a quién depende', async () => {
+    mockTramita({ getRequest: () => request })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Asignado a')).toBeNull()
+  })
+
+  // #9(a): dos estados intermedios de la misma definición se distinguen en pantalla, cada uno
+  // con su propio `currentState.name` y su propio responsable, sin agruparlos bajo una etapa
+  // compartida (el stepper, que sí los agrupaba, se retira en esta unidad).
+  it('dos estados intermedios se distinguen: cada uno con su propio nombre y responsable (#9a)', async () => {
+    const enFacultad: AcademicRequest = {
+      ...request,
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'APROBADA_FACULTAD', name: 'Aprobada por facultad', isFinal: false, isInitial: false },
+          responsible: 'FACULTAD',
+          requiresNote: false,
+        },
+      ],
+    }
+    mockTramita({ getRequest: () => enFacultad })
+    const { unmount } = render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.getByText('En facultad')).toBeDefined()
+    expect(screen.getByText('FACULTAD')).toBeDefined()
+    unmount()
+    cleanup()
+    vi.clearAllMocks()
+
+    const enRegistroNacional: AcademicRequest = {
+      ...request,
+      currentState: { code: 'EN_REGISTRO_NACIONAL', name: 'En registro nacional', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+          responsible: 'REGISTRO',
+          requiresNote: false,
+        },
+      ],
+    }
+    mockTramita({ getRequest: () => enRegistroNacional })
+    render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.getByText('En registro nacional')).toBeDefined()
+    expect(screen.getByText('REGISTRO')).toBeDefined()
+    expect(screen.queryByText('En facultad')).toBeNull()
   })
 })
