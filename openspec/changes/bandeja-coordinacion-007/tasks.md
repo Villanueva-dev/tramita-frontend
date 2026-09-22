@@ -422,54 +422,54 @@ recuperable con `git show ede7bc3:app/settings/page.tsx` (ruta no re-medida en e
 **Depende de**: C2 (`InboxEntry.currentState` es un `State`, que ya trae `isInitial`).
 **Commit planeado**: `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
 
-- [ ] 6.1 RED — `lib/api.test.ts`, escenario «`responsible` y `limit` viajan explícitos»
+- [x] 6.1 RED — `lib/api.test.ts`, escenario «`responsible` y `limit` viajan explícitos»
       (`coordination-inbox/spec.md`): `getInbox('COORDINACION', 50)` llama a `apiFetch` con
       exactamente `/requests/inbox?responsible=COORDINACION&limit=50` y devuelve el arreglo tal
       cual.
-- [ ] 6.2 RED — Extender: `getInbox` devuelve `[]` sin lanzar ante una respuesta `200` vacía.
-- [ ] 6.3 RED — Extender: una respuesta `401` hace que `getInbox` lance `ApiError` con
+- [x] 6.2 RED — Extender: `getInbox` devuelve `[]` sin lanzar ante una respuesta `200` vacía.
+- [x] 6.3 RED — Extender: una respuesta `401` hace que `getInbox` lance `ApiError` con
       `status: 401`.
-- [ ] 6.4 RED — Extender: una respuesta `400` hace que `getInbox` lance `ApiError` con
+- [x] 6.4 RED — Extender: una respuesta `400` hace que `getInbox` lance `ApiError` con
       `status: 400`.
-- [ ] 6.5 GREEN — Agregar `InboxOrigin` e `InboxEntry` a `lib/types.ts`, según el bloque
+- [x] 6.5 GREEN — Agregar `InboxOrigin` e `InboxEntry` a `lib/types.ts`, según el bloque
       *Interfaces / Contracts* del diseño (sin `studentDocument`; `origin: InboxOrigin | null`).
-- [ ] 6.6 GREEN — Agregar `getInbox(responsible, limit)` a `lib/api.ts`, con el mismo patrón
+- [x] 6.6 GREEN — Agregar `getInbox(responsible, limit)` a `lib/api.ts`, con el mismo patrón
       `apiFetch` + `ApiError` sobre `problem+json` que `searchRequests`/`getRequest`; agregar el
       comentario D5 sobre `listWorkflowDefinitions` (`:220-225`) que explica por qué `states`
       queda sin tipar en esta change.
-- [ ] 6.7 RED — `lib/use-coordination-inbox.test.ts`: mock de `useAuth` con `sessionExpired` como
+- [x] 6.7 RED — `lib/use-coordination-inbox.test.ts`: mock de `useAuth` con `sessionExpired` como
       spy `vi.hoisted` **estable** (trampa documentada en `design.md`); el hook consulta con
       `responsible=COORDINACION&limit=50` al montar.
-- [ ] 6.8 RED — Extender, escenario «El DOM respeta el orden del servidor», a nivel de hook: el
+- [x] 6.8 RED — Extender, escenario «El DOM respeta el orden del servidor», a nivel de hook: el
       estado transiciona `loading` → `ready` con `entries` en el orden exacto que devolvió el stub
       (mutante 2a: sin reordenar en el hook).
-- [ ] 6.9 RED (mutante extra) — Extender: `mayHaveMore` es `true` con exactamente `INBOX_LIMIT`
+- [x] 6.9 RED (mutante extra) — Extender: `mayHaveMore` es `true` con exactamente `INBOX_LIMIT`
       (50) entradas y `false` con `INBOX_LIMIT − 1` (49) — kills `>` en vez de `>=`.
-- [ ] 6.10 RED — Extender, escenario «Bandeja vacía»: un `200` con `[]` resuelve
+- [x] 6.10 RED — Extender, escenario «Bandeja vacía»: un `200` con `[]` resuelve
       `{ status: 'ready', entries: [] }`, no `error`.
-- [ ] 6.11 RED — Extender: un `500` resuelve `{ status: 'error' }` con el `title` del `problem`
+- [x] 6.11 RED — Extender: un `500` resuelve `{ status: 'error' }` con el `title` del `problem`
       (sin `fallback`, para que llegue el mensaje del servidor).
-- [ ] 6.12 RED — Extender: una falla de red (`TypeError`) resuelve `{ status: 'error' }` con «Sin
+- [x] 6.12 RED — Extender: una falla de red (`TypeError`) resuelve `{ status: 'error' }` con «Sin
       conexión con el servidor…».
-- [ ] 6.13 RED — Extender, escenario «401 al cargar la bandeja cierra la sesión»: un `401` llama a
+- [x] 6.13 RED — Extender, escenario «401 al cargar la bandeja cierra la sesión»: un `401` llama a
       `sessionExpired()` exactamente una vez y no produce mensaje.
-- [ ] 6.14 GREEN — Crear `lib/use-coordination-inbox.ts`: `COORDINATION_RESPONSIBLE =
+- [x] 6.14 GREEN — Crear `lib/use-coordination-inbox.ts`: `COORDINATION_RESPONSIBLE =
       'COORDINACION'`, `INBOX_LIMIT = 50`, unión discriminada `InboxState` (`loading | ready |
       error`), `useCoordinationInbox()` con el patrón `useEffect` + `ignore` de
       `lib/use-request-detail.ts:36-72`; deps `[sessionExpired]`; `mayHaveMore = entries.length >=
       INBOX_LIMIT`; `401` → `sessionExpired()` sin mensaje; `400` → `apiErrorMessages(err, {
       badRequest })`; otro → `apiErrorMessages(err)` sin `fallback`.
-- [ ] 6.15 Confirmar anonimización — los fixtures de `InboxEntry` usados en 6.7–6.13 siguen la
+- [x] 6.15 Confirmar anonimización — los fixtures de `InboxEntry` usados en 6.7–6.13 siguen la
       regla de `design.md` («Fixtures anonimizados»): nombres «Estudiante de prueba N», correos
       `@example.com`/`@correo.test`, identificadores sintéticos, ningún documento real.
-- [ ] 6.16 Mutante (2a) — Agregar un `.sort()` sobre `entries` dentro del hook → confirmar que 6.8
+- [x] 6.16 Mutante (2a) — Agregar un `.sort()` sobre `entries` dentro del hook → confirmar que 6.8
       queda en rojo → revertir.
-- [ ] 6.17 Mutante (extra) — Cambiar `>=` por `>` en `mayHaveMore` → confirmar que 6.9 queda en
+- [x] 6.17 Mutante (extra) — Cambiar `>=` por `>` en `mayHaveMore` → confirmar que 6.9 queda en
       rojo → revertir.
-- [ ] 6.18 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
-- [ ] 6.19 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 6.18 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
+- [x] 6.19 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 6.20 Commit `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
+- [x] 6.20 Commit `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
 
 **Criterios de aceptación**: `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (decisión 12, la
 bandeja no toca `store.tsx`); ambos mutantes de esta unidad muertos.

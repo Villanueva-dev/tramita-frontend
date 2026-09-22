@@ -178,6 +178,30 @@ export interface AcademicRequest {
   availableTransitions?: AvailableTransition[]
 }
 
+/**
+ * openapi.yaml InboxEntryResponse.origin (:247-261). Enum cerrado del contrato de la
+ * bandeja, no del motor de trámites configurable: no se junta con `RequestType`.
+ */
+export type InboxOrigin = 'COORDINATION' | 'PUBLIC_LINK'
+
+/**
+ * openapi.yaml InboxEntryResponse (:196-261). Sin número de documento: es el invariante
+ * del endpoint (:64-66), no un descuido de este tipo.
+ */
+export interface InboxEntry {
+  id: string
+  definition: WorkflowDefinition
+  studentName: string
+  currentState: State
+  /** Radicación, con el offset de la sede (:212-223). */
+  createdAt: string
+  /** Desde cuándo espera: última transición o radicación, con offset (:224-241). */
+  waitingSince: string
+  pendingResponsible: string
+  /** `null` es una anomalía de datos declarada, no un tercer origen: viaja nulo, nunca ausente (:255-258). */
+  origin: InboxOrigin | null
+}
+
 export interface RequestMetrics {
   total: number
   byDefinition: Record<string, number>
