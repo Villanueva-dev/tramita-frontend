@@ -96,6 +96,23 @@ describe('baseRequest', () => {
     expect(desconocidoInicial.status).toBe('pendiente')
   })
 
+  // #9(b): una definición que el cliente no reconoce no se adivina como adición de
+  // créditos. `baseRequest` conserva `definition` tal cual llega, y `type` allowlist a
+  // `null` en vez de caer al primer valor de un ternario.
+  it('conserva la definición cruda y clasifica un código de definición desconocido como type: null (#9b)', () => {
+    const desconocida = baseRequest({
+      ...summary,
+      definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+    })
+
+    expect(desconocida.definition).toEqual({
+      code: 'CODIGO_QUE_NO_EXISTE',
+      name: 'Trámite piloto',
+      version: 1,
+    })
+    expect(desconocida.type).toBeNull()
+  })
+
   // Los seis estados intermedios del motor se colapsan a 'en_revision' en `status`;
   // el nombre real es el único dato que dice de quién depende ahora el trámite.
   it('conserva los estados intermedios sin aplanarlos', () => {

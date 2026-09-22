@@ -209,58 +209,58 @@ respaldo neutro); el PDF y el detalle muestran `definition.name`. Ítem 4 (parte
 **Depende de**: C2 (los fixtures ya traen `isInitial`).
 **Commit planeado**: `fix(tipo): deja de adivinar el tipo de trámite con una definición desconocida (#9b)`
 
-- [ ] 3.1 RED — Migrar el mock total de `@/lib/store` en `app/dashboard/page.test.tsx:11` al
+- [x] 3.1 RED — Migrar el mock total de `@/lib/store` en `app/dashboard/page.test.tsx:11` al
       patrón `importOriginal` (como `components/app-shell.test.tsx:12-15`), conservando
       `baseRequest` real. Escribir el test: filtrar por «Adición de Créditos» **excluye** una
       solicitud construida con `baseRequest` y un código de definición desconocido — mutante 4 en
       el filtro. Observar rojo: hoy `typeFromCode` cae en `'adicion_creditos'` por defecto.
-- [ ] 3.2 RED — Migrar el mock total de `@/lib/store` en `app/requests/[id]/page.test.tsx:11` al
+- [x] 3.2 RED — Migrar el mock total de `@/lib/store` en `app/requests/[id]/page.test.tsx:11` al
       mismo patrón. Escenario «Un código de definición desconocido no se presenta como adición de
       créditos (#9b)» (`workflow-requests/spec.md`): una solicitud con `baseRequest` real y código
       desconocido muestra `definition.name`, **no** muestra `/adición de créditos/i`, **no**
       muestra la columna «Créditos», y su `TypeBadge` lleva el ícono neutro, no el birrete.
-- [ ] 3.3 RED — `lib/store.test.ts`: `baseRequest` conserva `definition`; un código desconocido da
+- [x] 3.3 RED — `lib/store.test.ts`: `baseRequest` conserva `definition`; un código desconocido da
       `type === null` (mutante 4, en la fuente).
-- [ ] 3.4 RED — `lib/request-state.test.ts`: un trámite con `type: null` no recibe semántica
+- [x] 3.4 RED — `lib/request-state.test.ts`: un trámite con `type: null` no recibe semántica
       (`SIN_SEMANTICA`) y su respuesta sobre el cierre sigue siendo válida (deriva de `isFinal`,
       no de `type`). Reemplaza el comentario «inalcanzable» de `:122-126`.
-- [ ] 3.5 RED — `app/requests/[id]/documento/page.test.tsx`: el título usa `definition.name`; una
+- [x] 3.5 RED — `app/requests/[id]/documento/page.test.tsx`: el título usa `definition.name`; una
       definición desconocida no muestra el párrafo de adición. Actualizar el literal de mayúscula
       vieja en `:73` a la forma del servidor («Adición de créditos»).
-- [ ] 3.6 RED — `components/dashboard/requests-table.test.tsx`: la insignia de tipo muestra
+- [x] 3.6 RED — `components/dashboard/requests-table.test.tsx`: la insignia de tipo muestra
       `definition.name`.
-- [ ] 3.7 GREEN — Agregar `definition: WorkflowDefinition` y `type: RequestType | null` a
+- [x] 3.7 GREEN — Agregar `definition: WorkflowDefinition` y `type: RequestType | null` a
       `AcademicRequest` (`lib/types.ts`), con el comentario del bloque *Interfaces / Contracts*
       del diseño (advertencia sobre el ternario binario).
-- [ ] 3.8 GREEN — Convertir `typeFromCode` (`lib/store.tsx:129`) en la allowlist:
+- [x] 3.8 GREEN — Convertir `typeFromCode` (`lib/store.tsx:129`) en la allowlist:
       `ADICION_CREDITOS → 'adicion_creditos'`, `NOVEDAD_NOTAS → 'novedad_notas'`, cualquier otro →
       `null`; `baseRequest` conserva `definition`; `statusFromState` acepta `type: RequestType |
       null`.
-- [ ] 3.9 GREEN — `lib/request-state.ts`: `StatefulRequest.type` admite `null`; `semanticsOf`
+- [x] 3.9 GREEN — `lib/request-state.ts`: `StatefulRequest.type` admite `null`; `semanticsOf`
       devuelve `SIN_SEMANTICA` cuando `type` es `null`, reemplazando el comentario obsoleto.
-- [ ] 3.10 GREEN — `components/type-badge.tsx`: `TypeBadge({ code, name })` — el rótulo es siempre
+- [x] 3.10 GREEN — `components/type-badge.tsx`: `TypeBadge({ code, name })` — el rótulo es siempre
       `name`; ícono por un mapa decorativo de `code` (`ADICION_CREDITOS` → `GraduationCap`,
       `NOVEDAD_NOTAS` → `BookOpen`), respaldo neutro para cualquier otro código.
-- [ ] 3.11 GREEN — Actualizar los llamadores de `TypeBadge`:
+- [x] 3.11 GREEN — Actualizar los llamadores de `TypeBadge`:
       `components/dashboard/requests-table.tsx:110,152` y `app/requests/[id]/page.tsx:288`.
-- [ ] 3.12 GREEN — `app/requests/[id]/page.tsx`: la fila «Tipo de trámite» (`:598-601`) usa
+- [x] 3.12 GREEN — `app/requests/[id]/page.tsx`: la fila «Tipo de trámite» (`:598-601`) usa
       `req.definition.name`; las columnas de asignaturas (`:378-388,399-413`) se ramifican en tres
       vías (notas / créditos / solo Código y Asignatura).
-- [ ] 3.13 GREEN — `components/pdf-document.tsx`: título y fila usan `request.definition.name`
+- [x] 3.13 GREEN — `components/pdf-document.tsx`: título y fila usan `request.definition.name`
       (`:49,74`); el párrafo de detalle se ramifica en tres vías (`:10,88-112`).
-- [ ] 3.14 GREEN — Confirmar sin cambio de código que el filtro «Tipo de trámite» del tablero
+- [x] 3.14 GREEN — Confirmar sin cambio de código que el filtro «Tipo de trámite» del tablero
       (`app/dashboard/page.tsx:63,216`) ya funciona: con `type: null` la fila cae bajo «Todos», no
       bajo ningún tipo concreto.
-- [ ] 3.15 GREEN — Confirmar que `app/requests/[id]/documento/page.test.tsx:13` y
+- [x] 3.15 GREEN — Confirmar que `app/requests/[id]/documento/page.test.tsx:13` y
       `app/requests/new/page.test.tsx:10` **no** necesitan migrar a `importOriginal`: el primero ya
       lo usa para `@/lib/api`; ninguno necesita un export real de `@/lib/store` para este cambio.
-- [ ] 3.16 REFACTOR — `rg -n 'typeFromCode\(|typeToCode\(' app components lib` confirma que siguen
+- [x] 3.16 REFACTOR — `rg -n 'typeFromCode\(|typeToCode\(' app components lib` confirma que siguen
       siendo el único sitio de reconocimiento de códigos.
-- [ ] 3.17 Mutante — Revertir `typeFromCode` para que el `default` vuelva a `'adicion_creditos'` →
+- [x] 3.17 Mutante — Revertir `typeFromCode` para que el `default` vuelva a `'adicion_creditos'` →
       confirmar que 3.1, 3.2 y 3.3 quedan en rojo → revertir.
-- [ ] 3.18 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 3.18 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 3.19 Commit `fix(tipo): deja de adivinar el tipo de trámite con una definición desconocida (#9b)`
+- [x] 3.19 Commit `fix(tipo): deja de adivinar el tipo de trámite con una definición desconocida (#9b)`
 
 **Criterios de aceptación**: mutante 4 en rojo en las tres capas (store, detalle, filtro); el ícono
 por trámite se conserva con respaldo neutro; el cambio de mayúsculas queda señalado para la PR.

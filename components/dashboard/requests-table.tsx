@@ -77,7 +77,7 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <TypeBadge type={req.type} />
+                  <TypeBadge code={req.definition.code} name={req.definition.name} />
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={req.status} stateName={req.stateName} />
@@ -116,7 +116,7 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
               C.C. {req.studentCedula} · {req.program}
             </p>
             <div className="flex items-center justify-between gap-2 pt-1">
-              <TypeBadge type={req.type} />
+              <TypeBadge code={req.definition.code} name={req.definition.name} />
             </div>
           </Link>
         ))}

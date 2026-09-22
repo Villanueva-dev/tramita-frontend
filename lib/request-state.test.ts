@@ -167,9 +167,7 @@ describe('isInitialState lee isInitial del contrato, no una tabla por código', 
 
 // Degradación segura: si el motor agrega un estado que la tabla no conoce, la pantalla no
 // se rompe —ese estado no habilita ninguna acción— y `isClosed` sigue funcionando porque no
-// depende de la tabla. No hay un caso equivalente para un trámite desconocido: `RequestType`
-// es una unión cerrada y la tabla es un `Record` sobre ella, así que el compilador exige la
-// fila. Testear ese caso sería testear algo inalcanzable.
+// depende de la tabla.
 describe('degradación ante un estado que la tabla no conoce', () => {
   it('no le atribuye semántica', () => {
     const desconocido = adicion('ESTADO_QUE_NO_EXISTE')
@@ -182,5 +180,30 @@ describe('degradación ante un estado que la tabla no conoce', () => {
   it('sigue reconociendo su cierre si el motor lo marca como final', () => {
     expect(isClosed(adicion('LO_QUE_SEA', { isFinal: true }))).toBe(true)
     expect(isSuccessfullyClosed(adicion('LO_QUE_SEA', { isFinal: true }))).toBe(true)
+  })
+})
+
+// Con `typeFromCode` como allowlist (#9 b, C3), `type: null` SÍ es alcanzable: una
+// definición que el cliente no reconoce. `StatefulRequest.type` deja de ser una unión
+// cerrada y el compilador ya no puede exigir la fila — este caso, antes inalcanzable, ahora
+// necesita su propia degradación segura.
+describe('degradación ante type: null (#9b)', () => {
+  it('no le atribuye semántica a un trámite de definición desconocida', () => {
+    const desconocido: StatefulRequest = {
+      currentState: { code: 'ALGO', name: 'Algo', isFinal: false, isInitial: false },
+      type: null,
+    }
+
+    expect(isReturnedForCorrection(desconocido)).toBe(false)
+    expect(isSuccessfullyClosed(desconocido)).toBe(false)
+  })
+
+  it('la respuesta sobre el cierre sigue siendo válida, porque isClosed no depende del tipo', () => {
+    const desconocidoCerrado: StatefulRequest = {
+      currentState: { code: 'ALGO', name: 'Algo', isFinal: true, isInitial: false },
+      type: null,
+    }
+
+    expect(isClosed(desconocidoCerrado)).toBe(true)
   })
 })

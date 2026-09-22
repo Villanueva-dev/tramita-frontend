@@ -125,14 +125,22 @@ const TramitaContext = createContext<TramitaContextValue | null>(null)
 // El mínimo lo fija el contrato del backend (@Size(min = 2) en RequestController).
 const MIN_SEARCH_LENGTH = 2
 
-const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
+/**
+ * Único lugar del cliente que reconoce códigos de definición (D2). Allowlist, no un
+ * ternario con respaldo: una definición que el cliente no reconoce da `null`, nunca
+ * `'adicion_creditos'` por defecto (#9 b, mutante 4).
+ */
+const typeFromCode = (code: string): RequestType | null =>
+  code === 'ADICION_CREDITOS' ? 'adicion_creditos'
+    : code === 'NOVEDAD_NOTAS' ? 'novedad_notas'
+      : null
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
 // `status` es vocabulario de PRESENTACIÓN: agrupa para colorear el badge y poblar el
 // filtro. Las decisiones no se toman con él —para eso están los predicados de
 // `request-state`, que responden una pregunta cada uno—, así que colapsar aquí es
 // aceptable mientras nadie derive de este valor si un trámite está cerrado o devuelto.
-function statusFromState(state: ApiState, type: RequestType): RequestStatus {
+function statusFromState(state: ApiState, type: RequestType | null): RequestStatus {
   const request = { currentState: state, type }
   if (isClosed(request)) return 'finalizado'
   if (isInitialState(request)) return 'pendiente'
@@ -143,7 +151,15 @@ function statusFromState(state: ApiState, type: RequestType): RequestStatus {
   return 'en_revision'
 }
 
-function stageFromState(state: ApiState, type: RequestType) {
+/**
+ * `stageFromState` se retira en C4 junto con el stepper (`design.md`, D6). Hasta entonces
+ * sigue existiendo y tiene que tipar `type` igual que el resto del módulo; una definición
+ * desconocida cae en `'revision'`, la misma etapa residual que hoy usa cualquier estado
+ * intermedio no reconocido — no es una lectura nueva del dato, es la rama por defecto de
+ * siempre. Nadie la muestra: `stages` sale de `workflowConfig`, indexado por `req.type`, y
+ * con `type: null` ese `find` ya no encuentra nada (`app/requests/[id]/page.tsx`).
+ */
+function stageFromState(state: ApiState, type: RequestType | null) {
   const request = { currentState: state, type }
   if (isInitialState(request)) return 'radicacion'
   if (isClosed(request)) return 'cierre'
@@ -181,6 +197,7 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   return {
     id: apiRequest.id,
     radicado: apiRequest.id,
+    definition: apiRequest.definition,
     type,
     status,
     stateName: apiRequest.currentState.name,
@@ -340,15 +357,23 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     apiFetch('/workflow-definitions').then(async (response) => {
       if (!response.ok) return
       const definitions = await response.json() as ApiDefinition[]
-      setWorkflowConfig((current) => definitions.map((definition) =>
-        current.find((item) => item.id === typeFromCode(definition.code)) ?? {
-          id: typeFromCode(definition.code),
-          label: definition.name,
-          description: definition.name,
-          enabled: true,
-          stages: [],
-        },
-      ))
+      // `workflowConfig` se retira por completo en C5 (`design.md`, D5/D6); hasta entonces,
+      // una definición que el cliente no reconoce (#9 b) simplemente no gana una entrada
+      // acá — no hay un `RequestType` con el que indexarla, y ninguna pantalla la consume
+      // hoy (`rg -n 'workflowConfig' app components lib` solo la usa Configuración).
+      setWorkflowConfig((current) => definitions.flatMap((definition) => {
+        const type = typeFromCode(definition.code)
+        if (type === null) return []
+        return [
+          current.find((item) => item.id === type) ?? {
+            id: type,
+            label: definition.name,
+            description: definition.name,
+            enabled: true,
+            stages: [],
+          },
+        ]
+      }))
     })
   }, [isAuthenticated])
 

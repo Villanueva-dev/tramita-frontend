@@ -32,7 +32,8 @@ import type { RequestType, State } from './types'
  */
 export interface StatefulRequest {
   currentState: State
-  type: RequestType
+  /** `null` es una definición que el cliente no reconoce (#9 b): no recibe semántica. */
+  type: RequestType | null
 }
 
 interface StateSemantics {
@@ -73,6 +74,9 @@ const STATE_SEMANTICS: Record<RequestType, Record<string, StateSemantics>> = {
 const SIN_SEMANTICA: StateSemantics = {}
 
 function semanticsOf({ currentState, type }: StatefulRequest): StateSemantics {
+  // Una definición que el cliente no reconoce (#9 b) no tiene fila en la tabla: no hay
+  // trámite del que leerla, así que no recibe semántica, igual que un código desconocido.
+  if (type === null) return SIN_SEMANTICA
   return STATE_SEMANTICS[type][currentState.code] ?? SIN_SEMANTICA
 }
 

@@ -48,4 +48,12 @@ describe('RequestsTable', () => {
 
     expect(screen.queryByText(/Vencida/)).toBeNull()
   })
+
+  // La insignia de tipo muestra el nombre que envía el servidor (`definition.name`), no un
+  // rótulo fijado en el cliente (D2).
+  it('la insignia de tipo muestra definition.name', () => {
+    render(<RequestsTable requests={[conEstado('EN_FACULTAD', 'En facultad', false)]} />)
+
+    expect(screen.getAllByText('Adición de créditos').length).toBeGreaterThan(0)
+  })
 })

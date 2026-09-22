@@ -45,7 +45,17 @@ const request: AcademicRequest = {
   timeline: [],
   currentStage: 'radicacion',
   assignedTo: 'COORDINACION',
+  definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   availableTransitions: [],
+}
+
+// #9(b): una definición que el cliente no reconoce no tiene tipo derivado.
+const unknownDefinitionRequest: AcademicRequest = {
+  ...request,
+  id: 'request-2',
+  type: null,
+  studentName: 'Estudiante Piloto',
+  definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
 }
 
 afterEach(() => {
@@ -69,7 +79,9 @@ describe('DocumentoPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDefined())
 
     expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
-    expect(screen.getByText('Solicitud de Adición de Créditos')).toBeDefined()
+    // El título usa `definition.name`, tal como lo envía el motor (D2): «créditos» en
+    // minúscula, no el rótulo del cliente (`REQUEST_TYPE_LABELS`, con mayúscula).
+    expect(screen.getByText('Solicitud de Adición de créditos')).toBeDefined()
     expect(screen.queryByText(/documento oficial de cierre/i)).toBeNull()
     expect(screen.queryByText(/constancia formal/i)).toBeNull()
     expect(screen.queryByText(/notificado al estudiante/i)).toBeNull()
@@ -78,6 +90,22 @@ describe('DocumentoPage', () => {
     expect(screen.queryByText(/se autoriza/i)).toBeNull()
     expect(screen.queryByText(/observación de cierre/i)).toBeNull()
     expect(screen.queryByText(/coordinador\(a\) académico/i)).toBeNull()
+  })
+
+  // #9(b): una definición desconocida muestra su propio nombre en el título, y el
+  // párrafo de detalle —que solo sabe describir adición o notas— no se muestra.
+  it('una definición desconocida muestra su nombre y no el párrafo de adición (#9b)', async () => {
+    useTramita.mockReturnValue({
+      getRequest: () => unknownDefinitionRequest,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<DocumentoPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDefined())
+
+    expect(screen.getByText('Solicitud de Trámite piloto')).toBeDefined()
+    expect(screen.queryByText(/se solicita la adición de/i)).toBeNull()
+    expect(screen.queryByText(/se solicita la novedad de notas/i)).toBeNull()
   })
 
   it('descarga el documento de ADICION_CREDITOS en EN_COORDINACION desde el endpoint existente', async () => {

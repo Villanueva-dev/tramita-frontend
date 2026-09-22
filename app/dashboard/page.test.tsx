@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import DashboardPage from './page'
+import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
@@ -8,7 +9,13 @@ const useTramita = vi.hoisted(() => vi.fn())
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
-vi.mock('@/lib/store', () => ({ useTramita }))
+// `importOriginal` conserva `baseRequest`, que el test del filtro de tipo (#9 b) usa para
+// construir una solicitud cuya coherencia entre `definition` y `type` no puede escribirse
+// mal: mockear el módulo entero se llevaría por delante esa garantía.
+vi.mock('@/lib/store', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/store')>()),
+  useTramita,
+}))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/dashboard',
@@ -36,6 +43,7 @@ const request: AcademicRequest = {
   timeline: [],
   currentStage: 'radicacion',
   assignedTo: 'FACULTAD',
+  definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
 }
 
 afterEach(() => {
@@ -178,6 +186,36 @@ describe('DashboardPage', () => {
 
     expect(screen.getAllByRole('link', { name: /nueva solicitud/i })
       .some((link) => link.getAttribute('href') === '/requests/new')).toBe(true)
+  })
+
+  // #9(b): filtrar por un tipo concreto no puede incluir una solicitud cuya definición el
+  // cliente no reconoce — `baseRequest` la clasifica con `type: null`, así que un filtro
+  // por `type === 'adicion_creditos'` la excluye igual que excluiría una de novedad.
+  it('filtrar por Adición de Créditos excluye una solicitud de definición desconocida (#9b)', () => {
+    const desconocida = baseRequest({
+      id: 'request-unknown',
+      definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+      studentName: 'Solicitud Piloto',
+      studentDocument: '9999999999',
+      currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+      createdAt: '2026-09-01T12:00:00',
+    })
+    useTramita.mockReturnValue({
+      requests: [request, desconocida],
+      metrics: null,
+      coordinatorName: 'coord@example.com',
+      searchRequests: vi.fn(),
+      searched: true,
+      searchErrors: [],
+    })
+
+    render(<DashboardPage />)
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Solicitud Piloto')).toBeNull()
   })
 
   // No hay ventana institucional citable para estos trámites (Tramita#42, abierto): el
