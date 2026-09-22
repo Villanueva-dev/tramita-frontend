@@ -505,86 +505,86 @@ P3)` (C7b).
 
 ### C7b — La sección de la bandeja y la frase del encabezado
 
-- [ ] 7.5 GREEN — Agregar `ORIGIN_LABELS: Record<InboxOrigin, string>` a `lib/ui-constants.ts`
+- [x] 7.5 GREEN — Agregar `ORIGIN_LABELS: Record<InboxOrigin, string>` a `lib/ui-constants.ts`
       (`COORDINATION` → «Coordinación», `PUBLIC_LINK` → «Enlace público», `null` → «Origen no
       registrado»).
-- [ ] 7.6 RED — `components/dashboard/coordination-inbox.test.tsx`, escenario «Bandeja vacía» y el
+- [x] 7.6 RED — `components/dashboard/coordination-inbox.test.tsx`, escenario «Bandeja vacía» y el
       caso `loading`: `status: 'loading'` no muestra filas ni error; `status: 'ready'` con
       `entries: []` muestra un mensaje explicado, no un error.
-- [ ] 7.7 RED — Extender: `status: 'error'` muestra los mensajes dentro de `role="alert"`.
-- [ ] 7.8 RED — Extender, escenario «Una fila muestra sus cinco datos»: con un fixture completo,
+- [x] 7.7 RED — Extender: `status: 'error'` muestra los mensajes dentro de `role="alert"`.
+- [x] 7.8 RED — Extender, escenario «Una fila muestra sus cinco datos»: con un fixture completo,
       se muestran `definition.name`, `studentName`, `currentState.name`, la antigüedad y el
       origen.
-- [ ] 7.9 RED — Extender, escenario «El DOM respeta el orden del servidor» (mutante 2b): las filas
+- [x] 7.9 RED — Extender, escenario «El DOM respeta el orden del servidor» (mutante 2b): las filas
       aparecen en el orden exacto del fixture, usando el fixture no trivialmente ordenable de
       `design.md` («Regla del fixture para el orden»): `waitingSince` `[5, 20, 1]` días,
       `createdAt` `[40, 10, 60]`, `studentName` en un tercer orden independiente.
-- [ ] 7.10 RED — Extender, escenario «La antigüedad sale de `waitingSince`, no de `createdAt`»
+- [x] 7.10 RED — Extender, escenario «La antigüedad sale de `waitingSince`, no de `createdAt`»
       (mutante 1): un fixture con `createdAt` hace 60 días y `waitingSince` hace 1 día, ambos
       `-05:00`, `now` inyectado, muestra «Esperando desde hace 1 día».
-- [ ] 7.11 RED — Extender, escenarios «Origen por enlace público / por Coordinación / nulo se
+- [x] 7.11 RED — Extender, escenarios «Origen por enlace público / por Coordinación / nulo se
       presenta sin alarmar»: los tres casos de `origin`, incluido `null` con estilo neutro (mismo
       estilo que los otros dos, no de error).
-- [ ] 7.12 RED — Extender, escenarios «Aviso presente al llegar al límite» / «Sin aviso un
+- [x] 7.12 RED — Extender, escenarios «Aviso presente al llegar al límite» / «Sin aviso un
       elemento por debajo del límite»: el aviso de truncamiento aparece con `mayHaveMore: true` y
       está ausente con `mayHaveMore: false`.
-- [ ] 7.13 RED — Extender: el nombre del estudiante es un `<Link>` a `/requests/{id}` (mockear
+- [x] 7.13 RED — Extender: el nombre del estudiante es un `<Link>` a `/requests/{id}` (mockear
       `next/navigation` como en `components/dashboard/requests-table.test.tsx:7-9`).
-- [ ] 7.14 RED — Extender, escenario «Ninguna fila expone número de documento»: ninguna fila
+- [x] 7.14 RED — Extender, escenario «Ninguna fila expone número de documento»: ninguna fila
       muestra «C.C.» ni una columna de documento.
-- [ ] 7.15 RED — Extender: ningún texto de la bandeja matchea `/venc/i` (consistencia con el
+- [x] 7.15 RED — Extender: ningún texto de la bandeja matchea `/venc/i` (consistencia con el
       requisito «Ausencia de vencimiento en toda la aplicación»).
-- [ ] 7.16 GREEN — Crear `components/dashboard/coordination-inbox.tsx`:
+- [x] 7.16 GREEN — Crear `components/dashboard/coordination-inbox.tsx`:
       `CoordinationInbox({ inbox, now })` presentacional, una única `<table>` con desplazamiento
       horizontal en móvil (no el par tabla + tarjetas de `RequestsTable`); columnas Estudiante
       (enlace) · Trámite (`TypeBadge`) · Estado · Esperando · Origen; estados `loading` / `error`
       / vacío / filas / aviso, según *Interfaces / Contracts* y *Data Flow* del diseño.
-- [ ] 7.17 RED — `app/dashboard/page.test.tsx`: mockear `@/lib/use-coordination-inbox` con el
+- [x] 7.17 RED — `app/dashboard/page.test.tsx`: mockear `@/lib/use-coordination-inbox` con el
       patrón `importOriginal` (`vi.mock('@/lib/use-coordination-inbox', async (importOriginal) =>
       ({ ...(await importOriginal()), useCoordinationInbox }))`); agregar el helper
       `renderDashboard({ tramita, inbox })` que fija **ambos** mocks en cada test (para que ningún
       test herede el `mockReturnValue` de otro).
-- [ ] 7.18 RED — Extender, escenario «La bandeja aparece sin que el usuario busque»: la sección
+- [x] 7.18 RED — Extender, escenario «La bandeja aparece sin que el usuario busque»: la sección
       aparece al entrar al tablero, sin buscar.
-- [ ] 7.19 RED — Extender, escenarios «La frase cuenta la bandeja…» / «Singular cuando hay
+- [x] 7.19 RED — Extender, escenarios «La frase cuenta la bandeja…» / «Singular cuando hay
       exactamente una»: la frase del encabezado dice «Tiene N solicitud(es) esperando su acción»,
       en singular (N=1) y en plural (N≠1).
-- [ ] 7.20 RED — Extender, escenarios «"o más" cuando la bandeja llega al límite» / «Sin "o más"
+- [x] 7.20 RED — Extender, escenarios «"o más" cuando la bandeja llega al límite» / «Sin "o más"
       un elemento por debajo del límite»: la frase incluye «o más» con `INBOX_LIMIT` entradas y no
       la incluye con `INBOX_LIMIT − 1`.
-- [ ] 7.21 RED — Extender, escenario «Sin mención de atención prioritaria»: la frase nunca
+- [x] 7.21 RED — Extender, escenario «Sin mención de atención prioritaria»: la frase nunca
       menciona «atención prioritaria» ni ningún conteo de prioridad.
-- [ ] 7.22 RED — Extender: la frase del encabezado está ausente mientras `status: 'loading'`.
-- [ ] 7.23 RED — Extender `app/dashboard/page.integration.test.tsx`, escenario «La bandeja
+- [x] 7.22 RED — Extender: la frase del encabezado está ausente mientras `status: 'loading'`.
+- [x] 7.23 RED — Extender `app/dashboard/page.integration.test.tsx`, escenario «La bandeja
       convive con la búsqueda existente»: cargar la bandeja al montar **no** consume las
       respuestas encoladas de la búsqueda; hay una única llamada a la bandeja con
       `responsible=COORDINACION&limit=50`; usar el spy `vi.hoisted` de `sessionExpired` en el mock
       de auth (`:20-27`).
-- [ ] 7.24 RED — Extender el mismo archivo, escenario «Buscar después de que la bandeja cargó
+- [x] 7.24 RED — Extender el mismo archivo, escenario «Buscar después de que la bandeja cargó
       sigue funcionando»: tras el montaje, ejecutar una búsqueda por cédula y confirmar que el
       resultado mostrado es el de la búsqueda, no el de la bandeja.
-- [ ] 7.25 GREEN — En `app/dashboard/page.tsx`: llamar a `useCoordinationInbox()` una sola vez en
+- [x] 7.25 GREEN — En `app/dashboard/page.tsx`: llamar a `useCoordinationInbox()` una sola vez en
       el contenedor; borrar la lógica vieja de la frase del encabezado (`:125-135`) y
       reemplazarla por la derivación del estado del hook (misma regla D8 de «puede haber más»
       para «o más»); montar `<CoordinationInbox inbox={inbox} now={now} />` en el orden:
       encabezado → sección de la bandeja → tarjetas de resumen → indicadores → filtros →
       búsqueda.
-- [ ] 7.26 REFACTOR — Confirmar `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (la bandeja
+- [x] 7.26 REFACTOR — Confirmar `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (la bandeja
       sigue sin tocar el store).
-- [ ] 7.27 REFACTOR — Renombrar los tests de `app/dashboard/page.test.tsx` que llamaban «bandeja» a
+- [x] 7.27 REFACTOR — Renombrar los tests de `app/dashboard/page.test.tsx` que llamaban «bandeja» a
       los resultados de búsqueda (`:54,158` y el comentario `:47-52`), ahora que existe una
       bandeja real.
-- [ ] 7.28 Confirmar anonimización — los fixtures de `InboxEntry` introducidos en 7.6–7.24 siguen
+- [x] 7.28 Confirmar anonimización — los fixtures de `InboxEntry` introducidos en 7.6–7.24 siguen
       la regla de `design.md` («Fixtures anonimizados»).
-- [ ] 7.29 Mutante (1) — Intercambiar `waitingSince` por `createdAt` en el cálculo de la espera de
+- [x] 7.29 Mutante (1) — Intercambiar `waitingSince` por `createdAt` en el cálculo de la espera de
       `CoordinationInbox` → confirmar que 7.10 queda en rojo → revertir.
-- [ ] 7.30 Mutante (2b) — Agregar un `.sort()`/`.toSorted()` antes de renderizar las filas →
+- [x] 7.30 Mutante (2b) — Agregar un `.sort()`/`.toSorted()` antes de renderizar las filas →
       confirmar que 7.9 queda en rojo → revertir.
-- [ ] 7.31 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → sigue en 1
+- [x] 7.31 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → sigue en 1
       (declarada una sola vez, en `lib/use-coordination-inbox.ts`).
-- [ ] 7.32 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`
+- [x] 7.32 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`
       (reportar el resumen de vitest: archivos y tests); `pnpm build`.
-- [ ] 7.33 Commit `feat(tablero): carga la bandeja de la Coordinación al entrar (#12, P3)`
+- [x] 7.33 Commit `feat(tablero): carga la bandeja de la Coordinación al entrar (#12, P3)`
 
 **Criterios de aceptación**: todos los bullets restantes de *Success Criteria* en `proposal.md`
 quedan satisfechos; mutantes 1 y 2b muertos en esta unidad.

@@ -14,6 +14,11 @@ import { TramitaProvider } from '@/lib/store'
  * es de módulo: los dos montajes no conviven en el mismo archivo.
  */
 
+// Spy estable (vi.hoisted): un `vi.fn()` nuevo en cada llamada a `useAuth` cambiaría la
+// dependencia del efecto de `useCoordinationInbox` en cada render y lo pondría en bucle
+// (design.md, «Trampas de estas pruebas»).
+const sessionExpired = vi.hoisted(() => vi.fn())
+
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
@@ -23,6 +28,7 @@ vi.mock('@/lib/auth-store', () => ({
     user: { email: 'coordinacion@correo.test' },
     login: vi.fn(),
     logout: vi.fn(),
+    sessionExpired,
   }),
 }))
 vi.mock('next/navigation', () => ({
@@ -127,5 +133,40 @@ describe('DashboardPage con el store real', () => {
     // El mínimo lo impone el contrato (`@Size(min = 2)`): la guarda evita el
     // 400, no solo el mensaje.
     expect(spy.mock.calls.length).toBe(afterFirstSearch)
+  })
+})
+
+describe('DashboardPage con el store real — la bandeja convive con la búsqueda', () => {
+  it('cargar la bandeja al montar no consume las respuestas encoladas de la búsqueda', async () => {
+    const spy = stubFetch(json([MATCH]))
+    render(<TramitaProvider><DashboardPage /></TramitaProvider>)
+
+    await waitFor(() => {
+      const inboxCalls = spy.mock.calls.filter(([input]) => String(input).includes('/requests/inbox'))
+      expect(inboxCalls).toHaveLength(1)
+    })
+    const [inboxCall] = spy.mock.calls.filter(([input]) => String(input).includes('/requests/inbox'))
+    expect(String(inboxCall[0])).toBe('/api/requests/inbox?responsible=COORDINACION&limit=50')
+
+    search('Pérez')
+    await waitFor(() => {
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('buscar después de que la bandeja cargó sigue funcionando: el resultado mostrado es el de la búsqueda, no el de la bandeja', async () => {
+    stubFetch(json([MATCH]))
+    render(<TramitaProvider><DashboardPage /></TramitaProvider>)
+
+    // La bandeja del stub responde vacía por defecto: confirma que ya cargó, sin buscar.
+    await waitFor(() => {
+      expect(screen.getByText(/no hay solicitudes pendientes/i)).toBeDefined()
+    })
+
+    search('Pérez')
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    })
   })
 })

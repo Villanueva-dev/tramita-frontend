@@ -6,11 +6,13 @@ import { FilePlus2, Search, SlidersHorizontal, Timer, UserRound, X } from 'lucid
 import { AppShell } from '@/components/app-shell'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { RequestsTable } from '@/components/dashboard/requests-table'
+import { CoordinationInbox } from '@/components/dashboard/coordination-inbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
+import { useCoordinationInbox } from '@/lib/use-coordination-inbox'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
 import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
@@ -24,6 +26,7 @@ type CardFilter =
 
 export default function DashboardPage() {
   const { requests, metrics, coordinatorName, searchRequests, searched, searchErrors } = useTramita()
+  const inbox = useCoordinationInbox()
   const [now] = useState(() => Date.now())
   // Término que viaja al backend (localización), distinto de `query`, que filtra
   // en el cliente lo ya traído.
@@ -113,17 +116,12 @@ export default function DashboardPage() {
             <h2 className="font-serif text-2xl font-bold tracking-tight">
               Buenos días, {firstName}
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tiene {requests.filter((r) => r.status === 'pendiente').length}{' '}
-              solicitudes pendientes y{' '}
-              {
-                requests.filter(
-                  (r) =>
-                    r.priority === 'urgente' && !isClosed(r),
-                ).length
-              }{' '}
-              con atención prioritaria.
-            </p>
+            {inbox.status === 'ready' && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tiene {inbox.entries.length} solicitud{inbox.entries.length === 1 ? '' : 'es'}
+                {inbox.mayHaveMore ? ' o más' : ''} esperando su acción.
+              </p>
+            )}
           </div>
           <Link href="/requests/new">
             <Button size="lg" className="h-10 gap-2">
@@ -132,6 +130,10 @@ export default function DashboardPage() {
             </Button>
           </Link>
         </div>
+
+        {/* Bandeja de trabajo: qué espera la acción de la Coordinación, sin que nadie
+            busque. El orden y el recorte son del servidor (design.md, D1). */}
+        <CoordinationInbox inbox={inbox} now={now} />
 
         {/* Summary cards */}
         <SummaryCards
