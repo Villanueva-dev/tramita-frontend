@@ -281,24 +281,24 @@ y `fix(detalle): reemplaza el stepper por el bloque de estado actual (#9a)` (C4b
 
 ### C4a — Mudanza de `currentResponsibility`
 
-- [ ] 4.1 RED — `lib/request-state.test.ts`, escenario «Responsable único en las transiciones
+- [x] 4.1 RED — `lib/request-state.test.ts`, escenario «Responsable único en las transiciones
       salientes» (`workflow-requests/spec.md`): todas las transiciones salientes declaran el mismo
       `responsible` → el estado actual se reporta con ese responsable. Observar rojo: la función no
       existe en este módulo (hoy vive en `app/requests/[id]/page.tsx:53-56,67-73`, sin exportar
       para probarse en esta capa).
-- [ ] 4.2 RED — Escenario «Responsables divergentes»: dos salientes con `responsible` distinto →
+- [x] 4.2 RED — Escenario «Responsables divergentes»: dos salientes con `responsible` distinto →
       `{ kind: 'varies' }`, sin elegir uno.
-- [ ] 4.3 RED — Escenario «Estado final sin responsable»: `currentState.isFinal: true`
+- [x] 4.3 RED — Escenario «Estado final sin responsable»: `currentState.isFinal: true`
       (`availableTransitions` vacío) → `{ kind: 'closed' }`.
-- [ ] 4.4 GREEN — Mudar `currentResponsibility` de `app/requests/[id]/page.tsx:53-56,67-73` a
+- [x] 4.4 GREEN — Mudar `currentResponsibility` de `app/requests/[id]/page.tsx:53-56,67-73` a
       `lib/request-state.ts`, con su tipo `Responsibility`; cambiar el parámetro al tipo
       estructural `{ currentState: State; availableTransitions?: AvailableTransition[] }` — sin
       cambio de comportamiento.
-- [ ] 4.5 GREEN — `app/requests/[id]/page.tsx` importa `currentResponsibility` desde
+- [x] 4.5 GREEN — `app/requests/[id]/page.tsx` importa `currentResponsibility` desde
       `lib/request-state.ts` en vez de la definición local.
-- [ ] 4.6 Verificación (checkpoint C4a) — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`;
+- [x] 4.6 Verificación (checkpoint C4a) — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`;
       `pnpm test`.
-- [ ] 4.7 Commit `refactor(estado): muda currentResponsibility a lib/request-state.ts`
+- [x] 4.7 Commit `refactor(estado): muda currentResponsibility a lib/request-state.ts`
 
 ### C4b — El bloque del estado actual
 

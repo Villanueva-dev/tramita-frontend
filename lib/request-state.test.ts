@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  currentResponsibility,
   isClosed,
   isInitialState,
   isReturnedForCorrection,
@@ -205,5 +206,43 @@ describe('degradación ante type: null (#9b)', () => {
     }
 
     expect(isClosed(desconocidoCerrado)).toBe(true)
+  })
+})
+
+// C4a: `currentResponsibility` se muda de `app/requests/[id]/page.tsx` a este módulo, con
+// un tipo estructural `{ currentState, availableTransitions? }` — responde una pregunta
+// sobre el estado, como los demás predicados de este archivo. Sin cambio de comportamiento.
+describe('currentResponsibility', () => {
+  it('responsable único en las transiciones salientes', () => {
+    const request = {
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        { targetState: { code: 'A', name: 'A', isFinal: false, isInitial: false }, responsible: 'FACULTAD', requiresNote: false },
+        { targetState: { code: 'B', name: 'B', isFinal: false, isInitial: false }, responsible: 'FACULTAD', requiresNote: true },
+      ],
+    }
+
+    expect(currentResponsibility(request)).toEqual({ kind: 'single', who: 'FACULTAD' })
+  })
+
+  it('responsables divergentes no eligen uno', () => {
+    const request = {
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        { targetState: { code: 'A', name: 'A', isFinal: false, isInitial: false }, responsible: 'FACULTAD', requiresNote: false },
+        { targetState: { code: 'B', name: 'B', isFinal: false, isInitial: false }, responsible: 'REGISTRO', requiresNote: false },
+      ],
+    }
+
+    expect(currentResponsibility(request)).toEqual({ kind: 'varies' })
+  })
+
+  it('un estado final no tiene responsable', () => {
+    const request = {
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+
+    expect(currentResponsibility(request)).toEqual({ kind: 'closed' })
   })
 })

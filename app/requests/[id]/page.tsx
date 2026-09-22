@@ -37,9 +37,9 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
-import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
+import { currentResponsibility, isClosed, isReturnedForCorrection } from '@/lib/request-state'
 import { formatDate, formatDateTime } from '@/lib/format'
-import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
+import type { DocumentApprovalInput, SignatureType } from '@/lib/types'
 
 const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
   signerName: '',
@@ -49,11 +49,6 @@ const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
   note: '',
 }
 
-export type Responsibility =
-  | { kind: 'closed' }
-  | { kind: 'single'; who: string }
-  | { kind: 'varies' }
-
 function approvalDateValue() {
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
   return now.toISOString().slice(0, 16)
@@ -61,14 +56,6 @@ function approvalDateValue() {
 
 function normalizeApprovalDate(value: string) {
   return value.length === 16 ? `${value}:00` : value
-}
-
-export function currentResponsibility(request: Request): Responsibility {
-  if (request.currentState.isFinal) return { kind: 'closed' }
-  const responsibilities = [...new Set(request.availableTransitions.map((transition) => transition.responsible))]
-  return responsibilities.length === 1
-    ? { kind: 'single', who: responsibilities[0] }
-    : { kind: 'varies' }
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
