@@ -24,7 +24,6 @@ const request: AcademicRequest = {
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
-  dueDate: '2026-09-10T12:00:00',
   studentCode: '123456',
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',
@@ -92,5 +91,17 @@ describe('RequestDetailPage', () => {
 
     expect(screen.getByRole('dialog')).toBeDefined()
     expect(screen.getByText(/registrar transición a en facultad/i)).toBeDefined()
+  })
+
+  // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). El
+  // sistema solo puede afirmar cuánto lleva esperando un trámite, nunca si ese tiempo es
+  // excesivo. Mata al mutante "badge Vencida" si alguien lo restaura.
+  it('no muestra vencimiento en un trámite abierto con radicación antigua', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText(/Vencida/i)).toBeNull()
+    expect(screen.queryByText('Vencimiento')).toBeNull()
   })
 })

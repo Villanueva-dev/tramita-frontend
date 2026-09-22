@@ -155,7 +155,6 @@ export interface AcademicRequest {
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string
-  dueDate: string
   studentCode: string
   studentCedula: string
   studentName: string

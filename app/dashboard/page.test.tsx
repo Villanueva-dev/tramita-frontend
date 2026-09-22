@@ -24,7 +24,6 @@ const request: AcademicRequest = {
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
-  dueDate: '2026-09-10T12:00:00',
   studentCode: '123456',
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',
@@ -179,5 +178,23 @@ describe('DashboardPage', () => {
 
     expect(screen.getAllByRole('link', { name: /nueva solicitud/i })
       .some((link) => link.getAttribute('href') === '/requests/new')).toBe(true)
+  })
+
+  // No hay ventana institucional citable para estos trámites (Tramita#42, abierto): el
+  // tablero no puede afirmar un vencimiento ni un "por vencer".
+  it('sin indicadores de Vencidas ni Por vencer', () => {
+    useTramita.mockReturnValue({
+      requests: [request],
+      metrics: null,
+      coordinatorName: 'coord@example.com',
+      searchRequests: vi.fn(),
+      searched: true,
+      searchErrors: [],
+    })
+
+    render(<DashboardPage />)
+
+    expect(screen.queryByText('Vencidas')).toBeNull()
+    expect(screen.queryByText('Por vencer')).toBeNull()
   })
 })

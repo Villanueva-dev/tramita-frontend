@@ -33,7 +33,6 @@ const request: AcademicRequest = {
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-02T12:00:00',
-  dueDate: '2026-09-10T12:00:00',
   studentCode: '123456',
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',

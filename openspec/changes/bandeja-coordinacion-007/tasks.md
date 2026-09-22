@@ -98,40 +98,40 @@ toda pantalla que los consume (insignia «Vencida», columna «Vencimiento», in
 **Depende de**: — (independiente).
 **Commit planeado**: `fix(vencimiento): retira el vencimiento inventado y sus helpers de días hábiles`
 
-- [ ] 1.1 RED — `components/dashboard/summary-cards.test.tsx`: la tarjeta «Urgentes» cuenta
+- [x] 1.1 RED — `components/dashboard/summary-cards.test.tsx`: la tarjeta «Urgentes» cuenta
       **solo** prioridad; una solicitud abierta, antigua y no urgente da `0`. Observar rojo por la
       razón correcta: hoy da `1` porque cuenta también el vencimiento.
-- [ ] 1.2 RED — `app/requests/[id]/page.test.tsx`: una solicitud abierta con radicación antigua
+- [x] 1.2 RED — `app/requests/[id]/page.test.tsx`: una solicitud abierta con radicación antigua
       **no** muestra la insignia «Vencida» ni la fila «Vencimiento», afirmado después de que
       termine la carga (convención 4). Traza al escenario «El mutante "badge Vencida" queda en
       rojo» de `coordination-inbox/spec.md` y al requisito «Ausencia de vencimiento en toda la
       aplicación» (mutante 3).
-- [ ] 1.3 RED — `components/dashboard/requests-table.test.tsx`: renombrar `:46-50` de «muestra el
+- [x] 1.3 RED — `components/dashboard/requests-table.test.tsx`: renombrar `:46-50` de «muestra el
       vencimiento» a «no afirma vencimiento de un trámite abierto antiguo» (mutante 3).
-- [ ] 1.4 RED — `app/dashboard/page.test.tsx`: sin indicadores «Vencidas» ni «Por vencer».
-- [ ] 1.5 GREEN — Borrar `addBusinessDays`, `businessDaysUntil` e `isOverdue` de
+- [x] 1.4 RED — `app/dashboard/page.test.tsx`: sin indicadores «Vencidas» ni «Por vencer».
+- [x] 1.5 GREEN — Borrar `addBusinessDays`, `businessDaysUntil` e `isOverdue` de
       `lib/format.ts:46-67`; borrar `describe('isOverdue')` y su import en
       `lib/format.test.ts:99-117`. Verificar `rg -n
       'addBusinessDays|businessDaysUntil|isOverdue' app components lib` → 0.
-- [ ] 1.6 GREEN — Borrar el import de `deriveDueDate` (`lib/store.tsx:17`), la función
+- [x] 1.6 GREEN — Borrar el import de `deriveDueDate` (`lib/store.tsx:17`), la función
       (`:154-157`) y el uso de `dueDate` (`:196,472`); borrar `dueDate` de `lib/types.ts:158`.
-- [ ] 1.7 GREEN — Quitar `dueDate` de los seis objetos de `lib/fixtures/mock-requests.ts`.
-- [ ] 1.8 GREEN — Borrar `DueCell` (`components/dashboard/requests-table.tsx:14-39`), la columna
+- [x] 1.7 GREEN — Quitar `dueDate` de los seis objetos de `lib/fixtures/mock-requests.ts`.
+- [x] 1.8 GREEN — Borrar `DueCell` (`components/dashboard/requests-table.tsx:14-39`), la columna
       «Vencimiento» (`:77`) y sus celdas (`:118-120,153`), incluida la tarjeta móvil.
-- [ ] 1.9 GREEN — `components/dashboard/summary-cards.tsx`: renombrar «Urgentes / vencidas» a
+- [x] 1.9 GREEN — `components/dashboard/summary-cards.tsx`: renombrar «Urgentes / vencidas» a
       «Urgentes», contando solo prioridad (`:13,47-51,83-85`).
-- [ ] 1.10 GREEN — `app/dashboard/page.tsx`: borrar las tarjetas «Vencidas» y «Por vencer»
+- [x] 1.10 GREEN — `app/dashboard/page.tsx`: borrar las tarjetas «Vencidas» y «Por vencer»
       (`:15,105-110,155-156`) y la parte de vencimiento del filtro «urgente» (`:54-61`).
-- [ ] 1.11 GREEN — `app/requests/[id]/page.tsx`: borrar la insignia «Vencida» (`:225-226,281-285`)
+- [x] 1.11 GREEN — `app/requests/[id]/page.tsx`: borrar la insignia «Vencida» (`:225-226,281-285`)
       y la fila «Vencimiento» del resumen (`:602-613`).
-- [ ] 1.12 REFACTOR — Confirmar ausencia total:
+- [x] 1.12 REFACTOR — Confirmar ausencia total:
       `rg -n -i 'venc(e|er|ida|idas|imiento)|d[ií]as restantes|dueDate|isOverdue|businessDaysUntil|addBusinessDays' app components lib -g '!*.test.*'`
       → 0.
-- [ ] 1.13 Mutante — Restaurar temporalmente la insignia «Vencida» (o `DueCell`) → confirmar que
+- [x] 1.13 Mutante — Restaurar temporalmente la insignia «Vencida» (o `DueCell`) → confirmar que
       1.2 y 1.3 quedan en rojo → revertir el cambio de prueba.
-- [ ] 1.14 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit` (con `pnpm dev`
+- [x] 1.14 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit` (con `pnpm dev`
       detenido); `pnpm test`; `pnpm build`.
-- [ ] 1.15 Commit `fix(vencimiento): retira el vencimiento inventado y sus helpers de días hábiles`
+- [x] 1.15 Commit `fix(vencimiento): retira el vencimiento inventado y sus helpers de días hábiles`
 
 **Criterios de aceptación**: los cuatro tests de ausencia (1.1–1.4) en verde; búsqueda del 1.12 en
 0; `git diff main -- lib/format.ts` no toca `HAS_OFFSET` ni `parseServerDateTime`.

@@ -22,17 +22,15 @@ const conEstado = (code: string, name: string, isFinal: boolean) =>
     studentName: 'Estudiante De Prueba',
     studentDocument: '1090234',
     currentState: { code, name, isFinal },
-    // Fecha antigua: su plazo ya venció, así que un trámite abierto se muestra vencido.
+    // Fecha antigua: bajo el vencimiento retirado, un trámite abierto se hubiera mostrado
+    // vencido. No hay ventana institucional citable (Tramita#42, abierto).
     createdAt: '2020-01-01T10:00:00',
   })
 
 describe('RequestsTable', () => {
-  // Un trámite cerrado no tiene plazo que correr: mostrar un vencimiento sobre algo que
-  // ya terminó invita a gestionar lo que no requiere gestión.
-  it('no muestra vencimiento de un trámite cerrado, aunque su plazo haya pasado', () => {
+  it('no muestra vencimiento de un trámite cerrado', () => {
     render(<RequestsTable requests={[conEstado('FINALIZADA', 'Finalizada', true)]} />)
 
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Vencida/)).toBeNull()
   })
 
@@ -43,9 +41,11 @@ describe('RequestsTable', () => {
     expect(screen.queryByText(/Vencida/)).toBeNull()
   })
 
-  it('muestra el vencimiento de un trámite abierto cuyo plazo pasó', () => {
+  // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). Mata
+  // al mutante "badge Vencida" o "columna Vencimiento" si alguien los restaura.
+  it('no afirma vencimiento de un trámite abierto antiguo', () => {
     render(<RequestsTable requests={[conEstado('EN_FACULTAD', 'En facultad', false)]} />)
 
-    expect(screen.getAllByText(/Vencida/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Vencida/)).toBeNull()
   })
 })

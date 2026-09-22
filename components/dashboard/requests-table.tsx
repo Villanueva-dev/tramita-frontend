@@ -2,41 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ChevronRight, Inbox, Search } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ChevronRight, Inbox, Search } from 'lucide-react'
 import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { Button } from '@/components/ui/button'
 import type { AcademicRequest } from '@/lib/types'
-import { formatDate, businessDaysUntil, isOverdue } from '@/lib/format'
-import { isClosed } from '@/lib/request-state'
-
-function DueCell({ req }: { req: AcademicRequest }) {
-  if (isClosed(req)) {
-    return <span className="text-muted-foreground">—</span>
-  }
-  const days = businessDaysUntil(req.dueDate)
-  const overdue = isOverdue(req.dueDate, isClosed(req))
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 text-sm',
-        overdue
-          ? 'font-medium text-destructive'
-          : days <= 1
-            ? 'font-medium text-warning-foreground'
-            : 'text-muted-foreground',
-      )}
-    >
-      {overdue && <AlertTriangle className="size-3.5" />}
-      {overdue
-        ? `Vencida (${Math.abs(days)}d)`
-        : days === 0
-          ? 'Vence hoy'
-          : `${days} día${days === 1 ? '' : 's'}`}
-    </span>
-  )
-}
+import { formatDate } from '@/lib/format'
 
 export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
   const router = useRouter()
@@ -74,7 +45,6 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
               <th className="px-4 py-3 font-semibold">Tipo</th>
               <th className="px-4 py-3 font-semibold">Estado</th>
               <th className="px-4 py-3 font-semibold">Radicado el</th>
-              <th className="px-4 py-3 font-semibold">Vencimiento</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -115,9 +85,6 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatDate(req.createdAt)}
                 </td>
-                <td className="px-4 py-3">
-                  <DueCell req={req} />
-                </td>
                 <td className="px-4 py-3 text-right">
                   <ChevronRight className="ml-auto size-4 text-muted-foreground" />
                 </td>
@@ -150,7 +117,6 @@ export function RequestsTable({ requests }: { requests: AcademicRequest[] }) {
             </p>
             <div className="flex items-center justify-between gap-2 pt-1">
               <TypeBadge type={req.type} />
-              <DueCell req={req} />
             </div>
           </Link>
         ))}
