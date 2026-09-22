@@ -1,12 +1,13 @@
 # Apply Progress: Bandeja de trabajo de la Coordinación (bandeja-coordinacion-007)
 
-> PR boundary de esta ejecución: **A-4 = C5** (rama `feat/bandeja-007-a4-configuracion`, apilada
-> sobre `feat/bandeja-007-a3-bloque-estado`, PR #46 sin mergear, que a su vez apila sobre
+> PR boundary de esta ejecución: **A-5 = C6 + C7a + C7b** (rama `feat/bandeja-007-a5-bandeja`,
+> apilada sobre `feat/bandeja-007-a4-configuracion`, sin PR abierto para A-4 al momento de esta
+> ejecución; A-4 a su vez apila sobre `feat/bandeja-007-a3-bloque-estado` → PR #46 →
 > `feat/bandeja-007-a2-tipo-honesto` → PR #45 → `feat/bandeja-007-a1-vencimiento` → PR #44,
-> ninguna mergeada). A-1 a A-3 fueron completadas en ejecuciones previas — ver sus secciones
-> abajo, sin cambios. Fases 6–8 (C6–C7) quedan pendientes para futuras ejecuciones de
-> `sdd-apply`, cada una en su propia rama apilada según `stacked-to-main`. No se pushea ni se
-> abre PR desde este agente.
+> ninguna mergeada). A-1 a A-4 fueron completadas en ejecuciones previas — ver sus secciones
+> abajo, sin cambios. Con A-5 completa, **las siete unidades de código (C1–C7) quedan
+> aplicadas**; solo resta la Fase 8 (Entrega, cuerpo de la PR), que hace el orquestador. No se
+> pushea ni se abre PR desde este agente.
 
 ## Estado global
 
@@ -17,9 +18,9 @@
 | 3 | C3 — Tipo honesto (#9b) | **Completa** (19/19 tareas) |
 | 4 | C4a/C4b — Bloque del estado actual | **Completa** (26/26 tareas) |
 | 5 | C5 — Baja de Configuración | **Completa** (13/13 tareas) |
-| 6 | C6 — Cliente + hook de la bandeja | Pendiente |
-| 7 | C7a/C7b — Tablero carga la bandeja | Pendiente |
-| 8 | Entrega (cuerpo de la PR) | Pendiente (aplica a la PR final de cada corte) |
+| 6 | C6 — Cliente + hook de la bandeja | **Completa** (20/20 tareas) |
+| 7 | C7a/C7b — Tablero carga la bandeja | **Completa** (33/33 tareas) |
+| 8 | Entrega (cuerpo de la PR) | Pendiente (aplica a la PR final de cada corte; la hace el orquestador) |
 
 ## Tamaño medido de A-2 (C2 + C3) — size:exception aplica
 
@@ -636,12 +637,268 @@ A-3) usó este pie pese a que `.gitmessage` ya lo exigía entonces — es la pri
 aplica en esta change; esos commits no se enmiendan retroactivamente porque exceden el alcance
 de esta ejecución.
 
+## Fase 6 — C6: Cliente `getInbox` + hook `useCoordinationInbox` (sin UI) — COMPLETA
+
+Modo: **Strict TDD**. Depende de C2 (`InboxEntry.currentState` es un `State`, ya con
+`isInitial`). Rama: `feat/bandeja-007-a5-bandeja`, sobre `feat/bandeja-007-a4-configuracion`.
+Unidad aditiva: sin consumidor de producción hasta C7.
+
+### TDD Cycle Evidence
+
+| Tarea | Test File | Layer | RED (observado) | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|
+| 6.1–6.4 | `lib/api.test.ts` | Unit | `TypeError: getInbox is not a function` en las 4 aserciones nuevas | `getInbox(responsible, limit)` en `lib/api.ts`, `InboxEntry`/`InboxOrigin` en `lib/types.ts` | ✅ 4 casos (URL exacta, `[]`, 401, 400) | Comentario de D5 agregado a `listWorkflowDefinitions` |
+| 6.7–6.13 | `lib/use-coordination-inbox.test.ts` | Unit (hook) | `Error: Failed to resolve import "./use-coordination-inbox"` — el módulo no existía | `lib/use-coordination-inbox.ts`: `useCoordinationInbox()`, `COORDINATION_RESPONSIBLE`, `INBOX_LIMIT`, unión `InboxState` | ✅ 8 casos (consulta con las dos constantes, orden, `mayHaveMore` en el límite y un elemento por debajo, vacía, 500, red, 401) | — |
+
+Los RED de 6.1–6.4 se observaron juntos con `pnpm exec vitest run lib/api.test.ts -t getInbox`
+(4 fallos, el mismo `TypeError` citado arriba) antes de tocar producción. El RED de 6.7–6.13 se
+observó con `pnpm exec vitest run lib/use-coordination-inbox.test.ts`: falla de resolución de
+módulo (`Failed to resolve import`), la forma que toma un RED cuando el archivo entero no existe
+todavía — no hay caso a caso porque ninguno de los 8 tests llega a ejecutarse sin el módulo.
+
+### Test Summary
+
+- **Total tests nuevos**: 12 (4 en `lib/api.test.ts`, 8 en `lib/use-coordination-inbox.test.ts`)
+- **Total tests pasando tras GREEN**: 45/45 en los dos archivos focalizados
+- **Capas usadas**: Unit (12)
+- **Funciones puras nuevas**: ninguna — `getInbox` es I/O; `useCoordinationInbox` es un hook con
+  efecto
+
+### Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run lib/api.test.ts lib/use-coordination-inbox.test.ts` → **2 archivos, 45 tests, todos verdes** |
+| Arnés de runtime | N/A — sin E2E instalado (`openspec/config.yaml`); `pnpm build` es la única prueba de runtime de esta unidad → compiló, TypeScript sin errores, 8 rutas generadas |
+| Rollback | Revertir el commit `b86cfcd`; sin efecto visible — aditivo, sin consumidor hasta C7 |
+
+### Mutantes obligatorios (6.16, 6.17) — Observados
+
+- **Mutante 2a** (`.sort()` en el hook): se agregó `.sort((a, b) => a.studentName.localeCompare(b.studentName))`
+  sobre `entries` antes de `setState` y se corrió `pnpm exec vitest run lib/use-coordination-inbox.test.ts`.
+  **Resultado observado**: exactamente el test «transiciona loading → ready con las entradas en el
+  orden exacto del servidor» cayó en rojo (`toMatchObject` con `entry-c` esperado y `entry-b`
+  recibido), los otros 7 siguieron verdes. Se revirtió con `Edit` (sin commitear) y se confirmó
+  verde de nuevo (8/8).
+- **Mutante extra** (`>` en vez de `>=` en `mayHaveMore`): se cambió el operador y se corrió la
+  misma suite. **Resultado observado**: exactamente el test «mayHaveMore es true con exactamente
+  INBOX_LIMIT (50) entradas» cayó en rojo (`mayHaveMore: false` recibido, `true` esperado), los
+  otros 7 siguieron verdes. Se revirtió y se confirmó verde de nuevo.
+
+### Verificación de la unidad (6.18, 6.19)
+
+Sin `pnpm dev` vivo (verificado con `pgrep -fa`/`ss -ltnp` antes de `rm -rf .next`).
+
+| Comando | Resultado observado |
+|---|---|
+| `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` | **1 resultado**, `lib/use-coordination-inbox.ts:14` — confirmado |
+| `pnpm lint` | exit 0, sin salida (`eslint .`) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0, sin errores |
+| `pnpm test` | **23 archivos, 208 tests, todos verdes** (196 base A-4 + 12 nuevos de C6) |
+| `pnpm build` | Compiló con Turbopack, TypeScript sin errores, **8 rutas generadas** (idénticas a A-4) |
+
+### Criterio de aceptación (cierre de C6)
+
+`rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → **0 resultados**, confirmado: la bandeja no
+toca el store (decisión 12).
+
+### Desviaciones de diseño
+
+Ninguna. `tasks.md` Fase 6 se siguió sin desvíos. `getInbox` usa `apiFetch` + `parseProblem`,
+igual que el resto de `lib/api.ts`; el hook replica el patrón `useEffect` + `ignore` de
+`lib/use-request-detail.ts:36-72`, con `[sessionExpired]` como única dependencia — el spy
+`vi.hoisted` del test evita el bucle de efectos que documenta `design.md`.
+
+### Archivos tocados en C6
+
+| Archivo | Acción |
+|---|---|
+| `lib/types.ts` | Agrega `InboxOrigin` e `InboxEntry` |
+| `lib/api.ts` | Agrega `getInbox(responsible, limit)`; comentario de D5 en `listWorkflowDefinitions` |
+| `lib/api.test.ts` | `describe('getInbox', …)`, 4 tests nuevos |
+| `lib/use-coordination-inbox.ts` | Nuevo — hook, `COORDINATION_RESPONSIBLE`, `INBOX_LIMIT`, `InboxState` |
+| `lib/use-coordination-inbox.test.ts` | Nuevo — 8 tests |
+
+### Commit
+
+`b86cfcd` — `feat(bandeja): getInbox y useCoordinationInbox, sin UI` — 6 archivos, 345
+inserciones, 22 borrados (incluye `tasks.md`, checkboxes 6.1–6.20).
+
+---
+
+## Fase 7 — C7a/C7b: El tablero carga la bandeja al entrar (ítem 2, P3) — COMPLETA
+
+Modo: **Strict TDD**. Depende de C6 (el hook) y, blandamente, de C3 (`TypeBadge({ code, name })`).
+Rama: `feat/bandeja-007-a5-bandeja`.
+
+### C7a — Endurecer el stub de `fetch` de la integración
+
+Sin RED observable (7.1 lo declara explícitamente): es un arreglo de infraestructura de test,
+verde sobre el código actual porque la carga de la bandeja todavía no está conectada. Se
+reescribió `stubFetch` en `app/dashboard/page.integration.test.tsx` para que `/requests/inbox`
+responda por separado (`json([])` por defecto) en vez de caer en la cola genérica de `/requests`,
+y se borró la ruta `/workflow-definitions` del stub (sin consumidor desde C5).
+
+**Verificación (7.3)**: `pnpm exec vitest run app/dashboard/page.integration.test.tsx` → **2/2
+verde**, antes y después del cambio — confirma que el endurecimiento no alteró el comportamiento
+existente.
+
+**Commit** `19e15d5` — `test(integracion): el stub distingue /requests/inbox de
+/requests?search=` — 2 archivos, 13 inserciones, 8 borrados (incluye `tasks.md`, checkboxes
+7.1–7.4).
+
+### C7b — La sección de la bandeja y la frase del encabezado
+
+#### TDD Cycle Evidence
+
+| Tarea | Test File | Layer | RED (observado) | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|
+| 7.6–7.15 | `components/dashboard/coordination-inbox.test.tsx` | Integration (componente) | `Error: Failed to resolve import "./coordination-inbox"` — el módulo no existía | `components/dashboard/coordination-inbox.tsx`: `CoordinationInbox({ inbox, now })` presentacional, una única `<table>` | ✅ 14 casos (cargando, vacía, error en `role="alert"`, cinco datos por fila, orden, espera, tres orígenes, aviso presente/ausente, enlace, sin documento, sin vencimiento) | — |
+| 7.17–7.22 | `app/dashboard/page.test.tsx` | Integration (página, store mockeado) | 5/7 tests nuevos en rojo por la razón correcta (ver nota) | `app/dashboard/page.tsx`: llama a `useCoordinationInbox()`, monta `<CoordinationInbox>`, reemplaza la frase del encabezado | ✅ 7 casos (sección visible sin buscar, plural, singular, "o más" presente/ausente, sin atención prioritaria, ausente en `loading`) | Aserción de "sin atención prioritaria" acotada al encabezado (ver desviación) |
+| 7.23–7.24 | `app/dashboard/page.integration.test.tsx` | Integration (store real, `fetch` stubeado) | Confirmado RED genuino con una reversión temporal y controlada del wiring (ver nota) | Ya cubierto por el wiring de 7.25 | ➖ | — |
+
+**Nota sobre 7.17–7.22 (RED parcialmente no observable)**: con el código de producción sin
+tocar, 5 de los 7 tests nuevos fallaron por la razón correcta (`page.tsx` no llamaba al hook ni
+montaba la sección). Los otros 2 («sin "o más" un elemento por debajo del límite» y «la frase
+está ausente mientras la bandeja carga») pasaron trivialmente sobre el código viejo, porque ese
+código nunca mostraba "o más" ni el texto "esperando su acción" — un pase vacuo, no una prueba de
+ausencia real. Se registra honestamente, siguiendo el patrón ya usado en C5 (5.1/5.2) para RED no
+observable: no se fabricó una aserción artificial para forzar un rojo que no prueba nada real.
+
+**Nota sobre 7.23–7.24 (verificación honesta del RED)**: estos dos tests se escribieron
+**después** de que 7.25 (el wiring de `page.tsx`) ya estuviera aplicado, así que corrieron en
+verde de entrada — no es un RED observado en el orden estricto RED→GREEN. Para confirmar que no
+son vacuos, se revirtió temporalmente el wiring completo de `page.tsx` (la llamada al hook y el
+montaje de `<CoordinationInbox>`, restaurando byte a byte la versión de `git show
+HEAD:app/dashboard/page.tsx` de ese momento) y se corrió
+`pnpm exec vitest run app/dashboard/page.integration.test.tsx`: **los dos tests nuevos cayeron en
+rojo** (2 fallidos, los 2 preexistentes siguieron verdes), confirmando que prueban algo real. Se
+restauró el wiring completo (hook + render) y se confirmó verde de nuevo (4/4).
+
+#### Desviación: alcance de "sin mención de atención prioritaria"
+
+El requisito de `spec.md` («El encabezado cuenta la bandeja, no la búsqueda») acota la ausencia
+de «atención prioritaria» **al encabezado**, no a toda la pantalla. La tarjeta «Urgentes» de
+`SummaryCards` (que cuenta los resultados de **búsqueda**, ajena a esta unidad) sigue mostrando
+su propio *hint* «Atención prioritaria» — texto preexistente, fuera de alcance. La primera
+versión del test lo afirmaba sobre `screen` completo y falló contra ese *hint*; se corrigió
+acotando la aserción con `within(header)`, sin cambiar el fondo del requisito.
+
+#### Test Summary
+
+- **Total tests nuevos**: 23 (14 en el componente, 7 en `page.test.tsx`, 2 en la integración)
+- **Total tests pasando tras GREEN**: 231/231 en la suite completa
+- **Capas usadas**: Integration — componente (14), página con store mockeado (7), página con
+  store real (2)
+
+### Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run components/dashboard/coordination-inbox.test.tsx app/dashboard/page.test.tsx app/dashboard/page.integration.test.tsx` → **3 archivos, 34 tests, todos verdes** |
+| Arnés de runtime | Opcional, fuera del corte (`tasks.md`, nota de la unidad C7b): `GET /api/requests/inbox?responsible=COORDINACION` contra el backend de dev — **no ejecutado en esta corrida**, queda para la Fase 8 (8.6) |
+| Rollback | Revertir el commit `de74edb`; el tablero vuelve a solo búsqueda (comportamiento de hoy) — aditivo (`design.md`, «Rollback por unidad») |
+
+### Mutantes obligatorios (7.29, 7.30) — Observados a nivel de componente
+
+Aplicados y verificados **antes** de conectar `page.tsx` (mismo commit lógico que produjo
+`coordination-inbox.tsx`; el mutante se probó contra `components/dashboard/coordination-inbox.test.tsx`,
+que es donde `tasks.md` los asigna):
+
+- **Mutante 1** (`waitingSince` → `createdAt` en la vista): se cambió `ageLabel` para leer
+  `entry.createdAt` en vez de `entry.waitingSince` y se corrió
+  `pnpm exec vitest run components/dashboard/coordination-inbox.test.tsx`. **Resultado
+  observado**: exactamente 2 tests en rojo — «una fila muestra sus cinco datos…» (esperaba
+  «hace 3 días», recibió «hace 5 días» porque el fixture reutiliza `createdAt` por defecto) y «la
+  espera sale de waitingSince, no de createdAt» (esperaba «hace 1 día», recibió «hace 60 días»);
+  los otros 12 siguieron verdes. Se revirtió con `Edit` (sin commitear) y se confirmó verde de
+  nuevo (14/14).
+- **Mutante 2b** (`.sort()` antes de renderizar): se agregó
+  `[...inbox.entries].sort((a, b) => a.studentName.localeCompare(b.studentName))` antes del
+  `.map` de filas y se corrió la misma suite. **Resultado observado**: exactamente el test «las
+  filas aparecen en el orden exacto del fixture, sin recalcular» cayó en rojo (orden alfabético
+  recibido en vez del orden del fixture), los otros 13 siguieron verdes. Se revirtió y se
+  confirmó verde de nuevo (14/14).
+
+### Verificación de la unidad (7.31, 7.32)
+
+Sin `pnpm dev` vivo (verificado con `pgrep -fa`/`ss -ltnp` antes de `rm -rf .next`).
+
+| Comando | Resultado observado |
+|---|---|
+| `rg -n 'inbox\|Inbox\|COORDINATION' lib/store.tsx` | **0 resultados**, confirmado — la bandeja sigue sin tocar el store |
+| `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` | **1 resultado** (sin cambio respecto de C6) |
+| `pnpm lint` | exit 0, sin salida (`eslint .`) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0, sin errores |
+| `pnpm test` | **24 archivos, 231 tests, todos verdes** (208 tras C6/C7a + 23 nuevos de C7b) |
+| `pnpm build` | Compiló con Turbopack, TypeScript sin errores, **8 rutas generadas** (idénticas a antes) |
+
+### Desviaciones de diseño
+
+Ninguna sobre el contenido funcional: `tasks.md` Fase 7 se siguió sin desvíos de alcance. Las dos
+notas de esta sección (RED no observable en 2 de 7 tests de página; acotación de la aserción de
+«atención prioritaria» al encabezado) son decisiones sobre cómo reportar evidencia y cómo escribir
+la aserción correcta, no cambios del comportamiento pedido por `tasks.md`/`design.md`. Los textos
+exactos («Cargando bandeja de la Coordinación…», «No hay solicitudes pendientes en este
+momento.», «Puede haber más solicitudes en espera además de las que se muestran.») son
+provisionales de implementación, tal como `design.md` («Open Questions») anticipaba que
+`sdd-spec` no los fijaría con precisión de copy — `spec.md` solo exige que 0, 1 y N se resuelvan
+explícitos y con test, lo que estos textos cumplen.
+
+### Archivos tocados en C7a
+
+| Archivo | Acción |
+|---|---|
+| `app/dashboard/page.integration.test.tsx` | `stubFetch` enruta `/requests/inbox` por separado de `/requests?search=`; borra la ruta `/workflow-definitions` |
+
+### Archivos tocados en C7b
+
+| Archivo | Acción |
+|---|---|
+| `lib/ui-constants.ts` | Agrega `ORIGIN_LABELS` y `ORIGIN_UNKNOWN_LABEL` |
+| `components/dashboard/coordination-inbox.tsx` | Nuevo — presentacional de la bandeja |
+| `components/dashboard/coordination-inbox.test.tsx` | Nuevo — 14 tests |
+| `app/dashboard/page.tsx` | Importa y llama `useCoordinationInbox()`; monta `<CoordinationInbox>` entre el encabezado y las tarjetas de resumen; reemplaza la frase del encabezado |
+| `app/dashboard/page.test.tsx` | Mock del hook con `importOriginal`; helper `renderDashboard({ tramita, inbox })`; 7 tests nuevos; 2 tests renombrados (ya no llaman "bandeja" a los resultados de búsqueda) |
+| `app/dashboard/page.integration.test.tsx` | `sessionExpired` como spy `vi.hoisted` estable en el mock de `useAuth`; 2 tests nuevos |
+
+### Commit
+
+`de74edb` — `feat(tablero): carga la bandeja de la Coordinación al entrar (#12, P3)` — 7
+archivos, 550 inserciones, 125 borrados (incluye `tasks.md`, checkboxes 7.5–7.33).
+
+## Tamaño medido de A-5 (C6 + C7a + C7b) — size:exception aplica
+
+`git diff --shortstat 41ff126..HEAD -- . ':!openspec'` (excluye `openspec/`, `41ff126` es el HEAD
+de A-4): **11 archivos, 855 inserciones, 102 borrados → 957 líneas cambiadas.** Por unidad,
+medido con `git diff --stat` sobre cada commit (código/test, sin `tasks.md`):
+
+| Unidad | Archivos | Inserciones | Borrados | Total | Rango estimado (`tasks.md`) |
+|---|---|---|---|---|---|
+| C6 | 5 | 339 | 21 | 360 | 230–280 (29% sobre el techo) |
+| C7a | 1 | 11 | 7 | 18 | ≈30 (dentro) |
+| C7b | 6 | 505 | 118 | 623 (523 sin `tasks.md`) | 400–460 (14% sobre el techo, sobre 523) |
+| **A-5 total** | 11 (unión) | 855 | 102 | **957** | 660–770 estimado |
+
+**957 > 400** (el techo del `Review Workload Forecast` de `tasks.md`) y también supera el rango
+estimado de A-5 (660–770). `tasks.md` («Review Workload Forecast», «Suggested split») registra
+que el responsable del proyecto **pre-aceptó `size:exception` para A-5** el 2026-09-22, sin
+condicionarlo a que el rango se cumpliera exactamente (a diferencia de A-2/A-3, donde la
+aceptación era condicional «si su rango lo exige al medirlo»). **`size:exception` aplica a A-5**,
+confirmado sobre la cifra real. Causa principal del exceso: `lib/use-coordination-inbox.test.ts`
+(150 líneas, 8 casos con `renderHook`+`waitFor`) y `components/dashboard/coordination-inbox.test.tsx`
+(179 líneas, 14 casos) resultaron más densos que la estimación gruesa de `design.md`, y
+`app/dashboard/page.test.tsx` sumó 262 líneas de diff por el refactor completo a `renderDashboard`
+(que toca las 9 pruebas preexistentes, no solo las 7 nuevas) — un costo que `tasks.md` no
+desglosaba línea por línea.
+
 ## Próximo paso
 
-`sdd-apply` para la Fase 6/7 (C6 — cliente `getInbox` + hook `useCoordinationInbox`, sin UI; C7a/C7b
-— el tablero carga la bandeja), rama `feat/bandeja-007-a5-bandeja` apilada sobre
-`feat/bandeja-007-a4-configuracion` según `stacked-to-main`, gated por decisión humana (push/PR de
-A-4 no están hechos por este agente). El `Review Workload Forecast` de `tasks.md` estima A-5
-(C6+C7a+C7b) en ≈660–770 líneas — por encima del techo de 400 y del rango que `tasks.md` marca con
-`size:exception` pre-aceptado el 2026-09-22 «para A-5»; medir al cierre de esa ejecución igual que
-se hizo acá, y confirmar que el `size:exception` sigue aplicando sobre la cifra real.
+Las siete unidades de código (C1–C7) están aplicadas. Queda la **Fase 8 — Entrega** (checklist del
+cuerpo de la PR, declaración de las decisiones del backend, señalamiento sin nombrar de `ede7bc3`,
+declaración del cambio de mayúsculas, chequeo opcional en vivo, verificación post-merge del
+cierre del #9): la hace el orquestador, no `sdd-apply`, porque no agrega código de producción.
+Riesgo conocido y no corregido en esta change (design.md, «Riesgos»): abrir una solicitud desde
+la bandeja la inserta en `requests` vía `refreshRequest`, así que las tarjetas de resumen y los
+indicadores del tablero pueden contar un trámite visitado sin que medie una búsqueda — declarado
+para el cuerpo de la PR, seguimiento en `#36`/`#10`.
