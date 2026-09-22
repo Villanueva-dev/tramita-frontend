@@ -1,11 +1,12 @@
 # Apply Progress: Bandeja de trabajo de la Coordinación (bandeja-coordinacion-007)
 
-> PR boundary de esta ejecución: **A-3 = C4a + C4b** (rama `feat/bandeja-007-a3-bloque-estado`,
-> apilada sobre `feat/bandeja-007-a2-tipo-honesto`, PR #45 sin mergear, que a su vez apila sobre
-> `feat/bandeja-007-a1-vencimiento`, PR #44 sin mergear). A-1 y A-2 fueron completadas en
-> ejecuciones previas — ver sus secciones abajo, sin cambios. Fases 5–8 (C5–C7) quedan
-> pendientes para futuras ejecuciones de `sdd-apply`, cada una en su propia rama apilada según
-> `stacked-to-main`. No se pushea ni se abre PR desde este agente.
+> PR boundary de esta ejecución: **A-4 = C5** (rama `feat/bandeja-007-a4-configuracion`, apilada
+> sobre `feat/bandeja-007-a3-bloque-estado`, PR #46 sin mergear, que a su vez apila sobre
+> `feat/bandeja-007-a2-tipo-honesto` → PR #45 → `feat/bandeja-007-a1-vencimiento` → PR #44,
+> ninguna mergeada). A-1 a A-3 fueron completadas en ejecuciones previas — ver sus secciones
+> abajo, sin cambios. Fases 6–8 (C6–C7) quedan pendientes para futuras ejecuciones de
+> `sdd-apply`, cada una en su propia rama apilada según `stacked-to-main`. No se pushea ni se
+> abre PR desde este agente.
 
 ## Estado global
 
@@ -15,7 +16,7 @@
 | 2 | C2 — `State.isInitial` | **Completa** (16/16 tareas) |
 | 3 | C3 — Tipo honesto (#9b) | **Completa** (19/19 tareas) |
 | 4 | C4a/C4b — Bloque del estado actual | **Completa** (26/26 tareas) |
-| 5 | C5 — Baja de Configuración | Pendiente |
+| 5 | C5 — Baja de Configuración | **Completa** (13/13 tareas) |
 | 6 | C6 — Cliente + hook de la bandeja | Pendiente |
 | 7 | C7a/C7b — Tablero carga la bandeja | Pendiente |
 | 8 | Entrega (cuerpo de la PR) | Pendiente (aplica a la PR final de cada corte) |
@@ -508,10 +509,138 @@ Causa principal del exceso sobre C4b: el churn de fixtures no anticipado en el d
 `components/current-state-block.tsx` + su suite de 13 tests, más denso que el estimado original
 del componente.
 
+## Fase 5 — C5: Baja de la pantalla de Configuración — COMPLETA
+
+Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest 4).
+Rama: `feat/bandeja-007-a4-configuracion`, sobre `feat/bandeja-007-a3-bloque-estado`. Unidad de
+borrado puro: retira `app/settings/page.tsx`, su entrada de navegación, `workflowConfig` del
+provider (estado + efecto + `updateWorkflowConfig`), la tabla escrita a mano de
+`lib/ui-constants.ts` y `RequestTypeConfig` de `lib/types.ts`. Ítem 6 de `proposal.md` —
+evidencia completa de la decisión en su sección «Decisión consciente: baja de la pantalla de
+Configuración».
+
+### Safety net (previo a C5)
+
+`pnpm exec vitest run app/requests/new/page.test.tsx "app/requests/[id]/page.test.tsx"
+components/app-shell.test.tsx` → **3 archivos, 14 tests, todos verdes**, antes de tocar
+producción.
+
+### TDD Cycle Evidence — desviación observada y documentada
+
+| Tarea | RED (observado) | GREEN | REFACTOR |
+|---|---|---|---|
+| 5.1 — Renombrar el primer test de `app/requests/new/page.test.tsx` y quitar sus claves mock `workflowConfig` | **No observable**: `app/requests/new/page.tsx:55` nunca desestructura `workflowConfig` de `useTramita()` (usa `REQUEST_TYPE_LABELS`, importado de `lib/ui-constants.ts`) — la clave mock era muerta desde antes de esta unidad. Se corrió `pnpm exec vitest run app/requests/new/page.test.tsx` **antes y después** del cambio: 2/2 verde en ambos casos, sin ventana en rojo | Cambio ya aplicado (renombre + borrado de la clave muerta) | — |
+| 5.2 — Quitar `workflowConfig: []` (×3) de `app/requests/[id]/page.test.tsx` | **No observable**, mismo motivo: `app/requests/[id]/page.tsx:73` ya no desestructura `workflowConfig` desde C4. `pnpm exec vitest run "app/requests/[id]/page.test.tsx"` → 9/9 verde antes y después | Cambio ya aplicado | — |
+| 5.3 — Confirmar que `components/app-shell.test.tsx` no fija ítems de navegación | `rg -n "'/settings'\|Settings" components/app-shell.test.tsx` → **0 coincidencias**, confirmado. Tarea de medición, sin cambio de código (tal como la describe `tasks.md`: «sin cambio, con medición») | N/A | — |
+| 5.6–5.8 — Borrar `workflowConfig`/`updateWorkflowConfig` de `lib/store.tsx`, la tabla de `lib/ui-constants.ts` y `RequestTypeConfig` de `lib/types.ts` (el lado *productor*) | `pnpm exec tsc --noEmit` → **6 errores reales**, los seis confinados a `app/settings/page.tsx` (el único consumidor que quedaba): `TS2305` (`RequestTypeConfig` ya no exportado), 2×`TS2339` (`workflowConfig`/`updateWorkflowConfig` ya no existen en `TramitaContextValue`), 3×`TS7006` (parámetros que perdían su tipo inferido al desaparecer `RequestTypeConfig`) | Borrar `app/settings/page.tsx` (5.4) y la entrada de navegación + import de `Settings` en `components/app-shell.tsx` (5.5) → `rm -rf .next && pnpm exec tsc --noEmit` → **exit 0, sin errores** | Sin refactor adicional: unidad de borrado puro |
+
+**Desviación del patrón RED→GREEN esperado por `strict-tdd.md`**: 5.1 y 5.2 no producen una
+ventana en rojo observable porque son borrado de una clave de mock que la producción ya no lee
+(consecuencia de C4, que ya había retirado los dos únicos consumidores de `workflowConfig` en
+las páginas de detalle y de creación). Confirmar RED habría exigido fabricar una aserción que no
+prueba nada real — contrario a la regla de `strict-tdd.md` contra aserciones triviales. Se optó
+por reportar honestamente «RED no observable» con la corrida antes/después como evidencia, en
+vez de inventar un rojo. Para 5.6–5.8 (el borrado del lado productor en `lib/store.tsx`,
+`lib/ui-constants.ts` y `lib/types.ts`), el rojo sí es real y observable: se ejecutó **antes**
+de borrar `app/settings/page.tsx`, precisamente para capturarlo con `tsc --noEmit`, siguiendo la
+instrucción del prompt de esta ejecución («donde un borrado rompa la compilación, observarlo con
+`pnpm exec tsc --noEmit` y registrarlo como el RED»).
+
+### Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run app/requests/new/page.test.tsx "app/requests/[id]/page.test.tsx" components/app-shell.test.tsx` → **3 archivos, 14 tests, todos verdes** (sin cambio neto: ni se agregaron ni se borraron casos, solo un renombre y borrado de claves de mock muertas) |
+| Arnés de runtime | N/A — sin E2E instalado (`openspec/config.yaml`); `pnpm build` es la única prueba de runtime de esta unidad → **compiló con Turbopack, TypeScript sin errores, 8 rutas generadas** (baja de 9 a 8: `/settings` ya no existe) |
+| Rollback | Revertir el commit de C5; recupera la pantalla y `workflowConfig` (`design.md`, «Rollback por unidad»); también recuperable de forma independiente con `git show ede7bc3:app/settings/page.tsx` |
+
+### Verificación de la unidad (5.9, 5.11)
+
+Sin `pnpm dev` vivo en ningún punto de esta ejecución (verificado con `pgrep -fa` y `ss -ltnp`
+antes de cada `rm -rf .next`).
+
+| Comando | Resultado observado |
+|---|---|
+| `pnpm lint` | exit 0, sin salida (`eslint .`) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0, sin errores. Antes del primer `rm -rf .next` apareció un `TS2307` sobre `.next/types/validator.ts` referenciando la ruta borrada — el falso positivo documentado en `revisar-frontend-next`, «Trampas del entorno» («un `TS2307` cuya ruta arranca con `.next/` nunca es del código»); desapareció al limpiar `.next/` |
+| `pnpm test` | **22 archivos, 196 tests, todos verdes** — igual a la línea base de A-3 (borrado puro: ni un test nuevo ni uno menos) |
+| `pnpm build` | Compiló con Turbopack, TypeScript sin errores, **8 rutas generadas** (`/`, `/_not-found`, `/account/password`, `/assistant`, `/dashboard`, `/requests/[id]`, `/requests/[id]/documento`, `/requests/new`, `/solicitud/creditos-adicionales`) — `/settings` confirmado ausente |
+
+### Criterios de aceptación (5.10, cierre de C5) — Observado
+
+`git grep -n -E "workflowConfig|updateWorkflowConfig|RequestTypeConfig|WorkflowStageConfig|'/settings'" -- app components lib`
+→ **0 resultados**, confirmado (corrido después del borrado). Una variante más amplia del mismo
+patrón (agregando `defaultWorkflowConfig` y la ruta `app/settings`), corrida **antes** de tocar
+nada, había dado 27 coincidencias en 7 archivos — exactamente los que `design.md`, «File
+Changes», marca con `C5`. `app/settings/` no existe (`git rm` del único archivo que contenía,
+296 líneas). La deuda
+transitoria de la Fase 3 (desviación 2: el efecto de `workflowConfig` en `lib/store.tsx` con
+`flatMap`) queda retirada por completo junto con el resto del estado — no sobrevive ningún
+residuo suyo.
+
+### Desviaciones de diseño
+
+Ninguna sobre el contenido del borrado: `tasks.md` Fase 5 se siguió línea por línea. La única
+nota es la ya documentada arriba, sobre la forma de observar RED en 5.1/5.2 — decisión de cómo
+reportar la evidencia, no un cambio de alcance.
+
+### Archivos tocados en C5
+
+| Archivo | Acción |
+|---|---|
+| `app/settings/page.tsx` | Borrado (296 líneas, sin test) |
+| `components/app-shell.tsx` | Borra la entrada de navegación `/settings` y el import del ícono `Settings` |
+| `lib/store.tsx` | Borra el import de `workflowConfig as defaultWorkflowConfig`; `RequestTypeConfig` del import de tipos; los dos campos de `TramitaContextValue`; el estado `useState(defaultWorkflowConfig)`; el efecto completo de `/workflow-definitions` (incluida la deuda transitoria de C3, `flatMap`); `updateWorkflowConfig`; las dos entradas del objeto `value` y sus dependencias del `useMemo` |
+| `lib/ui-constants.ts` | Borra la tabla `workflowConfig` (28 líneas) y el import de `RequestTypeConfig` |
+| `lib/types.ts` | Borra la interfaz `RequestTypeConfig` |
+| `app/requests/new/page.test.tsx` | Renombra el primer test a lo que realmente prueba (`REQUEST_TYPE_LABELS`, no el catálogo del store); borra la constante `workflowConfig` de fixture y sus dos usos en `mockReturnValue` |
+| `app/requests/[id]/page.test.tsx` | Borra las tres claves mock `workflowConfig: []` (helpers `mockTramita`, `setup`, y un `mockReturnValue` inline) |
+
+### Nota para el cuerpo de la PR (5.12, no bloquea el commit)
+
+Este cambio retira lo que un commit de integración normal (2026-09-09) restauró sin mencionarlo
+en su cuerpo, después de que el equipo ya la había eliminado a conciencia (2026-08-24, con el
+razonamiento de que editar etapas en el cliente «estaría mintiendo sobre lo que el sistema puede
+hacer»). La tabla de evidencia completa está en `proposal.md`, «Decisión consciente: baja de la
+pantalla de Configuración». El cuerpo de la PR de A-4 debe señalárselo, **sin nombrar a la
+persona**, al integrante que la restauró — tal como exige `tasks.md` 5.12 y tarea 8.3 de la
+*Fase 8*.
+
+### Commit
+
+`e9d585b` — `refactor(configuracion): retira la pantalla de Configuración y workflowConfig` —
+8 archivos, 16 inserciones, 401 borrados (incluye `tasks.md`, checkboxes 5.1–5.13). Lleva el pie
+`Refs:`/`Verificado:` de `.gitmessage` (ver «Enmienda del mensaje de commit» abajo). Este archivo
+(`apply-progress.md`) se registra en un commit `docs(openspec)` aparte, siguiendo el patrón ya
+usado para A-1/A-2/A-3.
+
+## Tamaño medido de A-4 (C5)
+
+`git diff HEAD --stat -- . ':!openspec' ':!public/tramita-logo.jpeg'` (medido antes del commit,
+sobre el árbol de trabajo contra `eb3b35f`, HEAD de A-3): **7 archivos, 3 inserciones, 388
+borrados → 391 líneas cambiadas.** Dentro del rango estimado por `design.md` (≈390) y muy por
+debajo del techo de 400 líneas del `Review Workload Forecast`. **No se necesita `size:exception`
+para A-4.**
+
+## Pie del commit de C5 según `.gitmessage` (2026-09-22, instrucción del coordinador)
+
+El mensaje de `e9d585b` incluye, tras el cuerpo y una línea en blanco, el pie exigido por
+`.gitmessage` (plantilla real del repo, `git config commit.template`, no un archivo inventado)
+con las claves `Refs:` y `Verificado:`, con las cifras observadas en la verificación de esta
+unidad (`pnpm test`: 22 archivos, 196 tests verdes; `pnpm exec tsc --noEmit`: sin errores;
+`pnpm lint`: exit 0; `pnpm build`: 8 rutas). Se incorporó directamente al mensaje original —no
+hizo falta `git commit --amend`, porque la instrucción llegó antes de commitear. Sin
+`Closes`/`Fixes`/`Resolves #N` ni atribución de IA. Ninguna ejecución previa de este slice (A-1 a
+A-3) usó este pie pese a que `.gitmessage` ya lo exigía entonces — es la primera vez que se
+aplica en esta change; esos commits no se enmiendan retroactivamente porque exceden el alcance
+de esta ejecución.
+
 ## Próximo paso
 
-`sdd-apply` para la Fase 5 (C5 — baja de la pantalla de Configuración y `workflowConfig`), rama
-`feat/bandeja-007-a4-...` apilada sobre `feat/bandeja-007-a3-bloque-estado` según
-`stacked-to-main`, gated por decisión humana (push/PR de A-3 no están hechos por este agente).
-El `Review Workload Forecast` de `tasks.md` estima A-4 (C5) en ≈390 líneas, borrado puro; medir
-al cierre de esa ejecución igual que se hizo acá.
+`sdd-apply` para la Fase 6/7 (C6 — cliente `getInbox` + hook `useCoordinationInbox`, sin UI; C7a/C7b
+— el tablero carga la bandeja), rama `feat/bandeja-007-a5-bandeja` apilada sobre
+`feat/bandeja-007-a4-configuracion` según `stacked-to-main`, gated por decisión humana (push/PR de
+A-4 no están hechos por este agente). El `Review Workload Forecast` de `tasks.md` estima A-5
+(C6+C7a+C7b) en ≈660–770 líneas — por encima del techo de 400 y del rango que `tasks.md` marca con
+`size:exception` pre-aceptado el 2026-09-22 «para A-5»; medir al cierre de esa ejecución igual que
+se hizo acá, y confirmar que el `size:exception` sigue aplicando sobre la cifra real.
