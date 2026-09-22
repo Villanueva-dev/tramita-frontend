@@ -1,10 +1,11 @@
 # Apply Progress: Bandeja de trabajo de la Coordinación (bandeja-coordinacion-007)
 
-> PR boundary de esta ejecución: **A-2 = C2 + C3** (rama `feat/bandeja-007-a2-tipo-honesto`,
-> apilada sobre `feat/bandeja-007-a1-vencimiento`, que ya vive en PR #44 sin mergear). A-1
-> (C1) fue completada en una ejecución previa — ver su sección abajo, sin cambios. Fases 4–8
-> (C4–C7) quedan pendientes para futuras ejecuciones de `sdd-apply`, cada una en su propia
-> rama apilada según `stacked-to-main`. No se pushea ni se abre PR desde este agente.
+> PR boundary de esta ejecución: **A-3 = C4a + C4b** (rama `feat/bandeja-007-a3-bloque-estado`,
+> apilada sobre `feat/bandeja-007-a2-tipo-honesto`, PR #45 sin mergear, que a su vez apila sobre
+> `feat/bandeja-007-a1-vencimiento`, PR #44 sin mergear). A-1 y A-2 fueron completadas en
+> ejecuciones previas — ver sus secciones abajo, sin cambios. Fases 5–8 (C5–C7) quedan
+> pendientes para futuras ejecuciones de `sdd-apply`, cada una en su propia rama apilada según
+> `stacked-to-main`. No se pushea ni se abre PR desde este agente.
 
 ## Estado global
 
@@ -13,7 +14,7 @@
 | 1 | C1 — Baja del vencimiento inventado | **Completa** (15/15 tareas) |
 | 2 | C2 — `State.isInitial` | **Completa** (16/16 tareas) |
 | 3 | C3 — Tipo honesto (#9b) | **Completa** (19/19 tareas) |
-| 4 | C4a/C4b — Bloque del estado actual | Pendiente |
+| 4 | C4a/C4b — Bloque del estado actual | **Completa** (26/26 tareas) |
 | 5 | C5 — Baja de Configuración | Pendiente |
 | 6 | C6 — Cliente + hook de la bandeja | Pendiente |
 | 7 | C7a/C7b — Tablero carga la bandeja | Pendiente |
@@ -368,11 +369,149 @@ producción, tests, `tasks.md` (checkboxes 3.1–3.19) y este archivo.
 
 ---
 
+## Fase 4 — C4a/C4b: Bloque del estado actual (#9a, P1, P2) — COMPLETA
+
+Modo: **Strict TDD**. Depende de C2 (`State.isInitial`) y C3 (mismas líneas del detalle).
+Rama: `feat/bandeja-007-a3-bloque-estado`, sobre `feat/bandeja-007-a2-tipo-honesto`.
+
+### C4a — Mudanza de `currentResponsibility`
+
+Safety net previo: `pnpm exec vitest run lib/request-state.test.ts lib/store.test.ts` →
+**2 archivos, 28 tests, todos verdes**, antes de tocar producción.
+
+| Tarea | RED (observado) | GREEN |
+|---|---|---|
+| 4.1–4.3 — Responsable único / divergente / estado final sin responsable | `TypeError: currentResponsibility is not a function` en `lib/request-state.test.ts` — la función no existía en ese módulo | `currentResponsibility` y su tipo `Responsibility` se mudan a `lib/request-state.ts`, con el parámetro estructural `{ currentState: State; availableTransitions?: AvailableTransition[] }` |
+| 4.5 | — (mecánico) | `app/requests/[id]/page.tsx` importa `currentResponsibility` de `@/lib/request-state`; se borra la definición y el tipo `Responsibility` locales |
+
+Los tres RED se observaron con `pnpm exec vitest run lib/request-state.test.ts` antes de tocar
+producción; el mensaje citado es el texto real de vitest.
+
+**Verificación del checkpoint C4a (4.6)**: `pnpm lint` exit 0 sin salida; `rm -rf .next &&
+pnpm exec tsc --noEmit` exit 0 sin errores (sin `next dev` vivo, verificado con `pgrep`/`ss`
+antes de limpiar); `pnpm test` → **21 archivos, 179 tests, todos verdes** (176 base A-2 + 3
+nuevos).
+
+**Commit** `ac59e43` — `refactor(estado): muda currentResponsibility a lib/request-state.ts` —
+4 archivos, 73 inserciones, 23 borrados (96 líneas; incluye `tasks.md`). Sobre solo código/test:
+3 archivos, 66 inserciones, 16 borrados (82 líneas) — dentro del rango estimado por `design.md`
+(60–80).
+
+### C4b — El bloque del estado actual
+
+| Tarea | RED (observado) | GREEN |
+|---|---|---|
+| 4.8–4.13 — Nombre del estado en la región, insignias independientes, tres textos de «Ahora depende de», singular/plural sin insignia de urgencia, antigüedad oculta en cierre/sin `waitingSince`, sin «paso» ni lista | `Error: Failed to resolve import "./current-state-block"` en `components/current-state-block.test.tsx` — el módulo no existía | `components/current-state-block.tsx`: `CurrentStateBlock({ state, responsibility, waitingSince, now })`, presentacional, raíz `<section aria-labelledby>` con encabezado «Estado actual» |
+| 4.15 — Mutante P1/P2, antigüedad desde la última entrada del timeline, no `createdAt` | `TestingLibraryElementError: Unable to find an element with the text: Lleva 1 día` en `app/requests/[id]/page.test.tsx` (mostraba «Lleva 60 días», derivado de `createdAt`) | El contenedor deriva `waitingSince = req.timeline.length > 0 ? req.timeline[req.timeline.length − 1].date : null`, nunca de `createdAt` |
+| 4.16 — Estado final: «Trámite cerrado», sin antigüedad | mismo error de texto no encontrado | Cubierto por el mismo cambio: `CurrentStateBlock` oculta la fila cuando `state.isFinal` |
+| 4.17 — Sin fila «Asignado a» | `AssertionError: expected <dt>Asignado a</dt> to be null` | Se borra la fila «Asignado a» de la tarjeta «Resumen» |
+| 4.18 — #9(a): dos estados intermedios distinguibles | `TestingLibraryElementError: Unable to find an element with the text: En facultad` (el nombre del estado no se mostraba fuera del stepper agrupado) | `CurrentStateBlock` reemplaza la tarjeta del stepper; cada render muestra `currentState.name` y su propio responsable |
+
+Los cuatro RED de `app/requests/[id]/page.test.tsx` (4.15–4.18) se observaron juntos
+(`pnpm exec vitest run "app/requests/[id]/page.test.tsx"` → 4 fallos de 9, los cuatro nuevos)
+antes de tocar producción.
+
+**Desviación observada (no de diseño, de test preexistente)**: el test ya existente «carga el
+detalle desde el store» pasó a fallar con `getMultipleElementsFoundError` sobre «En coordinación
+(revisión)» al agregar `CurrentStateBlock`, porque el nombre del estado ahora aparece dos veces
+(la insignia del encabezado y el bloque nuevo). Se cambió `getByText` por
+`getAllByText(...).length` (patrón ya usado en el test #9b de este mismo archivo), sin tocar la
+aserción de fondo.
+
+### Mutante P1/P2 (4.24) — Observado
+
+Se reemplazó temporalmente `waitingSince = req.timeline.length > 0 ? … : null` por
+`waitingSince = req.createdAt` en `app/requests/[id]/page.tsx` y se corrió
+`pnpm exec vitest run "app/requests/[id]/page.test.tsx"`. **Resultado observado**: exactamente
+el test 4.15 («la antigüedad del estado sale de la última entrada del timeline, no de
+createdAt») cayó en rojo, los otros 8 siguieron verdes. Se revirtió con `Edit` (no se commiteó
+la mutación) y se confirmó verde de nuevo (9/9) antes de continuar.
+
+### Verificación de la unidad (4.25)
+
+| Comando | Resultado observado |
+|---|---|
+| `pnpm lint` | exit 0, sin salida (`eslint .`) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0, sin errores. Sin `next dev` vivo (verificado con `pgrep -fa` y `ss -ltnp` antes de limpiar) |
+| `pnpm test` | **22 archivos, 196 tests, todos verdes** (179 tras C4a + 13 de `current-state-block.test.tsx` + 4 nuevos en `page.test.tsx`) |
+| `pnpm build` | Compiló con Turbopack, TypeScript sin errores, 9 rutas generadas (idénticas a antes: `/`, `/dashboard`, `/requests/[id]`, `/requests/[id]/documento`, `/requests/new`, `/settings`, etc.) |
+
+### Criterios de aceptación (4.21, cierre de C4)
+
+`rg -n 'WorkflowStepper|stageFromState|currentStage' app components lib` → **0 resultados**,
+confirmado. `components/workflow-stepper.tsx` (68 líneas, sin test) borrado sin reemplazo
+directo — su rol lo cumple `CurrentStateBlock`. `stageFromState` borrado de `lib/store.tsx`;
+`currentStage` borrado de `AcademicRequest` (`lib/types.ts`) y de los seis objetos de
+`lib/fixtures/mock-requests.ts`; `WorkflowStageConfig` borrado de `lib/types.ts` (sin otras
+referencias, confirmado con `rg`). #9(a) cerrado: dos estados intermedios («En facultad», «En
+registro nacional») se distinguen en pantalla con su propio nombre y responsable. P1+P2
+restaurados con la fuente correcta (última entrada del timeline, nunca `createdAt`).
+
+### Desviación no prevista en `tasks.md` (churn de fixtures mecánico)
+
+`tasks.md` 4.21 solo nombra `lib/fixtures/mock-requests.ts` como fixture a tocar al borrar
+`currentStage`, pero `AcademicRequest.currentStage` también aparecía como campo literal en tres
+archivos de test que construyen la interfaz completa (`app/requests/[id]/page.test.tsx:43`,
+`app/requests/[id]/documento/page.test.tsx:46`, `app/dashboard/page.test.tsx:44`). Al volverse
+un campo inexistente del tipo, TypeScript los marca como propiedad excedente en un literal
+asignado a una variable tipada (`tsc` los habría roto). Se quitó la línea `currentStage: '…',`
+de los tres, sin tocar ningún otro campo — mismo patrón que la desviación de C1 con los tests
+preexistentes de `requests-table.test.tsx`.
+
+### Archivos tocados en C4a
+
+| Archivo | Acción |
+|---|---|
+| `lib/request-state.ts` | Agrega `Responsibility` y `currentResponsibility` (mudados desde la página) |
+| `lib/request-state.test.ts` | 3 tests nuevos (`describe('currentResponsibility')`) |
+| `app/requests/[id]/page.tsx` | Importa `currentResponsibility` de `@/lib/request-state`; borra la definición y el tipo locales |
+
+### Archivos tocados en C4b
+
+| Archivo | Acción |
+|---|---|
+| `components/current-state-block.tsx` | Nuevo — presentacional del estado actual |
+| `components/current-state-block.test.tsx` | Nuevo — 13 tests de presentación |
+| `app/requests/[id]/page.tsx` | `now` con `useState(() => Date.now())`; deriva `responsibility` y `waitingSince`; reemplaza la tarjeta del stepper por `<CurrentStateBlock>`; borra el import/uso de `WorkflowStepper`, la lectura de `workflowConfig`, la fila «Asignado a»; reduce «Resumen» a una fila |
+| `components/workflow-stepper.tsx` | Borrado (68 líneas, sin test) |
+| `lib/store.tsx` | Borra `stageFromState` y su uso en `currentStage` de `baseRequest` |
+| `lib/types.ts` | Borra `currentStage` de `AcademicRequest` y la interfaz `WorkflowStageConfig` |
+| `lib/fixtures/mock-requests.ts` | Borra `currentStage` de los seis objetos |
+| `lib/store.test.ts` | Borra las dos aserciones de `currentStage` |
+| `app/requests/[id]/page.test.tsx` | 4 tests nuevos (P1/P2, cierre, sin «Asignado a», #9a); ajuste de un test preexistente (`getAllByText`); fixture sin `currentStage` |
+| `app/requests/[id]/documento/page.test.tsx` | Fixture sin `currentStage` (consecuencia mecánica de tsc) |
+| `app/dashboard/page.test.tsx` | Fixture sin `currentStage` (consecuencia mecánica de tsc) |
+
+### Commits
+
+`ac59e43` — `refactor(estado): muda currentResponsibility a lib/request-state.ts` (C4a).
+`0bff26c` — `fix(detalle): reemplaza el stepper por el bloque de estado actual (#9a)` (C4b) —
+11 archivos de código/test, 400 inserciones, 128 borrados (528 líneas; 12 archivos con
+`tasks.md`, 419/147 = 566).
+
+## Tamaño medido de A-3 (C4a + C4b) — size:exception aplica
+
+`git diff --shortstat 61c0ec6..HEAD -- . ':!openspec'` (excluye `openspec/`, HEAD de A-2 era
+`61c0ec6`): **13 archivos, 465 inserciones, 143 borrados → 608 líneas cambiadas.**
+
+| Unidad | Líneas (código/test, sin `tasks.md`) | Rango estimado (`design.md`) |
+|---|---|---|
+| C4a | 82 | 60–80 (3% sobre el techo) |
+| C4b | 528 | 320–390 (35% sobre el techo) |
+| **A-3 total** | **608** | 380–470 estimado |
+
+**608 > 400** (el techo del `Review Workload Forecast` de `tasks.md`) y también supera el rango
+estimado de A-3 (380–470). El responsable del proyecto pre-aceptó `size:exception` para A-3 «si
+su rango lo exige al medirlo» — es exactamente esta situación. **`size:exception` aplica a A-3.**
+Causa principal del exceso sobre C4b: el churn de fixtures no anticipado en el desglose de
+`design.md` (tres archivos de test adicionales que perdían `currentStage`) y el volumen real de
+`components/current-state-block.tsx` + su suite de 13 tests, más denso que el estimado original
+del componente.
+
 ## Próximo paso
 
-`sdd-apply` para la Fase 4 (C4a — mudanza de `currentResponsibility`; C4b — `CurrentStateBlock`
-reemplaza el stepper, #9a/P1/P2), rama `feat/bandeja-007-a3-...` apilada sobre
-`feat/bandeja-007-a2-tipo-honesto` según `stacked-to-main`, gated por decisión humana (push/PR
-de A-2 no están hechos por este agente). El `Review Workload Forecast` de `tasks.md` estima
-A-3 en 380–470 líneas y ya anticipa un posible `size:exception`; medir al cierre de esa
-ejecución igual que se hizo acá.
+`sdd-apply` para la Fase 5 (C5 — baja de la pantalla de Configuración y `workflowConfig`), rama
+`feat/bandeja-007-a4-...` apilada sobre `feat/bandeja-007-a3-bloque-estado` según
+`stacked-to-main`, gated por decisión humana (push/PR de A-3 no están hechos por este agente).
+El `Review Workload Forecast` de `tasks.md` estima A-4 (C5) en ≈390 líneas, borrado puro; medir
+al cierre de esa ejecución igual que se hizo acá.
