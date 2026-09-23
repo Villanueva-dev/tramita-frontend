@@ -16,11 +16,16 @@ export function parseServerDateTime(value: string): Date {
   return new Date(HAS_OFFSET.test(value) ? value : `${value}Z`)
 }
 
-/** Días transcurridos desde `value` hasta `now` (inyectable para tests deterministas). */
+/**
+ * Días transcurridos desde `value` hasta `now` (inyectable para tests deterministas).
+ * Acotado en 0: el instante del servidor puede ser posterior a `now` (congelado al
+ * montar la pantalla, o reloj del cliente atrasado), y algo que acaba de ocurrir
+ * lleva 0 días, no -1.
+ */
 export function daysSince(value: string, now: Date = new Date()): number {
   const then = parseServerDateTime(value)
   const diffMs = now.getTime() - then.getTime()
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
 }
 
 export function formatDate(iso: string) {

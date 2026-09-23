@@ -41,6 +41,12 @@ describe('daysSince', () => {
   it('interpreta un value sin offset como UTC igual que parseServerDateTime', () => {
     expect(daysSince('2026-08-10T00:00:00', new Date('2026-08-14T00:00:00Z'))).toBe(4)
   })
+
+  // En el detalle, `now` se congela al montar: una transición registrada después
+  // queda con un instante del servidor posterior a `now`. Recién ocurrió: 0 días, no -1.
+  it('devuelve 0, no -1, cuando el instante del servidor es posterior a now', () => {
+    expect(daysSince('2026-08-14T12:00:40', new Date('2026-08-14T12:00:00Z'))).toBe(0)
+  })
 })
 
 describe('corrimiento de TZ con America/Bogota fija (documentación del bug, no regresión)', () => {
