@@ -37,7 +37,6 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
-import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
 import { formatDate, formatDateTime } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
@@ -277,7 +276,7 @@ export default function RequestDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <TypeBadge type={req.type} />
+                <TypeBadge code={req.definition.code} name={req.definition.name} />
                 <span>Radicado el {formatDate(req.createdAt)}</span>
                 <span aria-hidden>·</span>
                 <span>Última actualización {formatDate(req.updatedAt)}</span>
@@ -367,17 +366,20 @@ export default function RequestDetailPage() {
                       <tr className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
                         <th className="px-3 py-2 font-semibold">Código</th>
                         <th className="px-3 py-2 font-semibold">Asignatura</th>
+                        {/* Tres vías, no un ternario binario (D2): `type: null` es una
+                            definición que el cliente no reconoce y no tiene columnas propias
+                            que mostrar — ni «Créditos», que reabriría el #9(b). */}
                         {req.type === 'novedad_notas' ? (
                           <>
                             <th className="px-3 py-2 font-semibold">Actual</th>
                             <th className="px-3 py-2 font-semibold">Propuesta</th>
                           </>
-                        ) : (
+                        ) : req.type === 'adicion_creditos' ? (
                           <>
                             <th className="px-3 py-2 font-semibold">Créditos</th>
                             <th className="px-3 py-2 font-semibold">Grupo</th>
                           </>
-                        )}
+                        ) : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -397,12 +399,12 @@ export default function RequestDetailPage() {
                                 {s.proposedGrade}
                               </td>
                             </>
-                          ) : (
+                          ) : req.type === 'adicion_creditos' ? (
                             <>
                               <td className="px-3 py-2">{s.credits}</td>
                               <td className="px-3 py-2">{s.group || '—'}</td>
                             </>
-                          )}
+                          ) : null}
                         </tr>
                       ))}
                     </tbody>
@@ -589,7 +591,7 @@ export default function RequestDetailPage() {
                 <dl className="flex flex-col gap-3">
                   <InfoRow
                     label="Tipo de trámite"
-                    value={REQUEST_TYPE_LABELS[req.type]}
+                    value={req.definition.name}
                   />
                   <InfoRow label="Asignado a" value={req.assignedTo} />
                 </dl>

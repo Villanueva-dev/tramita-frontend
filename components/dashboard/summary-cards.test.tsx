@@ -16,12 +16,12 @@ const summary = {
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Estudiante De Prueba',
   studentDocument: '1090234',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   createdAt: '2026-09-01T10:00:00',
 }
 
 const conEstado = (code: string, name: string, isFinal: boolean) =>
-  baseRequest({ ...summary, currentState: { code, name, isFinal } })
+  baseRequest({ ...summary, currentState: { code, name, isFinal, isInitial: false } })
 
 /** El rótulo y su número son hermanos inmediatos, así que el contador se lee sin
  *  depender de las clases de maquetación. */

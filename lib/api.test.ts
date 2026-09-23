@@ -147,7 +147,7 @@ describe('createRequest', () => {
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
       studentDocument: '1000000001',
-      currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+      currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',
     }
@@ -311,7 +311,7 @@ describe('searchRequests', () => {
         definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
         studentName: 'Ana María Pérez',
         studentDocument: '1000000001',
-        currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+        currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
         createdAt: '2026-08-14T15:00:00Z',
       },
     ]
@@ -343,9 +343,9 @@ describe('getRequest', () => {
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
       studentDocument: '1000000001',
-      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       availableTransitions: [
-        { targetState: { code: 'APROBADO', name: 'Aprobado', isFinal: true }, responsible: 'FACULTAD', requiresNote: false },
+        { targetState: { code: 'APROBADO', name: 'Aprobado', isFinal: true, isInitial: false }, responsible: 'FACULTAD', requiresNote: false },
       ],
       createdAt: '2026-08-14T15:00:00Z',
     }
@@ -374,7 +374,7 @@ describe('getRequestTimeline', () => {
       {
         id: 1,
         fromState: null,
-        toState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+        toState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
         actorEmail: 'coordinacion@example.edu.co',
         // La entrada de registro no trae responsable ni nota. El backend las
         // manda como `null` explícito, no ausentes: omitirlas aquí hacía que
@@ -404,7 +404,7 @@ describe('advanceRequest', () => {
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana',
       studentDocument: '123',
-      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',
     }

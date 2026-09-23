@@ -30,7 +30,7 @@ const urgente = (code: string, name: string, isFinal: boolean) =>
     definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
     studentName: 'Estudiante De Prueba',
     studentDocument: '1090234',
-    currentState: { code, name, isFinal },
+    currentState: { code, name, isFinal, isInitial: false },
     createdAt: '2026-09-01T10:00:00',
     priority: 'urgente' as const,
   })

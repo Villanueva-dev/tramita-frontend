@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import RequestDetailPage from './page'
+import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
@@ -8,7 +9,12 @@ const useTramita = vi.hoisted(() => vi.fn())
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
-vi.mock('@/lib/store', () => ({ useTramita }))
+// `importOriginal` conserva `baseRequest`: el caso #9(b) lo usa para construir una
+// solicitud cuya `definition` y `type` no pueden contradecirse dentro de la prueba.
+vi.mock('@/lib/store', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/store')>()),
+  useTramita,
+}))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
   useSearchParams: () => ({ get: () => null }),
@@ -20,7 +26,7 @@ const request: AcademicRequest = {
   type: 'adicion_creditos',
   status: 'pendiente',
   stateName: 'En coordinación (revisión)',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
@@ -36,9 +42,10 @@ const request: AcademicRequest = {
   timeline: [],
   currentStage: 'radicacion',
   assignedTo: 'FACULTAD',
+  definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   availableTransitions: [
     {
-      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       responsible: 'FACULTAD',
       requiresNote: false,
     },
@@ -103,5 +110,38 @@ describe('RequestDetailPage', () => {
 
     expect(screen.queryByText(/Vencida/i)).toBeNull()
     expect(screen.queryByText('Vencimiento')).toBeNull()
+  })
+
+  // #9(b): una definición que el cliente no reconoce no se presenta como adición de
+  // créditos en ningún lugar del detalle: ni el rótulo, ni la columna de asignaturas, ni
+  // el ícono decorativo del badge.
+  it('un código de definición desconocido no se presenta como adición de créditos (#9b)', async () => {
+    const desconocida = baseRequest({
+      id: 'request-2',
+      definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+      studentName: 'Estudiante Piloto',
+      studentDocument: '9999999999',
+      currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+      subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+      createdAt: '2026-09-01T12:00:00',
+      availableTransitions: [],
+    })
+    useTramita.mockReturnValue({
+      getRequest: () => desconocida,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition: vi.fn(),
+      registerDocumentApproval: vi.fn(),
+      workflowConfig: [],
+    })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Estudiante Piloto')).toBeDefined())
+
+    expect(screen.getAllByText('Trámite piloto').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/adición de créditos/i)).toBeNull()
+    expect(screen.queryByText('Créditos')).toBeNull()
+    expect(screen.queryByTestId('type-badge-icon-adicion')).toBeNull()
+    expect(screen.getByTestId('type-badge-icon-neutral')).toBeDefined()
   })
 })

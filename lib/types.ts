@@ -14,10 +14,16 @@ export interface WorkflowDefinition {
   version: number
 }
 
-/** openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. */
+/**
+ * openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. `isInitial`
+ * lo agrega la feature 007 (Tramita/specs/007-coordination-inbox/contracts/openapi.yaml,
+ * StateResponse :284-306): responde «¿es el inicio?» con dato propio del contrato, sin
+ * reconocer códigos de estado en el cliente.
+ */
 export interface State {
   code: string
   name: string
+  isInitial: boolean
   isFinal: boolean
 }
 
@@ -136,7 +142,18 @@ export interface TimelineEvent {
 export interface AcademicRequest {
   id: string
   radicado: string
-  type: RequestType
+  /**
+   * La definición tal como la envía el motor. Es lo que se muestra como tipo de trámite en
+   * cualquier lugar de la pantalla (D2): badge, fila «Tipo de trámite», PDF.
+   */
+  definition: WorkflowDefinition
+  /**
+   * Clasificación para ramificar: columnas de asignaturas, párrafo del PDF, filtro del
+   * tablero y semántica del estado. `null` es una definición que el cliente no reconoce, y
+   * nunca se trata como adición de créditos (#9 b). Un ternario binario sobre este campo
+   * compila igual con `null` y cae en la rama de adición: escribir siempre las tres ramas.
+   */
+  type: RequestType | null
   status: RequestStatus
   /**
    * Nombre del estado tal como lo define el motor de workflow y lo envía el

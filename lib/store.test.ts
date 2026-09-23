@@ -11,13 +11,13 @@ const summary = {
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Estudiante De Prueba',
   studentDocument: '1090234',
-  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false },
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   createdAt: '2026-09-01T10:00:00',
 }
 
-const withState = (code: string, name: string, isFinal: boolean) => ({
+const withState = (code: string, name: string, isFinal: boolean, isInitial = false) => ({
   ...summary,
-  currentState: { code, name, isFinal },
+  currentState: { code, name, isFinal, isInitial },
 })
 
 describe('baseRequest', () => {
@@ -32,6 +32,7 @@ describe('baseRequest', () => {
       code: 'RECHAZADA',
       name: 'Rechazada',
       isFinal: true,
+      isInitial: false,
     })
   })
 
@@ -50,12 +51,11 @@ describe('baseRequest', () => {
 
   // El motor renombró el estado inicial de ADICION_CREDITOS en la migración V3.2.0:
   // `REGISTRADA` pasó a `EN_COORDINACION` para que la devolución de la Coordinación
-  // tuviera dónde registrarse. El contrato no expone `is_initial` —la columna existe en
-  // `workflow_state`, pero el schema `State` solo declara code/name/isFinal—, así que el
-  // cliente no tiene más remedio que reconocerlo por su código.
+  // tuviera dónde registrarse. La 007 expone `isInitial` en el propio `State`, así que el
+  // cliente ya no tiene que reconocerlo por su código.
   it('reconoce el estado inicial vigente como pendiente de radicación', () => {
     const recienRadicada = baseRequest(
-      withState('EN_COORDINACION', 'En coordinación (revisión)', false),
+      withState('EN_COORDINACION', 'En coordinación (revisión)', false, true),
     )
 
     expect(recienRadicada.status).toBe('pendiente')
@@ -63,18 +63,54 @@ describe('baseRequest', () => {
   })
 
   // El renombre de V3.2.0 alcanzó SOLO a ADICION_CREDITOS: su UPDATE lleva
-  // `AND d.code = 'ADICION_CREDITOS'`. Novedad de notas sigue naciendo en `REGISTRADA`,
-  // así que una constante única no puede reconocer los dos inicios a la vez: al mover
-  // el literal para arreglar un trámite, se rompe el otro.
+  // `AND d.code = 'ADICION_CREDITOS'`. Novedad de notas sigue naciendo en `REGISTRADA`, con
+  // su propio `isInitial: true`: cada definición nombra su inicio de forma independiente.
   it('reconoce el estado inicial de novedad de notas, que el motor no renombró', () => {
     const recienRadicada = baseRequest({
       ...summary,
       definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
-      currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+      currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false, isInitial: true },
     })
 
     expect(recienRadicada.status).toBe('pendiente')
     expect(recienRadicada.currentStage).toBe('radicacion')
+  })
+
+  // La 007 expone `isInitial` en el propio `State`. `status: 'pendiente'` debe salir de
+  // ese campo, no de una tabla de códigos: un código CONOCIDO sin `isInitial` no es
+  // pendiente, y un código DESCONOCIDO con `isInitial: true` sí lo es. Literal crudo, sin
+  // pasar por `withState`, para que la prueba no dependa de cómo se migre ese helper.
+  it('el estado pendiente sale de isInitial, no de una tabla de códigos por código conocido', () => {
+    const conocidoNoInicial = baseRequest({
+      ...summary,
+      currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: false },
+    })
+
+    expect(conocidoNoInicial.status).not.toBe('pendiente')
+
+    const desconocidoInicial = baseRequest({
+      ...summary,
+      currentState: { code: 'ESTADO_QUE_NO_EXISTE', name: 'Estado nuevo', isFinal: false, isInitial: true },
+    })
+
+    expect(desconocidoInicial.status).toBe('pendiente')
+  })
+
+  // #9(b): una definición que el cliente no reconoce no se adivina como adición de
+  // créditos. `baseRequest` conserva `definition` tal cual llega, y `type` allowlist a
+  // `null` en vez de caer al primer valor de un ternario.
+  it('conserva la definición cruda y clasifica un código de definición desconocido como type: null (#9b)', () => {
+    const desconocida = baseRequest({
+      ...summary,
+      definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+    })
+
+    expect(desconocida.definition).toEqual({
+      code: 'CODIGO_QUE_NO_EXISTE',
+      name: 'Trámite piloto',
+      version: 1,
+    })
+    expect(desconocida.type).toBeNull()
   })
 
   // Los seis estados intermedios del motor se colapsan a 'en_revision' en `status`;

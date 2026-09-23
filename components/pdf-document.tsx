@@ -1,13 +1,11 @@
 import type { AcademicRequest } from '@/lib/types'
 import { formatDate } from '@/lib/format'
 import { isClosed } from '@/lib/request-state'
-import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 
 export function PdfDocument({ request }: { request: AcademicRequest }) {
   const closed = isClosed(request)
   const completed = request.timeline.find((h) => h.toStatus === 'finalizado')
   const folio = `RC-${request.id.replace(/\D/g, '').padStart(6, '0')}`
-  const isNotas = request.type === 'novedad_notas'
   const primary = request.subjects[0]
 
   return (
@@ -46,7 +44,7 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
         {/* Title */}
         <div className="mt-8 text-center">
           <h1 className="font-serif text-xl font-bold uppercase tracking-wide text-[#0a2a66]">
-            {closed ? 'Constancia' : 'Solicitud'} de {REQUEST_TYPE_LABELS[request.type]}
+            {closed ? 'Constancia' : 'Solicitud'} de {request.definition.name}
           </h1>
           <p className="mt-1 text-sm text-[#666]">
             {closed ? 'Resolución de solicitud académica' : `Estado actual: ${request.stateName}`}
@@ -71,7 +69,7 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
                 ['Programa', request.program],
                 ['Semestre', request.semester],
                 ['Correo institucional', request.studentEmail],
-                ['Tipo de trámite', REQUEST_TYPE_LABELS[request.type]],
+                ['Tipo de trámite', request.definition.name],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-[#e5e5e5]">
                   <td className="w-1/3 py-2 pr-4 align-top font-semibold text-[#0a2a66]">
@@ -83,34 +81,38 @@ export function PdfDocument({ request }: { request: AcademicRequest }) {
             </tbody>
           </table>
 
-          <div>
-            <p className="font-semibold text-[#0a2a66]">Detalle del trámite</p>
-            {isNotas ? (
-              <p className="mt-1">
-                {closed ? 'Se autoriza' : 'Se solicita'} la novedad de notas para la asignatura{' '}
-                <strong>{primary?.name}</strong> ({primary?.code}), modificando
-                la calificación de{' '}
-                <strong>{primary?.currentGrade ?? '—'}</strong> a{' '}
-                <strong>{primary?.proposedGrade ?? '—'}</strong>.
-              </p>
-            ) : (
-              <p className="mt-1">
-                {closed ? 'Se autoriza' : 'Se solicita'} la adición de{' '}
-                <strong>
-                  {request.subjects.reduce((sum, s) => sum + s.credits, 0)}{' '}
-                  créditos
-                </strong>{' '}
-                correspondientes a{' '}
-                {request.subjects.map((s, i) => (
-                  <span key={s.code}>
-                    {i > 0 ? ', ' : ''}
-                    <strong>{s.name}</strong> ({s.code})
-                  </span>
-                ))}
-                .
-              </p>
-            )}
-          </div>
+          {/* Tres vías, no un ternario binario (D2): `type: null` es una definición que el
+              cliente no reconoce, y no tiene párrafo propio que describir. */}
+          {request.type !== null && (
+            <div>
+              <p className="font-semibold text-[#0a2a66]">Detalle del trámite</p>
+              {request.type === 'novedad_notas' ? (
+                <p className="mt-1">
+                  {closed ? 'Se autoriza' : 'Se solicita'} la novedad de notas para la asignatura{' '}
+                  <strong>{primary?.name}</strong> ({primary?.code}), modificando
+                  la calificación de{' '}
+                  <strong>{primary?.currentGrade ?? '—'}</strong> a{' '}
+                  <strong>{primary?.proposedGrade ?? '—'}</strong>.
+                </p>
+              ) : (
+                <p className="mt-1">
+                  {closed ? 'Se autoriza' : 'Se solicita'} la adición de{' '}
+                  <strong>
+                    {request.subjects.reduce((sum, s) => sum + s.credits, 0)}{' '}
+                    créditos
+                  </strong>{' '}
+                  correspondientes a{' '}
+                  {request.subjects.map((s, i) => (
+                    <span key={s.code}>
+                      {i > 0 ? ', ' : ''}
+                      <strong>{s.name}</strong> ({s.code})
+                    </span>
+                  ))}
+                  .
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <p className="font-semibold text-[#0a2a66]">Justificación</p>

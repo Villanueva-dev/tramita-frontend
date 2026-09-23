@@ -21,7 +21,7 @@ const conEstado = (code: string, name: string, isFinal: boolean) =>
     definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
     studentName: 'Estudiante De Prueba',
     studentDocument: '1090234',
-    currentState: { code, name, isFinal },
+    currentState: { code, name, isFinal, isInitial: false },
     // Fecha antigua: bajo el vencimiento retirado, un trámite abierto se hubiera mostrado
     // vencido. No hay ventana institucional citable (Tramita#42, abierto).
     createdAt: '2020-01-01T10:00:00',
@@ -47,5 +47,13 @@ describe('RequestsTable', () => {
     render(<RequestsTable requests={[conEstado('EN_FACULTAD', 'En facultad', false)]} />)
 
     expect(screen.queryByText(/Vencida/)).toBeNull()
+  })
+
+  // La insignia de tipo muestra el nombre que envía el servidor (`definition.name`), no un
+  // rótulo fijado en el cliente (D2).
+  it('la insignia de tipo muestra definition.name', () => {
+    render(<RequestsTable requests={[conEstado('EN_FACULTAD', 'En facultad', false)]} />)
+
+    expect(screen.getAllByText('Adición de créditos').length).toBeGreaterThan(0)
   })
 })
