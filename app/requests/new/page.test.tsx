@@ -12,26 +12,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-const workflowConfig = [
-  {
-    id: 'adicion_creditos',
-    label: 'Adición de Créditos',
-    description: 'Solicitud de créditos adicionales.',
-    enabled: true,
-    stages: [],
-  },
-]
-
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
 
 describe('NewRequestPage', () => {
-  it('renderiza el formulario usando el catálogo del store', () => {
+  it('renderiza el formulario usando REQUEST_TYPE_LABELS, no el catálogo del store', () => {
     useTramita.mockReturnValue({
       createRequest: vi.fn(),
-      workflowConfig,
     })
 
     render(<NewRequestPage />)
@@ -43,7 +32,7 @@ describe('NewRequestPage', () => {
   })
 
   it('mantiene el formulario sin depender de datos mock de solicitudes', () => {
-    useTramita.mockReturnValue({ createRequest: vi.fn(), workflowConfig: [] })
+    useTramita.mockReturnValue({ createRequest: vi.fn() })
 
     render(<NewRequestPage />)
 

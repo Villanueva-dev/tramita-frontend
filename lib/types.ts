@@ -121,14 +121,6 @@ export interface SubjectInfo {
   proposedGrade?: string
 }
 
-export interface RequestTypeConfig {
-  id: RequestType
-  label: string
-  description: string
-  enabled: boolean
-  stages: { id: string; label: string; description: string }[]
-}
-
 export interface TimelineEvent {
   id: string
   date: string

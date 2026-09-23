@@ -70,7 +70,6 @@ function mockTramita(overrides: { getRequest: () => AcademicRequest }) {
     refreshRequest: vi.fn().mockResolvedValue(undefined),
     transition: vi.fn(),
     registerDocumentApproval: vi.fn(),
-    workflowConfig: [],
   })
 }
 
@@ -81,7 +80,6 @@ function setup() {
     refreshRequest: vi.fn().mockResolvedValue(undefined),
     transition,
     registerDocumentApproval: vi.fn(),
-    workflowConfig: [],
   })
   render(<RequestDetailPage />)
   return transition
@@ -149,7 +147,6 @@ describe('RequestDetailPage', () => {
       refreshRequest: vi.fn().mockResolvedValue(undefined),
       transition: vi.fn(),
       registerDocumentApproval: vi.fn(),
-      workflowConfig: [],
     })
 
     render(<RequestDetailPage />)
