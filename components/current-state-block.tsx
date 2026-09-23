@@ -18,6 +18,8 @@ function responsibilityText(responsibility: Responsibility): string {
       return 'Depende de la acción que se registre'
     case 'closed':
       return 'Trámite cerrado'
+    case 'unknown':
+      return 'Sin información del responsable'
   }
 }
 

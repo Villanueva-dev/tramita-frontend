@@ -121,6 +121,23 @@ describe('useCoordinationInbox', () => {
     })
   })
 
+  // M-1: `responsible` y `limit` son constantes del cliente (D8) — el usuario no ingresó
+  // nada, así que el genérico "Revise los datos ingresados" no aplica (design.md:447).
+  it('un 400 resuelve error con un mensaje propio de la bandeja, no el genérico de datos ingresados', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(400, 'Invalid request content.')))
+
+    const { result } = renderHook(() => useCoordinationInbox())
+
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current).toMatchObject({
+      status: 'error',
+      messages: ['No se pudo consultar la bandeja de la Coordinación.'],
+    })
+    if (result.current.status === 'error') {
+      expect(result.current.messages).not.toContain('Revise los datos ingresados.')
+    }
+  })
+
   it('una falla de red resuelve error con el mensaje de conexión', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
 
@@ -136,10 +153,14 @@ describe('useCoordinationInbox', () => {
   it('un 401 llama a sessionExpired exactamente una vez y no produce mensaje', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
 
-    renderHook(() => useCoordinationInbox())
+    const { result } = renderHook(() => useCoordinationInbox())
 
     await waitFor(() => expect(sessionExpired).toHaveBeenCalledTimes(1))
     expect(sessionExpired).toHaveBeenCalledTimes(1)
+    // B-1: el nombre del test promete "no produce mensaje" — sin estas dos, el mutante
+    // que quita el `return` posterior a `sessionExpired()` seguía en verde.
+    expect(result.current.status).not.toBe('error')
+    expect(result.current).not.toMatchObject({ messages: expect.anything() })
   })
 })
 

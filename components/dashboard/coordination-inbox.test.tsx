@@ -15,9 +15,15 @@ afterEach(() => {
 
 const NOW = Date.now()
 
-/** Fecha relativa a NOW, sin offset — como el backend. Con al menos una hora de margen. */
+/**
+ * Fecha relativa a NOW, con offset `-05:00` — como serializa el backend `waitingSince` y
+ * `createdAt` de la bandeja (`CampusTime`, B-2). Con al menos una hora de margen. Escribe
+ * el mismo instante en hora de Bogotá (`UTC − 5 h`) y declara el offset explícito: no es
+ * la hora UTC con una etiqueta pegada, es el mismo instante en otra notación.
+ */
 function daysAgo(days: number): string {
-  return new Date(NOW - days * 86400000 - 3600000).toISOString().slice(0, 19)
+  const instant = NOW - days * 86400000 - 3600000
+  return new Date(instant - 5 * 60 * 60 * 1000).toISOString().slice(0, 19) + '-05:00'
 }
 
 function entry(overrides: Partial<InboxEntry> = {}): InboxEntry {

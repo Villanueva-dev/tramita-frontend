@@ -51,10 +51,12 @@ export function useCoordinationInbox(): InboxState {
           return
         }
         if (err instanceof ApiError && err.status === 400) {
+          // `responsible` y `limit` son constantes del cliente (D8): el usuario no
+          // ingresó nada, así que el genérico de "datos ingresados" no aplica.
           setState({
             status: 'error',
             messages: apiErrorMessages(err, {
-              badRequest: 'Revise los datos ingresados.',
+              badRequest: 'No se pudo consultar la bandeja de la Coordinación.',
             }),
           })
           return

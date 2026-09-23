@@ -245,4 +245,24 @@ describe('currentResponsibility', () => {
 
     expect(currentResponsibility(request)).toEqual({ kind: 'closed' })
   })
+
+  // M-2: el backend nunca envía un estado no final sin transiciones (007 FR-014); si
+  // `availableTransitions` llega vacía o ausente igual, es dato ausente en el cliente
+  // (refreshRequest falló y quedó el resumen de la búsqueda), no responsables divergentes.
+  it('sin transiciones en un estado no final: dato ausente, no divergencia', () => {
+    const request = {
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [],
+    }
+
+    expect(currentResponsibility(request)).toEqual({ kind: 'unknown' })
+  })
+
+  it('sin transiciones en un estado no final (undefined): dato ausente, no divergencia', () => {
+    const request = {
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+    }
+
+    expect(currentResponsibility(request)).toEqual({ kind: 'unknown' })
+  })
 })

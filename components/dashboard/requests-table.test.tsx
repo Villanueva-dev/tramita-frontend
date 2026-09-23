@@ -56,4 +56,22 @@ describe('RequestsTable', () => {
 
     expect(screen.getAllByText('Adición de créditos').length).toBeGreaterThan(0)
   })
+
+  // B-3: `ICON_BY_CODE[code]` sobre un objeto literal resuelve claves heredadas del
+  // prototipo (`constructor`, `toString`, …) en vez de devolver undefined. Un código de
+  // definición real nunca vale eso, pero la spec exige que ningún código desconocido
+  // rompa la pantalla — y "constructor" es exactamente un código que el mapa no declara.
+  it('un código de definición que coincide con una clave del prototipo no rompe la fila', () => {
+    const request = baseRequest({
+      id: '22222222-2222-2222-2222-222222222222',
+      definition: { code: 'constructor', name: 'Trámite de prueba', version: 1 },
+      studentName: 'Estudiante De Prueba',
+      studentDocument: '1090234',
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      createdAt: '2020-01-01T10:00:00',
+    })
+
+    expect(() => render(<RequestsTable requests={[request]} />)).not.toThrow()
+    expect(screen.getAllByText('Trámite de prueba').length).toBeGreaterThan(0)
+  })
 })

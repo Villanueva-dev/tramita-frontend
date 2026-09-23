@@ -30,6 +30,7 @@ const state = (overrides: Partial<State> = {}): State => ({
 const single: Responsibility = { kind: 'single', who: 'FACULTAD' }
 const varies: Responsibility = { kind: 'varies' }
 const closed: Responsibility = { kind: 'closed' }
+const unknown: Responsibility = { kind: 'unknown' }
 
 function region() {
   return screen.getByRole('region', { name: /estado actual/i })
@@ -105,6 +106,17 @@ describe('CurrentStateBlock', () => {
     )
 
     expect(within(region()).getByText('Depende de la acción que se registre')).toBeDefined()
+  })
+
+  // M-2: sin transiciones en un estado no final es dato ausente, no divergencia — no
+  // debe aparecer el texto reservado para responsables que difieren entre sí.
+  it('«Ahora depende de» muestra un texto neutro cuando el dato no se conoce, no el de divergencia', () => {
+    render(
+      <CurrentStateBlock state={state()} responsibility={unknown} waitingSince={daysAgoIso(1)} now={NOW} />,
+    )
+
+    expect(within(region()).getByText('Sin información del responsable')).toBeDefined()
+    expect(within(region()).queryByText('Depende de la acción que se registre')).toBeNull()
   })
 
   it('«Ahora depende de» muestra «Trámite cerrado» para un estado final', () => {
