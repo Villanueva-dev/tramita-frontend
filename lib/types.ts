@@ -109,7 +109,6 @@ export interface Attachment {
   type: string
   sha256?: string
   approvals: AttachmentApproval[]
-  file?: File
 }
 
 export interface SubjectInfo {

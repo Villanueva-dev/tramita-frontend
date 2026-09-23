@@ -11,11 +11,9 @@ import {
   GraduationCap,
   Info,
   Loader2,
-  Paperclip,
   PenLine,
   Plus,
   Trash2,
-  Upload,
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -29,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { displayNameFromEmail } from '@/lib/identity'
 import { useTramita } from '@/lib/store'
 import { PROGRAMS, REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
-import type { Attachment, RequestType, SubjectInfo } from '@/lib/types'
+import type { RequestType, SubjectInfo } from '@/lib/types'
 
 interface SubjectRow extends SubjectInfo {
   key: string
@@ -64,7 +62,6 @@ export default function NewRequestPage() {
   const [semester, setSemester] = useState('')
   const [subjects, setSubjects] = useState<SubjectRow[]>([emptySubject()])
   const [reason, setReason] = useState('')
-  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [signed, setSigned] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -75,24 +72,6 @@ export default function NewRequestPage() {
     setSubjects((prev) =>
       prev.map((s) => (s.key === key ? { ...s, ...patch } : s)),
     )
-  }
-
-  function addAttachment(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (file.type !== 'application/pdf') {
-      setErrors((previous) => ({ ...previous, form: 'Solo se permiten archivos PDF.' }))
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((previous) => ({ ...previous, form: 'El archivo no puede superar 5 MB.' }))
-      return
-    }
-    // Se conserva el File hasta crear la solicitud para subirlo al backend.
-    setAttachments((prev) => [...prev, {
-      id: crypto.randomUUID(), name: file.name, size: `${Math.ceil(file.size / 1024)} KB`, type: file.type, approvals: [], file,
-    }])
-    event.target.value = ''
   }
 
   function validate() {
@@ -142,7 +121,6 @@ export default function NewRequestPage() {
         semester,
         subjects: subjects.map(({ key, ...rest }) => rest),
         reason,
-        attachments,
       })
       router.push(`/requests/${created.id}?created=1`)
     } catch (err) {
@@ -484,12 +462,12 @@ export default function NewRequestPage() {
             </CardContent>
           </Card>
 
-          {/* Reason + attachments */}
+          {/* Reason */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <PenLine className="size-4 text-primary" />
-                Justificación y soportes
+                Justificación
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
@@ -511,53 +489,6 @@ export default function NewRequestPage() {
                     {reason.length} caracteres
                   </span>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label>Archivos adjuntos</Label>
-                <label
-                  htmlFor="support-file"
-                  className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/50"
-                >
-                  <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
-                    <Upload className="size-5" />
-                  </span>
-                  <span className="text-sm font-medium">
-                    Adjuntar documento de soporte
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    PDF hasta 5 MB
-                  </span>
-                  <input id="support-file" type="file" accept="application/pdf" className="sr-only" onChange={addAttachment} />
-                </label>
-                {attachments.length > 0 && (
-                  <ul className="flex flex-col gap-2">
-                    {attachments.map((a) => (
-                      <li
-                        key={a.id}
-                        className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                      >
-                        <Paperclip className="size-4 text-muted-foreground" />
-                        <span className="flex-1 truncate">{a.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {a.size}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAttachments((prev) =>
-                              prev.filter((x) => x.id !== a.id),
-                            )
-                          }
-                          className="text-muted-foreground hover:text-destructive"
-                          aria-label="Eliminar adjunto"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </CardContent>
           </Card>
