@@ -39,7 +39,7 @@ import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
 import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
 import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
-import { formatDate, formatDateTime, businessDaysUntil, isOverdue } from '@/lib/format'
+import { formatDate, formatDateTime } from '@/lib/format'
 import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
 
 const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
@@ -222,9 +222,6 @@ export default function RequestDetailPage() {
     }
   }
 
-  const overdue = isOverdue(req.dueDate, isClosed(req))
-  const days = businessDaysUntil(req.dueDate)
-
   const isFinalized = isClosed(req)
   const transitionActions = (req.availableTransitions ?? []).map((availableTransition): ActionConfig => ({
     action: availableTransition.targetState.code,
@@ -277,11 +274,6 @@ export default function RequestDetailPage() {
                 <StatusBadge status={req.status} stateName={req.stateName} />
                 {req.priority === 'urgente' && !isFinalized && (
                   <Badge variant="destructive">Urgente</Badge>
-                )}
-                {overdue && (
-                  <Badge variant="destructive">
-                    Vencida hace {Math.abs(days)}d
-                  </Badge>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -598,18 +590,6 @@ export default function RequestDetailPage() {
                   <InfoRow
                     label="Tipo de trámite"
                     value={REQUEST_TYPE_LABELS[req.type]}
-                  />
-                  <InfoRow
-                    label="Vencimiento"
-                    value={
-                      isFinalized
-                        ? 'Trámite cerrado'
-                        : `${formatDate(req.dueDate)} (${
-                            overdue
-                              ? `vencida ${Math.abs(days)}d`
-                              : `${days} día${days === 1 ? '' : 's'}`
-                          })`
-                    }
                   />
                   <InfoRow label="Asignado a" value={req.assignedTo} />
                 </dl>

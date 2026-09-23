@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { daysSince, formatDate, formatDateTime, isOverdue, parseServerDateTime } from './format'
+import { daysSince, formatDate, formatDateTime, parseServerDateTime } from './format'
 
 describe('parseServerDateTime', () => {
   it('interpreta un valor sin offset como UTC (bug: el backend serializa LocalDateTime UTC sin offset)', () => {
@@ -93,25 +93,5 @@ describe('formatDate/formatDateTime parsean con parseServerDateTime (regresión)
     process.env.TZ = 'America/Bogota'
     expect(formatDate(SIN_OFFSET)).toBe(formatDate(`${SIN_OFFSET}Z`))
     expect(formatDateTime(SIN_OFFSET)).toBe(formatDateTime(`${SIN_OFFSET}Z`))
-  })
-})
-
-// `isOverdue` combina dos preguntas: si la fecha ya pasó y si el trámite sigue abierto.
-// La segunda la respondía comparando `status` con el literal 'finalizado', duplicando en
-// este módulo una decisión que pertenece a `request-state`. Ahora la recibe resuelta.
-describe('isOverdue', () => {
-  const VENCIDA = '2020-01-01T10:00:00'
-  const LEJANA = '2099-01-01T10:00:00'
-
-  it('marca vencido un trámite abierto cuya fecha ya pasó', () => {
-    expect(isOverdue(VENCIDA, false)).toBe(true)
-  })
-
-  it('no marca vencido un trámite ya cerrado, por vieja que sea su fecha', () => {
-    expect(isOverdue(VENCIDA, true)).toBe(false)
-  })
-
-  it('no marca vencido un trámite abierto con fecha por delante', () => {
-    expect(isOverdue(LEJANA, false)).toBe(false)
   })
 })

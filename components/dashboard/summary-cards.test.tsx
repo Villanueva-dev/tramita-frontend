@@ -80,4 +80,20 @@ describe('SummaryCards', () => {
 
     expect(contador('En proceso')).toBe('1')
   })
+
+  // La tarjeta contaba también el vencimiento inventado: una solicitud abierta, antigua
+  // y sin prioridad urgente daba 1. El vencimiento se retira de toda la aplicación; la
+  // tarjeta cuenta exclusivamente la prioridad declarada por el motor.
+  it('la tarjeta "Urgentes" cuenta solo la prioridad: una solicitud abierta y antigua sin prioridad urgente da 0', () => {
+    render(
+      <SummaryCards
+        requests={[conEstado('EN_COORDINACION', 'En coordinación (revisión)', false)]}
+        active="todos"
+        onSelect={() => {}}
+      />,
+    )
+
+    const label = screen.getByText(/^Urgentes/)
+    expect(label.nextElementSibling?.textContent).toBe('0')
+  })
 })

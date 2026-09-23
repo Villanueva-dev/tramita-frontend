@@ -12,7 +12,6 @@ import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
-import { businessDaysUntil, isOverdue } from '@/lib/format'
 import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
 
@@ -53,10 +52,7 @@ export default function DashboardPage() {
         return false
       if (
         cardFilter === 'urgente' &&
-        !(
-          (r.priority === 'urgente' || isOverdue(r.dueDate, isClosed(r))) &&
-          !isClosed(r)
-        )
+        !(r.priority === 'urgente' && !isClosed(r))
       )
         return false
 
@@ -103,11 +99,6 @@ export default function DashboardPage() {
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
   const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
   const openRequests = requests.filter((request) => !isClosed(request))
-  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, isClosed(request)))
-  const dueSoonRequests = openRequests.filter((request) => {
-    const days = businessDaysUntil(request.dueDate)
-    return days >= 0 && days <= 2
-  })
   const returnedRequests = requests.filter(isReturnedForCorrection)
   const averageOpenAge = openRequests.length === 0
     ? 0
@@ -152,8 +143,6 @@ export default function DashboardPage() {
         {/* Indicadores operativos calculados sobre las solicitudes cargadas desde el backend. */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
-            { label: 'Vencidas', value: overdueRequests.length, hint: 'Requieren acción', className: 'text-destructive' },
-            { label: 'Por vencer', value: dueSoonRequests.length, hint: 'En los próximos 2 días', className: 'text-warning-foreground' },
             { label: 'Ciclo promedio', value: metrics?.averageCycleHours == null ? `${averageOpenAge} d abiertos` : `${Math.round(metrics.averageCycleHours)} h`, hint: metrics?.averageCycleHours == null ? 'Sin cierres medidos todavía' : 'Desde radicación hasta cierre', className: 'text-primary' },
             { label: 'Devoluciones', value: metrics?.returnCount ?? returnedRequests.length, hint: metrics ? 'Históricas del timeline' : 'Activas en la bandeja', className: 'text-foreground' },
           ].map((metric) => (

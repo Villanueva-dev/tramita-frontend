@@ -14,7 +14,6 @@ import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from 
 import { apiErrorMessages } from './api-errors'
 import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
-import { addBusinessDays } from './format'
 import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
 import type {
   AcademicRequest,
@@ -151,11 +150,6 @@ function stageFromState(state: ApiState, type: RequestType) {
   return type === 'novedad_notas' ? 'verificacion' : 'revision'
 }
 
-function deriveDueDate(createdAt: string): string {
-  // El SLA provisional del proceso es de hasta 6 días hábiles, sin depender de prioridad.
-  return addBusinessDays(createdAt, 6)
-}
-
 /** Asignatura tal como la acepta `POST /api/requests`: sin créditos cuando no aplican. */
 type ApiSubjectBody = Omit<SubjectInfo, 'credits'> & { credits?: number }
 
@@ -193,7 +187,6 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     currentState: apiRequest.currentState,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
-    dueDate: deriveDueDate(apiRequest.createdAt),
     studentCedula: apiRequest.studentDocument,
     studentName: apiRequest.studentName,
     subjects: apiRequest.subjects?.map((subject) => ({
@@ -469,7 +462,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
       semester: item.semester,
       subjects: item.subjects,
       reason: item.reason,
-      dueDate: item.dueDate,
     } : item))
   }, [getRequest])
 
