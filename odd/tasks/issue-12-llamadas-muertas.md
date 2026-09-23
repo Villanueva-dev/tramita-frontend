@@ -112,3 +112,13 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
 - `gentle-ai review assess` (RDD apagado): riesgo `medium` (`executable_change`), 339 líneas
   con este documento, `review_due: false` (`under_budget`). Verificación aplicada:
   autoverificación del escritor más la comprobación puntual del padre.
+- T3: diff revisado y aprobado por el usuario; commit `5f1cf71`
+  (`fix(radicacion): radicar ya no reporta un fallo después de crear la solicitud`),
+  6 archivos, +252 −106. Pendiente: abrir el PR.
+- Prueba en vivo (2026-09-23, rama sobre el backend local `412a5e0`, datos ficticios): el
+  formulario no tiene `input[type=file]` y la tarjeta se llama «Justificación». Radicar hizo un
+  solo `POST /requests` (`201`) y ninguna subida; la página navegó al detalle con el aviso de
+  éxito y sin errores, y la bandeja pasó de 40 a 41 solicitudes (una sola del estudiante de
+  prueba). El detalle cargó dos veces porque Strict Mode ejecuta los efectos dos veces en
+  desarrollo (activo por defecto con el App Router, `reactStrictMode.md` de Next); cada carga
+  todavía pide `GET /documents` (404), que retira PR-2.
