@@ -65,8 +65,10 @@ comportamiento observable fijado y la forma del dato deferida al diseño.)
 
 #### Scenario: Ausencia de códigos hardcodeados fuera de las pantallas de formato oficial
 
-- GIVEN el código fuente en `app/`, `components/`, `lib/` (excluyendo fixtures y las pantallas
-  que reproducen un formato oficial)
+- GIVEN el código fuente en `app/`, `components/`, `lib/` (excluyendo fixtures, las pantallas
+  que reproducen un formato oficial, y el mapa decorativo de íconos de
+  `components/type-badge.tsx`: asocia dos códigos a un ícono, nunca al rótulo —que siempre sale
+  de `definition.name`— y todo código ausente cae a un ícono neutro sin romper la pantalla)
 - WHEN se busca cualquier `code` literal de trámite (p. ej. `ADICION_CREDITOS`)
 - THEN la búsqueda devuelve 0 ocurrencias fuera de esas exclusiones
 
@@ -186,6 +188,15 @@ se registre», «Trámite cerrado») ni prohibía una fila adicional derivada de
 - WHEN se abre su detalle
 - THEN se muestra «Depende de la acción que se registre», sin elegir uno de los
   responsables
+
+#### Scenario: Sin transiciones disponibles en un estado no final
+
+- GIVEN una solicitud cuyo `currentState.isFinal` es `false` y cuyas transiciones
+  salientes llegaron vacías o ausentes (dato no disponible en el cliente, no una
+  respuesta del backend: el motor nunca deja un estado no final sin salida)
+- WHEN se abre su detalle
+- THEN el sistema **MUST NOT** afirmar responsable alguno
+- AND **MUST NOT** presentar el texto reservado para responsables divergentes
 
 #### Scenario: Estado final sin responsable
 

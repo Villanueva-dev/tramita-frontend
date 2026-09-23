@@ -13,7 +13,9 @@ const ICON_BY_CODE: Record<string, { Icon: LucideIcon; testId: string }> = {
 const NEUTRAL_ICON = { Icon: CircleHelp, testId: 'type-badge-icon-neutral' }
 
 export function TypeBadge({ code, name }: { code: string; name: string }) {
-  const { Icon, testId } = ICON_BY_CODE[code] ?? NEUTRAL_ICON
+  // `ICON_BY_CODE[code]` resolvería claves heredadas del prototipo (p. ej. "constructor")
+  // en vez de `undefined`: `hasOwn` distingue una clave propia de una heredada.
+  const { Icon, testId } = Object.hasOwn(ICON_BY_CODE, code) ? ICON_BY_CODE[code] : NEUTRAL_ICON
   return (
     <Badge variant="info">
       <Icon data-testid={testId} />

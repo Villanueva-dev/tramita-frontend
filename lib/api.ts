@@ -8,6 +8,7 @@
 // - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
 import type {
+  InboxEntry,
   PublicReceipt,
   PublicRequestBody,
   Request,
@@ -217,11 +218,35 @@ export async function changePassword(
 // sola causa de 422 (los datos inválidos por Bean Validation salen 400). Nunca
 // se inspecciona el texto de `detail` para adivinar el campo.
 
-/** Catálogo de trámites vigentes (US1) — insumo del selector de registro. */
+/**
+ * Catálogo de trámites vigentes (US1) — insumo del selector de registro.
+ *
+ * La 007 amplía `/workflow-definitions` para que cada definición traiga sus `states`
+ * (`WorkflowDefinitionDetailResponse`, contrato :263-282). Esta función sigue tipando
+ * `WorkflowDefinition[]` a propósito: `states` no se agrega acá porque ese mismo tipo
+ * también tipa la definición anidada en `Request`, `RequestSummary` e `InboxEntry`,
+ * donde el backend NO envía `states` — agregarlo ahí afirmaría un campo que nunca llega.
+ * Nada en esta change lee `states[]` (el inicio sale de `currentState.isInitial`, D3 de
+ * `design.md`); el día que una pantalla lo necesite, se tipa con su propio tipo.
+ */
 export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   const res = await apiFetch('/workflow-definitions')
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as WorkflowDefinition[]
+}
+
+/**
+ * Bandeja de trabajo de un responsable (007, contrato :35-119): las solicitudes que
+ * esperan su acción, en el orden que decide el servidor (de la que más espera a la que
+ * menos). `limit` es requerido en la firma a propósito: el contrato exige que quien llama
+ * decida cuánto pide (:92-95), así que no hay un default silencioso en el cliente.
+ */
+export async function getInbox(responsible: string, limit: number): Promise<InboxEntry[]> {
+  const res = await apiFetch(
+    `/requests/inbox?responsible=${encodeURIComponent(responsible)}&limit=${limit}`,
+  )
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as InboxEntry[]
 }
 
 /** Campo del formulario al que se ata el 422 de `createRequest` (definición inexistente). */

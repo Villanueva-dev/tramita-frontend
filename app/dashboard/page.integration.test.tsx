@@ -14,6 +14,11 @@ import { TramitaProvider } from '@/lib/store'
  * es de módulo: los dos montajes no conviven en el mismo archivo.
  */
 
+// Spy estable (vi.hoisted): un `vi.fn()` nuevo en cada llamada a `useAuth` cambiaría la
+// dependencia del efecto de `useCoordinationInbox` en cada render y lo pondría en bucle
+// (design.md, «Trampas de estas pruebas»).
+const sessionExpired = vi.hoisted(() => vi.fn())
+
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
@@ -23,6 +28,7 @@ vi.mock('@/lib/auth-store', () => ({
     user: { email: 'coordinacion@correo.test' },
     login: vi.fn(),
     logout: vi.fn(),
+    sessionExpired,
   }),
 }))
 vi.mock('next/navigation', () => ({
@@ -55,15 +61,20 @@ function problem(title: string, status: number) {
 }
 
 /**
- * El provider consulta el catálogo al montar, así que el stub enruta por URL.
- * `onSearch` decide qué responde cada búsqueda, en orden de llamada.
+ * El stub enruta por URL. `/requests/inbox` (la bandeja, C7) responde por separado de
+ * `/requests?search=` (la búsqueda): antes de este endurecimiento, una carga de la
+ * bandeja al montar habría consumido la primera respuesta encolada para una búsqueda
+ * (design.md, «Arreglo del stub de fetch en la integración»). `onSearch` sigue
+ * decidiendo qué responde cada búsqueda, en orden de llamada. Cualquier otra URL —
+ * incluida `/workflow-definitions`, sin consumidor desde que C5 borró el efecto que la
+ * llamaba— sigue arrojando, para que una llamada inesperada se vea como error.
  */
 function stubFetch(...onSearch: Response[]) {
   const queue = [...onSearch]
   const spy = vi.fn((input: RequestInfo | URL) => {
     const url = String(input)
-    if (url.includes('/workflow-definitions')) return Promise.resolve(json([]))
-    if (url.includes('/requests')) {
+    if (url.includes('/requests/inbox')) return Promise.resolve(json([]))
+    if (url.includes('/requests?search=')) {
       return Promise.resolve(queue.shift() ?? json([]))
     }
     throw new Error(`URL no esperada en la prueba: ${url}`)
@@ -122,5 +133,40 @@ describe('DashboardPage con el store real', () => {
     // El mínimo lo impone el contrato (`@Size(min = 2)`): la guarda evita el
     // 400, no solo el mensaje.
     expect(spy.mock.calls.length).toBe(afterFirstSearch)
+  })
+})
+
+describe('DashboardPage con el store real — la bandeja convive con la búsqueda', () => {
+  it('cargar la bandeja al montar no consume las respuestas encoladas de la búsqueda', async () => {
+    const spy = stubFetch(json([MATCH]))
+    render(<TramitaProvider><DashboardPage /></TramitaProvider>)
+
+    await waitFor(() => {
+      const inboxCalls = spy.mock.calls.filter(([input]) => String(input).includes('/requests/inbox'))
+      expect(inboxCalls).toHaveLength(1)
+    })
+    const [inboxCall] = spy.mock.calls.filter(([input]) => String(input).includes('/requests/inbox'))
+    expect(String(inboxCall[0])).toBe('/api/requests/inbox?responsible=COORDINACION&limit=50')
+
+    search('Pérez')
+    await waitFor(() => {
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('buscar después de que la bandeja cargó sigue funcionando: el resultado mostrado es el de la búsqueda, no el de la bandeja', async () => {
+    stubFetch(json([MATCH]))
+    render(<TramitaProvider><DashboardPage /></TramitaProvider>)
+
+    // La bandeja del stub responde vacía por defecto: confirma que ya cargó, sin buscar.
+    await waitFor(() => {
+      expect(screen.getByText(/no hay solicitudes pendientes/i)).toBeDefined()
+    })
+
+    search('Pérez')
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    })
   })
 })

@@ -104,20 +104,29 @@ export type Responsibility =
   | { kind: 'closed' }
   | { kind: 'single'; who: string }
   | { kind: 'varies' }
+  | { kind: 'unknown' }
 
 /**
  * `project.md` fija que el dato operativo central es «ahora de quién depende». Ese
  * responsable no vive en `State`: se deriva de `availableTransitions[].responsible`. Tipo
  * estructural, no `AcademicRequest`, porque `AcademicRequest.availableTransitions` es
  * opcional y este módulo no depende del modelo del store (C4a, `design.md` D4).
+ *
+ * El backend nunca deja un estado no final sin transiciones salientes (007 FR-014): las
+ * rechaza al configurar el motor. Si igual llegan vacías o ausentes, es dato faltante en
+ * el cliente (por ejemplo, `refreshRequest` falló y quedó el resumen de la búsqueda, sin
+ * `availableTransitions`) — no responsables que difieran.
  */
 export function currentResponsibility(request: {
   currentState: State
   availableTransitions?: AvailableTransition[]
 }): Responsibility {
   if (request.currentState.isFinal) return { kind: 'closed' }
+  if (!request.availableTransitions || request.availableTransitions.length === 0) {
+    return { kind: 'unknown' }
+  }
   const responsibilities = [
-    ...new Set((request.availableTransitions ?? []).map((transition) => transition.responsible)),
+    ...new Set(request.availableTransitions.map((transition) => transition.responsible)),
   ]
   return responsibilities.length === 1
     ? { kind: 'single', who: responsibilities[0] }

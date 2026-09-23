@@ -13,8 +13,9 @@ import {
   advanceRequest,
   ADVANCE_REQUEST_422_FIELD,
   submitPublicRequest,
+  getInbox,
 } from './api'
-import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition, InboxEntry } from './types'
 import type { CreateRequestBody } from './api'
 import type { PublicRequestBody, PublicReceipt } from './types'
 
@@ -455,6 +456,56 @@ describe('advanceRequest', () => {
  * el formato institucional que circula para firmarse. La pantalla lo descartaba y guardaba
  * `constancia_{id}.pdf`, un nombre que ese formato no tiene.
  */
+describe('getInbox', () => {
+  it('pide GET /api/requests/inbox con responsible y limit explícitos y devuelve el arreglo tal cual', async () => {
+    const entries: InboxEntry[] = [
+      {
+        id: 'entry-1',
+        definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+        studentName: 'Estudiante de prueba 1',
+        currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
+        createdAt: '2026-08-20T15:00:00-05:00',
+        waitingSince: '2026-09-20T15:00:00-05:00',
+        pendingResponsible: 'COORDINACION',
+        origin: 'PUBLIC_LINK',
+      },
+    ]
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, entries))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await getInbox('COORDINACION', 50)
+
+    expect(result).toEqual(entries)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/requests/inbox?responsible=COORDINACION&limit=50',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('devuelve lista vacía sin lanzar ante una respuesta 200 vacía', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, [])))
+
+    const result = await getInbox('COORDINACION', 50)
+
+    expect(result).toEqual([])
+  })
+
+  it('lanza ApiError con status 401 sin sesión', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
+
+    await expect(getInbox('COORDINACION', 50)).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('lanza ApiError con status 400 cuando responsible o limit son inválidos', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(problemResponse(400, 'Bad Request', 'limit fuera de rango')),
+    )
+
+    await expect(getInbox('COORDINACION', 50)).rejects.toMatchObject({ status: 400 })
+  })
+})
+
 describe('filenameFromContentDisposition', () => {
   const FB = 'descarga.pdf'
 

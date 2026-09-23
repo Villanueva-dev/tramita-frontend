@@ -432,28 +432,32 @@ Con `ask-on-risk`, `sdd-tasks` preguntará si se divide. Dos cortes posibles, **
 
 ## Success Criteria
 
-- [ ] El tablero carga la bandeja al entrar, sin buscar, con `COORDINATION_RESPONSIBLE` y `limit`
+> **Verificados el 2026-09-22 en `9731963`** por `sdd-verify`
+> (`verify-report.md`, sección «Success Criteria»): 16 de 17 cumplidos con evidencia; el 17
+> (cierre del #9) depende del merge de las cinco PRs, decisión del responsable del proyecto.
+
+- [x] El tablero carga la bandeja al entrar, sin buscar, con `COORDINATION_RESPONSIBLE` y `limit`
       explícito.
-- [ ] El orden del DOM es el del servidor, probado con un fixture no ordenado. El mutante 2 queda en rojo.
-- [ ] «Esperando desde hace N días» sale de `waitingSince`. El mutante 1 queda en rojo.
-- [ ] El origen se presenta en sus tres casos, incluido `null` → «Origen no registrado», probado con mock.
-- [ ] «Puede haber más solicitudes» aparece con `length === limit` y no con `limit − 1`.
-- [ ] La lista vacía muestra un estado explicado, no un error. El 401 termina la sesión.
-- [ ] La búsqueda sigue funcionando: sus tests existentes siguen en verde.
-- [ ] Sin vencimiento: `rg -n -i 'venc(e|er|ida|idas|imiento)|d[ií]as restantes|dueDate|isOverdue|businessDaysUntil|addBusinessDays' app components lib -g '!*.test.*'`
+- [x] El orden del DOM es el del servidor, probado con un fixture no ordenado. El mutante 2 queda en rojo.
+- [x] «Esperando desde hace N días» sale de `waitingSince`. El mutante 1 queda en rojo.
+- [x] El origen se presenta en sus tres casos, incluido `null` → «Origen no registrado», probado con mock.
+- [x] «Puede haber más solicitudes» aparece con `length === limit` y no con `limit − 1`.
+- [x] La lista vacía muestra un estado explicado, no un error. El 401 termina la sesión.
+- [x] La búsqueda sigue funcionando: sus tests existentes siguen en verde.
+- [x] Sin vencimiento: `rg -n -i 'venc(e|er|ida|idas|imiento)|d[ií]as restantes|dueDate|isOverdue|businessDaysUntil|addBusinessDays' app components lib -g '!*.test.*'`
       → 0. El mutante 3 queda en rojo.
-- [ ] Sin stepper ni etapas: `rg -n 'WorkflowStepper|stageFromState|currentStage' app components lib` → 0.
-- [ ] #9(a): un test muestra dos estados intermedios distintos (Facultad y Registro Nacional) con
+- [x] Sin stepper ni etapas: `rg -n 'WorkflowStepper|stageFromState|currentStage' app components lib` → 0.
+- [x] #9(a): un test muestra dos estados intermedios distintos (Facultad y Registro Nacional) con
       nombres distinguibles en pantalla.
-- [ ] #9(b): un test con un código de definición desconocido no muestra «Adición de créditos» en
+- [x] #9(b): un test con un código de definición desconocido no muestra «Adición de créditos» en
       ningún lugar. El mutante 4 queda en rojo.
-- [ ] `isInitialState` lee `currentState.isInitial`: `rg -n 'initial: true' lib/request-state.ts` → 0,
+- [x] `isInitialState` lee `currentState.isInitial`: `rg -n 'initial: true' lib/request-state.ts` → 0,
       y el comentario de deuda dice qué tercio se pagó.
-- [ ] Configuración retirada: `app/settings/` no existe y
+- [x] Configuración retirada: `app/settings/` no existe y
       `rg -n "workflowConfig|updateWorkflowConfig|RequestTypeConfig|WorkflowStageConfig|'/settings'" app components lib`
       → 0.
-- [ ] La etiqueta vive una sola vez: `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
-- [ ] `git diff main -- lib/format.ts` no toca `HAS_OFFSET` ni `parseServerDateTime`.
-- [ ] `pnpm lint`, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm test` y `pnpm build` en verde, con
+- [x] La etiqueta vive una sola vez: `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
+- [x] `git diff main -- lib/format.ts` no toca `HAS_OFFSET` ni `parseServerDateTime`.
+- [x] `pnpm lint`, `rm -rf .next && pnpm exec tsc --noEmit`, `pnpm test` y `pnpm build` en verde, con
       el resumen de vitest (archivos y tests) reportado.
 - [ ] Tras el merge: `gh issue view 9 --json state,closedAt` → `CLOSED`.

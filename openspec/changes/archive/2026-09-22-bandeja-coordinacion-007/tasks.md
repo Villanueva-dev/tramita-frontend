@@ -422,54 +422,54 @@ recuperable con `git show ede7bc3:app/settings/page.tsx` (ruta no re-medida en e
 **Depende de**: C2 (`InboxEntry.currentState` es un `State`, que ya trae `isInitial`).
 **Commit planeado**: `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
 
-- [ ] 6.1 RED — `lib/api.test.ts`, escenario «`responsible` y `limit` viajan explícitos»
+- [x] 6.1 RED — `lib/api.test.ts`, escenario «`responsible` y `limit` viajan explícitos»
       (`coordination-inbox/spec.md`): `getInbox('COORDINACION', 50)` llama a `apiFetch` con
       exactamente `/requests/inbox?responsible=COORDINACION&limit=50` y devuelve el arreglo tal
       cual.
-- [ ] 6.2 RED — Extender: `getInbox` devuelve `[]` sin lanzar ante una respuesta `200` vacía.
-- [ ] 6.3 RED — Extender: una respuesta `401` hace que `getInbox` lance `ApiError` con
+- [x] 6.2 RED — Extender: `getInbox` devuelve `[]` sin lanzar ante una respuesta `200` vacía.
+- [x] 6.3 RED — Extender: una respuesta `401` hace que `getInbox` lance `ApiError` con
       `status: 401`.
-- [ ] 6.4 RED — Extender: una respuesta `400` hace que `getInbox` lance `ApiError` con
+- [x] 6.4 RED — Extender: una respuesta `400` hace que `getInbox` lance `ApiError` con
       `status: 400`.
-- [ ] 6.5 GREEN — Agregar `InboxOrigin` e `InboxEntry` a `lib/types.ts`, según el bloque
+- [x] 6.5 GREEN — Agregar `InboxOrigin` e `InboxEntry` a `lib/types.ts`, según el bloque
       *Interfaces / Contracts* del diseño (sin `studentDocument`; `origin: InboxOrigin | null`).
-- [ ] 6.6 GREEN — Agregar `getInbox(responsible, limit)` a `lib/api.ts`, con el mismo patrón
+- [x] 6.6 GREEN — Agregar `getInbox(responsible, limit)` a `lib/api.ts`, con el mismo patrón
       `apiFetch` + `ApiError` sobre `problem+json` que `searchRequests`/`getRequest`; agregar el
       comentario D5 sobre `listWorkflowDefinitions` (`:220-225`) que explica por qué `states`
       queda sin tipar en esta change.
-- [ ] 6.7 RED — `lib/use-coordination-inbox.test.ts`: mock de `useAuth` con `sessionExpired` como
+- [x] 6.7 RED — `lib/use-coordination-inbox.test.ts`: mock de `useAuth` con `sessionExpired` como
       spy `vi.hoisted` **estable** (trampa documentada en `design.md`); el hook consulta con
       `responsible=COORDINACION&limit=50` al montar.
-- [ ] 6.8 RED — Extender, escenario «El DOM respeta el orden del servidor», a nivel de hook: el
+- [x] 6.8 RED — Extender, escenario «El DOM respeta el orden del servidor», a nivel de hook: el
       estado transiciona `loading` → `ready` con `entries` en el orden exacto que devolvió el stub
       (mutante 2a: sin reordenar en el hook).
-- [ ] 6.9 RED (mutante extra) — Extender: `mayHaveMore` es `true` con exactamente `INBOX_LIMIT`
+- [x] 6.9 RED (mutante extra) — Extender: `mayHaveMore` es `true` con exactamente `INBOX_LIMIT`
       (50) entradas y `false` con `INBOX_LIMIT − 1` (49) — kills `>` en vez de `>=`.
-- [ ] 6.10 RED — Extender, escenario «Bandeja vacía»: un `200` con `[]` resuelve
+- [x] 6.10 RED — Extender, escenario «Bandeja vacía»: un `200` con `[]` resuelve
       `{ status: 'ready', entries: [] }`, no `error`.
-- [ ] 6.11 RED — Extender: un `500` resuelve `{ status: 'error' }` con el `title` del `problem`
+- [x] 6.11 RED — Extender: un `500` resuelve `{ status: 'error' }` con el `title` del `problem`
       (sin `fallback`, para que llegue el mensaje del servidor).
-- [ ] 6.12 RED — Extender: una falla de red (`TypeError`) resuelve `{ status: 'error' }` con «Sin
+- [x] 6.12 RED — Extender: una falla de red (`TypeError`) resuelve `{ status: 'error' }` con «Sin
       conexión con el servidor…».
-- [ ] 6.13 RED — Extender, escenario «401 al cargar la bandeja cierra la sesión»: un `401` llama a
+- [x] 6.13 RED — Extender, escenario «401 al cargar la bandeja cierra la sesión»: un `401` llama a
       `sessionExpired()` exactamente una vez y no produce mensaje.
-- [ ] 6.14 GREEN — Crear `lib/use-coordination-inbox.ts`: `COORDINATION_RESPONSIBLE =
+- [x] 6.14 GREEN — Crear `lib/use-coordination-inbox.ts`: `COORDINATION_RESPONSIBLE =
       'COORDINACION'`, `INBOX_LIMIT = 50`, unión discriminada `InboxState` (`loading | ready |
       error`), `useCoordinationInbox()` con el patrón `useEffect` + `ignore` de
       `lib/use-request-detail.ts:36-72`; deps `[sessionExpired]`; `mayHaveMore = entries.length >=
       INBOX_LIMIT`; `401` → `sessionExpired()` sin mensaje; `400` → `apiErrorMessages(err, {
       badRequest })`; otro → `apiErrorMessages(err)` sin `fallback`.
-- [ ] 6.15 Confirmar anonimización — los fixtures de `InboxEntry` usados en 6.7–6.13 siguen la
+- [x] 6.15 Confirmar anonimización — los fixtures de `InboxEntry` usados en 6.7–6.13 siguen la
       regla de `design.md` («Fixtures anonimizados»): nombres «Estudiante de prueba N», correos
       `@example.com`/`@correo.test`, identificadores sintéticos, ningún documento real.
-- [ ] 6.16 Mutante (2a) — Agregar un `.sort()` sobre `entries` dentro del hook → confirmar que 6.8
+- [x] 6.16 Mutante (2a) — Agregar un `.sort()` sobre `entries` dentro del hook → confirmar que 6.8
       queda en rojo → revertir.
-- [ ] 6.17 Mutante (extra) — Cambiar `>=` por `>` en `mayHaveMore` → confirmar que 6.9 queda en
+- [x] 6.17 Mutante (extra) — Cambiar `>=` por `>` en `mayHaveMore` → confirmar que 6.9 queda en
       rojo → revertir.
-- [ ] 6.18 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
-- [ ] 6.19 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
+- [x] 6.18 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → 1.
+- [x] 6.19 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`;
       `pnpm build`.
-- [ ] 6.20 Commit `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
+- [x] 6.20 Commit `feat(bandeja): getInbox y useCoordinationInbox, sin UI`
 
 **Criterios de aceptación**: `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (decisión 12, la
 bandeja no toca `store.tsx`); ambos mutantes de esta unidad muertos.
@@ -491,100 +491,100 @@ P3)` (C7b).
 
 ### C7a — Endurecer el stub de `fetch` de la integración (primer paso, obligatorio antes de C7b)
 
-- [ ] 7.1 GREEN (sin RED — arreglo de infraestructura de test, verde sobre el código actual) —
+- [x] 7.1 GREEN (sin RED — arreglo de infraestructura de test, verde sobre el código actual) —
       `app/dashboard/page.integration.test.tsx`: reescribir `stubFetch` (`:66-69`) para que
       `/requests/inbox` responda con su propia respuesta (por defecto `json([])`),
       `/requests?search=` siga usando la cola existente, y cualquier otra URL siga arrojando
       `throw` como hoy. Correr `pnpm test` sobre este archivo y confirmar que sigue verde: la
       carga aún no está conectada (C7b no empezó).
-- [ ] 7.2 GREEN — Borrar la ruta `/workflow-definitions` del stub (`:65`) — sin consumidor desde
+- [x] 7.2 GREEN — Borrar la ruta `/workflow-definitions` del stub (`:65`) — sin consumidor desde
       que C5 borró el efecto que la llamaba.
-- [ ] 7.3 Verificación — `pnpm exec vitest run app/dashboard/page.integration.test.tsx` en verde,
+- [x] 7.3 Verificación — `pnpm exec vitest run app/dashboard/page.integration.test.tsx` en verde,
       sin fallos nuevos.
-- [ ] 7.4 Commit `test(integracion): el stub distingue /requests/inbox de /requests?search=`
+- [x] 7.4 Commit `test(integracion): el stub distingue /requests/inbox de /requests?search=`
 
 ### C7b — La sección de la bandeja y la frase del encabezado
 
-- [ ] 7.5 GREEN — Agregar `ORIGIN_LABELS: Record<InboxOrigin, string>` a `lib/ui-constants.ts`
+- [x] 7.5 GREEN — Agregar `ORIGIN_LABELS: Record<InboxOrigin, string>` a `lib/ui-constants.ts`
       (`COORDINATION` → «Coordinación», `PUBLIC_LINK` → «Enlace público», `null` → «Origen no
       registrado»).
-- [ ] 7.6 RED — `components/dashboard/coordination-inbox.test.tsx`, escenario «Bandeja vacía» y el
+- [x] 7.6 RED — `components/dashboard/coordination-inbox.test.tsx`, escenario «Bandeja vacía» y el
       caso `loading`: `status: 'loading'` no muestra filas ni error; `status: 'ready'` con
       `entries: []` muestra un mensaje explicado, no un error.
-- [ ] 7.7 RED — Extender: `status: 'error'` muestra los mensajes dentro de `role="alert"`.
-- [ ] 7.8 RED — Extender, escenario «Una fila muestra sus cinco datos»: con un fixture completo,
+- [x] 7.7 RED — Extender: `status: 'error'` muestra los mensajes dentro de `role="alert"`.
+- [x] 7.8 RED — Extender, escenario «Una fila muestra sus cinco datos»: con un fixture completo,
       se muestran `definition.name`, `studentName`, `currentState.name`, la antigüedad y el
       origen.
-- [ ] 7.9 RED — Extender, escenario «El DOM respeta el orden del servidor» (mutante 2b): las filas
+- [x] 7.9 RED — Extender, escenario «El DOM respeta el orden del servidor» (mutante 2b): las filas
       aparecen en el orden exacto del fixture, usando el fixture no trivialmente ordenable de
       `design.md` («Regla del fixture para el orden»): `waitingSince` `[5, 20, 1]` días,
       `createdAt` `[40, 10, 60]`, `studentName` en un tercer orden independiente.
-- [ ] 7.10 RED — Extender, escenario «La antigüedad sale de `waitingSince`, no de `createdAt`»
+- [x] 7.10 RED — Extender, escenario «La antigüedad sale de `waitingSince`, no de `createdAt`»
       (mutante 1): un fixture con `createdAt` hace 60 días y `waitingSince` hace 1 día, ambos
       `-05:00`, `now` inyectado, muestra «Esperando desde hace 1 día».
-- [ ] 7.11 RED — Extender, escenarios «Origen por enlace público / por Coordinación / nulo se
+- [x] 7.11 RED — Extender, escenarios «Origen por enlace público / por Coordinación / nulo se
       presenta sin alarmar»: los tres casos de `origin`, incluido `null` con estilo neutro (mismo
       estilo que los otros dos, no de error).
-- [ ] 7.12 RED — Extender, escenarios «Aviso presente al llegar al límite» / «Sin aviso un
+- [x] 7.12 RED — Extender, escenarios «Aviso presente al llegar al límite» / «Sin aviso un
       elemento por debajo del límite»: el aviso de truncamiento aparece con `mayHaveMore: true` y
       está ausente con `mayHaveMore: false`.
-- [ ] 7.13 RED — Extender: el nombre del estudiante es un `<Link>` a `/requests/{id}` (mockear
+- [x] 7.13 RED — Extender: el nombre del estudiante es un `<Link>` a `/requests/{id}` (mockear
       `next/navigation` como en `components/dashboard/requests-table.test.tsx:7-9`).
-- [ ] 7.14 RED — Extender, escenario «Ninguna fila expone número de documento»: ninguna fila
+- [x] 7.14 RED — Extender, escenario «Ninguna fila expone número de documento»: ninguna fila
       muestra «C.C.» ni una columna de documento.
-- [ ] 7.15 RED — Extender: ningún texto de la bandeja matchea `/venc/i` (consistencia con el
+- [x] 7.15 RED — Extender: ningún texto de la bandeja matchea `/venc/i` (consistencia con el
       requisito «Ausencia de vencimiento en toda la aplicación»).
-- [ ] 7.16 GREEN — Crear `components/dashboard/coordination-inbox.tsx`:
+- [x] 7.16 GREEN — Crear `components/dashboard/coordination-inbox.tsx`:
       `CoordinationInbox({ inbox, now })` presentacional, una única `<table>` con desplazamiento
       horizontal en móvil (no el par tabla + tarjetas de `RequestsTable`); columnas Estudiante
       (enlace) · Trámite (`TypeBadge`) · Estado · Esperando · Origen; estados `loading` / `error`
       / vacío / filas / aviso, según *Interfaces / Contracts* y *Data Flow* del diseño.
-- [ ] 7.17 RED — `app/dashboard/page.test.tsx`: mockear `@/lib/use-coordination-inbox` con el
+- [x] 7.17 RED — `app/dashboard/page.test.tsx`: mockear `@/lib/use-coordination-inbox` con el
       patrón `importOriginal` (`vi.mock('@/lib/use-coordination-inbox', async (importOriginal) =>
       ({ ...(await importOriginal()), useCoordinationInbox }))`); agregar el helper
       `renderDashboard({ tramita, inbox })` que fija **ambos** mocks en cada test (para que ningún
       test herede el `mockReturnValue` de otro).
-- [ ] 7.18 RED — Extender, escenario «La bandeja aparece sin que el usuario busque»: la sección
+- [x] 7.18 RED — Extender, escenario «La bandeja aparece sin que el usuario busque»: la sección
       aparece al entrar al tablero, sin buscar.
-- [ ] 7.19 RED — Extender, escenarios «La frase cuenta la bandeja…» / «Singular cuando hay
+- [x] 7.19 RED — Extender, escenarios «La frase cuenta la bandeja…» / «Singular cuando hay
       exactamente una»: la frase del encabezado dice «Tiene N solicitud(es) esperando su acción»,
       en singular (N=1) y en plural (N≠1).
-- [ ] 7.20 RED — Extender, escenarios «"o más" cuando la bandeja llega al límite» / «Sin "o más"
+- [x] 7.20 RED — Extender, escenarios «"o más" cuando la bandeja llega al límite» / «Sin "o más"
       un elemento por debajo del límite»: la frase incluye «o más» con `INBOX_LIMIT` entradas y no
       la incluye con `INBOX_LIMIT − 1`.
-- [ ] 7.21 RED — Extender, escenario «Sin mención de atención prioritaria»: la frase nunca
+- [x] 7.21 RED — Extender, escenario «Sin mención de atención prioritaria»: la frase nunca
       menciona «atención prioritaria» ni ningún conteo de prioridad.
-- [ ] 7.22 RED — Extender: la frase del encabezado está ausente mientras `status: 'loading'`.
-- [ ] 7.23 RED — Extender `app/dashboard/page.integration.test.tsx`, escenario «La bandeja
+- [x] 7.22 RED — Extender: la frase del encabezado está ausente mientras `status: 'loading'`.
+- [x] 7.23 RED — Extender `app/dashboard/page.integration.test.tsx`, escenario «La bandeja
       convive con la búsqueda existente»: cargar la bandeja al montar **no** consume las
       respuestas encoladas de la búsqueda; hay una única llamada a la bandeja con
       `responsible=COORDINACION&limit=50`; usar el spy `vi.hoisted` de `sessionExpired` en el mock
       de auth (`:20-27`).
-- [ ] 7.24 RED — Extender el mismo archivo, escenario «Buscar después de que la bandeja cargó
+- [x] 7.24 RED — Extender el mismo archivo, escenario «Buscar después de que la bandeja cargó
       sigue funcionando»: tras el montaje, ejecutar una búsqueda por cédula y confirmar que el
       resultado mostrado es el de la búsqueda, no el de la bandeja.
-- [ ] 7.25 GREEN — En `app/dashboard/page.tsx`: llamar a `useCoordinationInbox()` una sola vez en
+- [x] 7.25 GREEN — En `app/dashboard/page.tsx`: llamar a `useCoordinationInbox()` una sola vez en
       el contenedor; borrar la lógica vieja de la frase del encabezado (`:125-135`) y
       reemplazarla por la derivación del estado del hook (misma regla D8 de «puede haber más»
       para «o más»); montar `<CoordinationInbox inbox={inbox} now={now} />` en el orden:
       encabezado → sección de la bandeja → tarjetas de resumen → indicadores → filtros →
       búsqueda.
-- [ ] 7.26 REFACTOR — Confirmar `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (la bandeja
+- [x] 7.26 REFACTOR — Confirmar `rg -n 'inbox|Inbox|COORDINATION' lib/store.tsx` → 0 (la bandeja
       sigue sin tocar el store).
-- [ ] 7.27 REFACTOR — Renombrar los tests de `app/dashboard/page.test.tsx` que llamaban «bandeja» a
+- [x] 7.27 REFACTOR — Renombrar los tests de `app/dashboard/page.test.tsx` que llamaban «bandeja» a
       los resultados de búsqueda (`:54,158` y el comentario `:47-52`), ahora que existe una
       bandeja real.
-- [ ] 7.28 Confirmar anonimización — los fixtures de `InboxEntry` introducidos en 7.6–7.24 siguen
+- [x] 7.28 Confirmar anonimización — los fixtures de `InboxEntry` introducidos en 7.6–7.24 siguen
       la regla de `design.md` («Fixtures anonimizados»).
-- [ ] 7.29 Mutante (1) — Intercambiar `waitingSince` por `createdAt` en el cálculo de la espera de
+- [x] 7.29 Mutante (1) — Intercambiar `waitingSince` por `createdAt` en el cálculo de la espera de
       `CoordinationInbox` → confirmar que 7.10 queda en rojo → revertir.
-- [ ] 7.30 Mutante (2b) — Agregar un `.sort()`/`.toSorted()` antes de renderizar las filas →
+- [x] 7.30 Mutante (2b) — Agregar un `.sort()`/`.toSorted()` antes de renderizar las filas →
       confirmar que 7.9 queda en rojo → revertir.
-- [ ] 7.31 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → sigue en 1
+- [x] 7.31 Verificación — `rg -n "'COORDINACION'" app components lib -g '!*.test.*'` → sigue en 1
       (declarada una sola vez, en `lib/use-coordination-inbox.ts`).
-- [ ] 7.32 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`
+- [x] 7.32 Verificación — `pnpm lint`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm test`
       (reportar el resumen de vitest: archivos y tests); `pnpm build`.
-- [ ] 7.33 Commit `feat(tablero): carga la bandeja de la Coordinación al entrar (#12, P3)`
+- [x] 7.33 Commit `feat(tablero): carga la bandeja de la Coordinación al entrar (#12, P3)`
 
 **Criterios de aceptación**: todos los bullets restantes de *Success Criteria* en `proposal.md`
 quedan satisfechos; mutantes 1 y 2b muertos en esta unidad.
@@ -600,27 +600,74 @@ producción.
 **Depende de**: todas las unidades anteriores que entren en la PR (según el corte que el humano
 elija).
 
-- [ ] 8.1 Redactar el checklist del cuerpo de la PR: `Closes #9` **en inglés, en texto plano,
+> **Nota (2026-09-22)**: la entrega se hizo en cinco PRs apiladas (Corte A, `stacked-to-main`), así
+> que las obligaciones 8.1–8.5 se repartieron entre ellas según la unidad que cada una contiene:
+> #44 (A-1, C1), #45 (A-2, C2+C3), #46 (A-3, C4), #47 (A-4, C5) y la PR de A-5 (C6+C7).
+
+- [x] 8.1 Redactar el checklist del cuerpo de la PR: `Closes #9` **en inglés, en texto plano,
       nunca entre backticks** (`CLAUDE.md`, «Idioma y convenciones»; `proposal.md`, «Issues
-      relacionados»); «Relacionado: #10, #12, #13 (parcial)».
-- [ ] 8.2 Declarar en el cuerpo de la PR las tres decisiones del backend: sin plazos ni
+      relacionados»); «Relacionado: #10, #12, #13 (parcial)». *Hecho*: `Closes #9` en texto plano
+      en el cuerpo de #46 (la PR que contiene C4); «Relacionado» repartido: #9/#10 en #44, #9/#10 en
+      #45, #10 en #46, #13 (parcial)/#10/#9 en #47, #12/#10/#36 en A-5.
+- [x] 8.2 Declarar en el cuerpo de la PR las tres decisiones del backend: sin plazos ni
       vencimiento (`Tramita#42` abierto, sin ventana institucional citable); sin orden lineal de
       estados (FR-011b del contrato 007); la espera se mide desde `waitingSince`
-      (bandeja)/última entrada del timeline (detalle), nunca desde `createdAt`.
-- [ ] 8.3 Señalar en el cuerpo de la PR, sin nombrar a la persona, que este cambio retira la
+      (bandeja)/última entrada del timeline (detalle), nunca desde `createdAt`. *Hecho*: las tres
+      en #44 («Por qué desaparece el vencimiento»); la 2 de nuevo en #46; la 1 y la 3 de nuevo en A-5.
+- [x] 8.3 Señalar en el cuerpo de la PR, sin nombrar a la persona, que este cambio retira la
       pantalla de Configuración y `workflowConfig` que `ede7bc3` (2026-09-09) restauró — con la
       tabla de evidencia de `proposal.md`, «Decisión consciente: baja de la pantalla de
-      Configuración».
-- [ ] 8.4 Señalar en el cuerpo de la PR el cambio visible de mayúsculas del tipo («Adición de
+      Configuración». *Hecho*: #47, sección «Por qué», con la remisión a la tabla de la propuesta.
+- [x] 8.4 Señalar en el cuerpo de la PR el cambio visible de mayúsculas del tipo («Adición de
       Créditos» → «Adición de créditos», forma del seed del backend) y que el ícono por trámite se
-      conserva, con respaldo neutro para códigos desconocidos.
-- [ ] 8.5 Citar en el cuerpo de la PR las referencias `archivo:línea` reales tocadas (de la tabla
+      conserva, con respaldo neutro para códigos desconocidos. *Hecho*: #45, sección «Cambio visible».
+- [x] 8.5 Citar en el cuerpo de la PR las referencias `archivo:línea` reales tocadas (de la tabla
       *File Changes* de `design.md`) y el resumen final de `pnpm test` (archivos y tests),
       comparado contra la línea base medida el 2026-09-22: 21 archivos, 165 tests, verde, 12,3 s.
+      *Hecho*: cada PR cita los archivos de su unidad y su resumen de vitest (#44: 21/165; #45:
+      21/176; #46: 22/196; #47: 22/196; A-5: 24/231, +66 tests sobre la línea base).
 - [ ] 8.6 Chequeo opcional en vivo contra el backend de desarrollo:
       `GET /api/requests/inbox?responsible=COORDINACION` con sesión válida. Reiniciar el backend
       mata las sesiones existentes — reautenticar antes de este chequeo. No bloquea la PR.
+      *Pendiente, a cargo del responsable del proyecto*: exige una sesión con la contraseña del
+      entorno, que el agente no lee. Declarado en el cuerpo de la PR A-5.
 - [ ] 8.7 Tras el merge: `gh issue view 9 --json state,closedAt` → confirmar `CLOSED`.
+      *Pendiente*: el merge de las cinco PRs es decisión del responsable del proyecto; #9 se cierra
+      cuando #46 llegue a `main`.
 
 **Criterios de aceptación**: todos los bullets de *Success Criteria* en `proposal.md` marcados; el
 cuerpo de la PR incluye las cuatro declaraciones de 8.1–8.4.
+
+## Fase 9 — Correcciones del review con agente limpio
+
+**Propósito**: aplicar los hallazgos del review con agente limpio (reglamento
+`../Tramita/docs/workflow/code-review-agente-limpio.md`) sobre el rango `9bf95a4..9731963`,
+tras re-verificar cada uno con comandos propios y probar la corrección en un worktree descartable
+(`spike/review-007`). Decidido por el responsable del proyecto el 2026-09-22: los cinco, tal cual.
+**Depende de**: Fases 1–7. Commits: `de68c70` (código y tests), `9c763d1` (spec).
+
+- [x] 9.1 M-2 — `currentResponsibility` devuelve `{ kind: 'unknown' }` cuando un estado no final
+      llega sin transiciones (dato ausente en el cliente; el motor nunca deja un estado no final sin
+      salida); `CurrentStateBlock` lo pinta como «Sin información del responsable». RED observado:
+      `expected { kind: 'varies' } to deeply equal { kind: 'unknown' }`. Escenario nuevo en la spec.
+- [x] 9.2 B-3 — `TypeBadge` usa `Object.hasOwn` sobre el mapa de íconos. RED observado con
+      `code="constructor"`: `Element type is invalid … got: undefined`. La spec recoge la excepción
+      decorativa del mapa en «Ausencia de códigos hardcodeados…».
+- [x] 9.3 M-1 — el 400 de la bandeja muestra «No se pudo consultar la bandeja de la Coordinación.»
+      en lugar del genérico de «datos ingresados». RED observado: mensaje viejo recibido.
+- [x] 9.4 B-1 — el test del 401 afirma además que el hook no queda en `error` ni con mensajes.
+      Mutante «quitar el `return` tras `sessionExpired()`» → rojo → revertido.
+- [x] 9.5 B-2 — los fixtures de `CoordinationInbox` escriben el mismo instante con `-05:00` y el
+      comentario deja de afirmar que el backend no manda offset. Hallazgo propio: el mutante «quitar
+      el offset» sigue sobreviviendo porque el margen de 1 h más 5 h nunca cruza un día; matarlo
+      exigiría un fixture de frontera, no agregado por alcance.
+- [x] 9.6 Verificación de registro en la rama real: `pnpm lint` exit 0; `pnpm exec tsc --noEmit`
+      exit 0 (sin `rm -rf .next`: `next dev` vivo); `pnpm test` → 24 archivos, 236 tests en verde
+      (+5 sobre 231).
+- [ ] 9.7 `pnpm build` en la rama real: **no ejecutado** porque había un `next dev` vivo y el
+      comando lo dejaría sirviendo 500; en el worktree del spike Turbopack rechazó el symlink de
+      `node_modules`. Lo cubre el CI al re-apuntar #48 a `main`, o correrlo con el servidor detenido.
+- [ ] 9.8 B-4 — cinco commits de A-1 a A-3 (`4663858`, `f3de927`, `0d8ca3c`, `ac59e43`,
+      `0bff26c`) sin el pie `Verificado:` de `.gitmessage`; dos sin cuerpo. **Anotado, no corregido**:
+      exigiría reescribir historia ya pusheada en tres ramas; las cifras que sí citan coinciden con
+      cada árbol (medido por el revisor).
