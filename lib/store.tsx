@@ -38,7 +38,6 @@ export interface NewRequestInput {
   semester: string
   subjects: SubjectInfo[]
   reason: string
-  attachments: Attachment[]
 }
 
 interface ApiDefinition { code: string; name: string; version: number }
@@ -112,7 +111,6 @@ interface TramitaContextValue {
   refreshRequest: (id: string) => Promise<void>
   createRequest: (input: NewRequestInput) => Promise<AcademicRequest>
   transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
-  uploadDocument: (requestId: string, file: File) => Promise<Attachment>
   registerDocumentApproval: (requestId: string, documentId: string, input: DocumentApprovalInput) => Promise<AttachmentApproval>
 }
 
@@ -354,22 +352,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const uploadDocument = useCallback(async (requestId: string, file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    const response = await apiFetch(`/requests/${requestId}/documents`, { method: 'POST', body: form })
-    if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo adjuntar el documento'))
-    const document = await response.json() as ApiDocument
-    return {
-      id: document.id,
-      name: document.originalName,
-      size: `${Math.ceil(document.size / 1024)} KB`,
-      type: document.contentType,
-      sha256: document.sha256,
-      approvals: [],
-    }
-  }, [])
-
   const registerDocumentApproval = useCallback(async (requestId: string, documentId: string, input: DocumentApprovalInput) => {
     const response = await apiFetch(`/requests/${requestId}/documents/${documentId}/approvals`, {
       method: 'POST',
@@ -392,7 +374,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
         definitionCode: typeToCode(input.type),
         studentName: input.studentName,
         studentDocument: input.studentCedula,
-        // El formulario completo se envía al backend; solo los adjuntos siguen diferidos.
         studentCode: input.studentCode,
         studentEmail: input.studentEmail,
         program: input.program,
@@ -403,16 +384,13 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
       }),
     })
     if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo registrar la solicitud'))
-    const created = await loadRequest((await response.json() as ApiRequest).id)
-    // Los adjuntos se suben después de crear la solicitud y reciben su ID de PostgreSQL.
-    const uploadedAttachments = await Promise.all(
-      input.attachments.filter((attachment) => attachment.file).map((attachment) =>
-        uploadDocument(created.id, attachment.file!)),
-    )
-    const complete = { ...created, attachments: uploadedAttachments }
-    setRequests((previous) => [complete, ...previous.filter((request) => request.id !== complete.id)])
-    return complete
-  }, [uploadDocument])
+    // Se arma con la respuesta del propio POST, sin recargar: después del 201 no queda
+    // ninguna otra llamada que pueda convertir este resultado en error. El detalle ya
+    // recarga al montarse (app/requests/[id]/page.tsx).
+    const created = baseRequest(await response.json() as ApiRequest)
+    setRequests((previous) => [created, ...previous.filter((request) => request.id !== created.id)])
+    return created
+  }, [])
 
   const transition = useCallback(async (id: string, targetStateCode: string, comment?: string) => {
     const request = getRequest(id)
@@ -465,9 +443,8 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     refreshRequest,
     createRequest,
     transition,
-    uploadDocument,
     registerDocumentApproval,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition, uploadDocument, registerDocumentApproval])
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition, registerDocumentApproval])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 

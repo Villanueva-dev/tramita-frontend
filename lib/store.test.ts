@@ -1,6 +1,33 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderHook, act, cleanup } from '@testing-library/react'
 
-import { baseRequest, subjectsForApi } from './store'
+import { baseRequest, subjectsForApi, TramitaProvider, useTramita } from './store'
+import type { NewRequestInput } from './store'
+
+// `vi.mock` se eleva al inicio del archivo, antes de esta declaración: su factory solo
+// puede usar variables creadas con `vi.hoisted` (https://vitest.dev/api/vi#vi-mock).
+const apiFetchMock = vi.hoisted(() => vi.fn())
+
+vi.mock('./auth-store', () => ({
+  useAuth: () => ({
+    status: 'authenticated',
+    user: { email: 'coordinacion@uniremington.edu.co', active: true },
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}))
+
+// Mock parcial: conserva el `problemMessage` real (es lo que se quiere ejercitar) y
+// reemplaza solo `apiFetch`, que es la llamada de red que cada prueba controla por ruta.
+vi.mock('./api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./api')>()
+  return { ...actual, apiFetch: apiFetchMock }
+})
+
+afterEach(() => {
+  cleanup()
+  apiFetchMock.mockReset()
+})
 
 /**
  * Resumen tal como lo devuelve `GET /api/requests` (RequestSummaryResponse):
@@ -156,5 +183,91 @@ describe('subjectsForApi', () => {
     expect(enviado(notas)).toEqual({
       code: 'IS-704', name: 'Arquitectura', group: '', currentGrade: '2.9', proposedGrade: '3.5',
     })
+  })
+})
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function problemResponse(status: number, detail: string): Response {
+  return new Response(JSON.stringify({ title: 'Error', detail, status }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  })
+}
+
+/** Cuerpo mínimo válido de `NewRequestInput`. Datos ficticios, claramente sintéticos. */
+function newRequestInput(): NewRequestInput {
+  return {
+    type: 'adicion_creditos',
+    priority: 'normal',
+    studentCode: 'EST-0000',
+    studentCedula: '00000000',
+    studentName: 'Estudiante Ficticio',
+    studentEmail: 'estudiante.ficticio@example.com',
+    program: 'Ingeniería de Sistemas',
+    semester: '8',
+    subjects: [{ code: 'IS-000', name: 'Materia ficticia', credits: 3 }],
+    reason: 'Motivo de prueba, con longitud suficiente para pasar la validación del formulario.',
+  }
+}
+
+/** Cuerpo de `POST /requests`: el mismo `RequestResponse` que devuelve `GET /requests/{id}`. */
+const CREATED_REQUEST = {
+  id: '22222222-2222-2222-2222-222222222222',
+  definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+  studentName: 'Estudiante Ficticio',
+  studentDocument: '00000000',
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
+  createdAt: '2026-09-23T10:00:00',
+}
+
+/**
+ * `createRequest` se ejercita a través del `TramitaProvider` real, como ya hace
+ * `lib/use-coordination-inbox.test.ts` con su hook: sin extraer una función solo para
+ * probarla (decisión registrada en el documento de la feature).
+ *
+ * Issue #12: tras el `201` de `POST /requests`, `createRequest` recargaba la solicitud
+ * (`GET /requests/{id}`, `/timeline`, `/documents`) y subía cada adjunto contra
+ * `POST /requests/{id}/documents`, que no existe en el backend. Si cualquiera de esas
+ * llamadas fallaba, la solicitud ya estaba creada pero el formulario mostraba un error,
+ * y quien reintentaba creaba un duplicado.
+ */
+describe('createRequest (TramitaProvider)', () => {
+  it('con el POST en 201, resuelve con la solicitud creada aunque cualquier otra llamada falle', async () => {
+    apiFetchMock.mockImplementation((path: string, opts: { method?: string } = {}) => {
+      const method = (opts.method ?? 'GET').toUpperCase()
+      if (path === '/requests' && method === 'POST') {
+        return Promise.resolve(jsonResponse(201, CREATED_REQUEST))
+      }
+      // Cualquier otra llamada (recarga del detalle, subida de adjuntos) no debería
+      // ocurrir; si ocurre, que falle en vez de disfrazarse de éxito.
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+
+    let created: Awaited<ReturnType<typeof result.current.createRequest>> | undefined
+    await act(async () => {
+      created = await result.current.createRequest(newRequestInput())
+    })
+
+    expect(created?.id).toBe(CREATED_REQUEST.id)
+    // Queda en el store: el detalle la muestra aunque su propia recarga falle.
+    expect(result.current.getRequest(CREATED_REQUEST.id)?.id).toBe(CREATED_REQUEST.id)
+    expect(apiFetchMock).toHaveBeenCalledTimes(1)
+    expect(apiFetchMock).toHaveBeenCalledWith('/requests', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('si el POST es rechazado, reporta el error del backend', async () => {
+    apiFetchMock.mockResolvedValue(problemResponse(422, 'La definición no existe'))
+
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+
+    await expect(result.current.createRequest(newRequestInput())).rejects.toThrow('La definición no existe')
   })
 })
