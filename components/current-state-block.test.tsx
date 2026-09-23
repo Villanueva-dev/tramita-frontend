@@ -167,6 +167,17 @@ describe('CurrentStateBlock', () => {
     expect(high.className).toBe(lowClassName)
   })
 
+  // Regresión: `now` se congela al montar el detalle y, tras registrar una transición, la
+  // última entrada del timeline es posterior a `now`. El bloque no debe decir «Lleva -1 días».
+  it('«Lleva 0 días» cuando waitingSince es posterior a now, nunca un valor negativo', () => {
+    render(
+      <CurrentStateBlock state={state()} responsibility={single} waitingSince="2026-09-22T12:00:40" now={NOW} />,
+    )
+
+    expect(within(region()).getByText('Lleva 0 días')).toBeDefined()
+    expect(within(region()).queryByText(/-1/)).toBeNull()
+  })
+
   it('oculta la antigüedad del estado cuando el estado es final', () => {
     render(
       <CurrentStateBlock
