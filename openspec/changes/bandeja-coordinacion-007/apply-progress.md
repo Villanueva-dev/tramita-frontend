@@ -902,3 +902,32 @@ Riesgo conocido y no corregido en esta change (design.md, «Riesgos»): abrir un
 la bandeja la inserta en `requests` vía `refreshRequest`, así que las tarjetas de resumen y los
 indicadores del tablero pueden contar un trámite visitado sin que medie una búsqueda — declarado
 para el cuerpo de la PR, seguimiento en `#36`/`#10`.
+
+## Fase 9 — Correcciones del review con agente limpio — COMPLETA (salvo 9.7 y 9.8, ver tasks.md)
+
+Review lanzado el 2026-09-22 sobre `9bf95a4..9731963` según el reglamento del repo hermano
+(`general-purpose` + opus, worktree descartable, 31 mutantes: 25 muertos). Veredicto: aprobable con
+correcciones menores; sin hallazgos críticos ni altos; sin huérfanos tras las supresiones; contrato
+verificado contra el código del backend; accesibilidad sin hallazgos.
+
+**Protocolo de recepción**: cada hallazgo se re-verificó con comandos propios antes de decidir.
+M-1 bajó de MEDIO a BAJO (la rama del 400 es inalcanzable desde este cliente: manda constantes);
+M-2 se reprodujo con un test temporal (resumen de búsqueda + `refreshRequest` fallido → «Depende de
+la acción que se registre» sin error ni acciones); B-3 sube en su mitad documental (la spec
+contradecía el mapa decorativo). No había issues que cubrieran ninguno.
+
+**Spike**: las cinco correcciones se probaron con TDD en `spike/review-007` (worktree hermano) y se
+incorporaron por cherry-pick: `de68c70` (código y tests; comentarios sin los identificadores del
+informe) y `9c763d1` (spec). Diff de producción: 18 líneas nuevas y 3 quitadas en 4 archivos.
+
+| Corrección | RED observado | GREEN |
+|---|---|---|
+| M-2 `unknown` | `expected { kind: 'varies' } to deeply equal { kind: 'unknown' }`; luego `getByText('Sin información del responsable')` no encontrado | 22/22 request-state, 14/14 current-state-block |
+| B-3 `hasOwn` | `Element type is invalid … got: undefined … TypeBadge` con `code="constructor"` | 5/5 requests-table |
+| M-1 mensaje 400 | `messages: ["Revise los datos ingresados."]` vs el propio | 9/9 use-coordination-inbox |
+| B-1 aserción 401 | mutante sin `return` → `expected 'error' not to be 'error'` | verde al restaurar |
+| B-2 fixtures `-05:00` | sin RED (solo evidencia); mutante «sin offset» sigue sobreviviendo por el margen de 6 h | 14/14 |
+
+**Verificación de registro (rama real, `9c763d1`)**: `pnpm lint` exit 0 · `pnpm exec tsc --noEmit`
+exit 0 (sin `rm -rf .next`, `next dev` vivo) · `pnpm test` 24 archivos / 236 tests en verde ·
+`pnpm build` no ejecutado (ver tasks.md 9.7).

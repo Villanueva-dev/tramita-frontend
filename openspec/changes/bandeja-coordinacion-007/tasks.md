@@ -637,3 +637,37 @@ elija).
 
 **Criterios de aceptación**: todos los bullets de *Success Criteria* en `proposal.md` marcados; el
 cuerpo de la PR incluye las cuatro declaraciones de 8.1–8.4.
+
+## Fase 9 — Correcciones del review con agente limpio
+
+**Propósito**: aplicar los hallazgos del review con agente limpio (reglamento
+`../Tramita/docs/workflow/code-review-agente-limpio.md`) sobre el rango `9bf95a4..9731963`,
+tras re-verificar cada uno con comandos propios y probar la corrección en un worktree descartable
+(`spike/review-007`). Decidido por el responsable del proyecto el 2026-09-22: los cinco, tal cual.
+**Depende de**: Fases 1–7. Commits: `de68c70` (código y tests), `9c763d1` (spec).
+
+- [x] 9.1 M-2 — `currentResponsibility` devuelve `{ kind: 'unknown' }` cuando un estado no final
+      llega sin transiciones (dato ausente en el cliente; el motor nunca deja un estado no final sin
+      salida); `CurrentStateBlock` lo pinta como «Sin información del responsable». RED observado:
+      `expected { kind: 'varies' } to deeply equal { kind: 'unknown' }`. Escenario nuevo en la spec.
+- [x] 9.2 B-3 — `TypeBadge` usa `Object.hasOwn` sobre el mapa de íconos. RED observado con
+      `code="constructor"`: `Element type is invalid … got: undefined`. La spec recoge la excepción
+      decorativa del mapa en «Ausencia de códigos hardcodeados…».
+- [x] 9.3 M-1 — el 400 de la bandeja muestra «No se pudo consultar la bandeja de la Coordinación.»
+      en lugar del genérico de «datos ingresados». RED observado: mensaje viejo recibido.
+- [x] 9.4 B-1 — el test del 401 afirma además que el hook no queda en `error` ni con mensajes.
+      Mutante «quitar el `return` tras `sessionExpired()`» → rojo → revertido.
+- [x] 9.5 B-2 — los fixtures de `CoordinationInbox` escriben el mismo instante con `-05:00` y el
+      comentario deja de afirmar que el backend no manda offset. Hallazgo propio: el mutante «quitar
+      el offset» sigue sobreviviendo porque el margen de 1 h más 5 h nunca cruza un día; matarlo
+      exigiría un fixture de frontera, no agregado por alcance.
+- [x] 9.6 Verificación de registro en la rama real: `pnpm lint` exit 0; `pnpm exec tsc --noEmit`
+      exit 0 (sin `rm -rf .next`: `next dev` vivo); `pnpm test` → 24 archivos, 236 tests en verde
+      (+5 sobre 231).
+- [ ] 9.7 `pnpm build` en la rama real: **no ejecutado** porque había un `next dev` vivo y el
+      comando lo dejaría sirviendo 500; en el worktree del spike Turbopack rechazó el symlink de
+      `node_modules`. Lo cubre el CI al re-apuntar #48 a `main`, o correrlo con el servidor detenido.
+- [ ] 9.8 B-4 — cinco commits de A-1 a A-3 (`4663858`, `f3de927`, `0d8ca3c`, `ac59e43`,
+      `0bff26c`) sin el pie `Verificado:` de `.gitmessage`; dos sin cuerpo. **Anotado, no corregido**:
+      exigiría reescribir historia ya pusheada en tres ramas; las cifras que sí citan coinciden con
+      cada árbol (medido por el revisor).
