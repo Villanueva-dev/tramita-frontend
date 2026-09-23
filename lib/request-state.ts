@@ -19,7 +19,7 @@
 // predicados que el contrato garantiza directamente; mezclarlos con heurística los volvería
 // tan frágiles como los demás.
 
-import type { RequestType, State } from './types'
+import type { AvailableTransition, RequestType, State } from './types'
 
 /**
  * Lo mínimo que hay que saber de un trámite para interrogar su estado. Es un tipo
@@ -98,4 +98,28 @@ export function isReturnedForCorrection(request: StatefulRequest): boolean {
 /** ¿Es el estado con el que nace el trámite? Lo declara el propio estado (contrato 007). */
 export function isInitialState(request: StatefulRequest): boolean {
   return request.currentState.isInitial
+}
+
+export type Responsibility =
+  | { kind: 'closed' }
+  | { kind: 'single'; who: string }
+  | { kind: 'varies' }
+
+/**
+ * `project.md` fija que el dato operativo central es «ahora de quién depende». Ese
+ * responsable no vive en `State`: se deriva de `availableTransitions[].responsible`. Tipo
+ * estructural, no `AcademicRequest`, porque `AcademicRequest.availableTransitions` es
+ * opcional y este módulo no depende del modelo del store (C4a, `design.md` D4).
+ */
+export function currentResponsibility(request: {
+  currentState: State
+  availableTransitions?: AvailableTransition[]
+}): Responsibility {
+  if (request.currentState.isFinal) return { kind: 'closed' }
+  const responsibilities = [
+    ...new Set((request.availableTransitions ?? []).map((transition) => transition.responsible)),
+  ]
+  return responsibilities.length === 1
+    ? { kind: 'single', who: responsibilities[0] }
+    : { kind: 'varies' }
 }

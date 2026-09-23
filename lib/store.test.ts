@@ -59,7 +59,6 @@ describe('baseRequest', () => {
     )
 
     expect(recienRadicada.status).toBe('pendiente')
-    expect(recienRadicada.currentStage).toBe('radicacion')
   })
 
   // El renombre de V3.2.0 alcanzó SOLO a ADICION_CREDITOS: su UPDATE lleva
@@ -73,7 +72,6 @@ describe('baseRequest', () => {
     })
 
     expect(recienRadicada.status).toBe('pendiente')
-    expect(recienRadicada.currentStage).toBe('radicacion')
   })
 
   // La 007 expone `isInitial` en el propio `State`. `status: 'pendiente'` debe salir de

@@ -41,7 +41,6 @@ const request: AcademicRequest = {
   reason: 'Solicitud académica',
   attachments: [],
   timeline: [],
-  currentStage: 'radicacion',
   assignedTo: 'FACULTAD',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
 }

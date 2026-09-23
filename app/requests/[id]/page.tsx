@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   Check,
@@ -21,7 +21,7 @@ import { AppShell } from '@/components/app-shell'
 import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
-import { WorkflowStepper } from '@/components/workflow-stepper'
+import { CurrentStateBlock } from '@/components/current-state-block'
 import { ActionDialog, type ActionConfig } from '@/components/action-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,9 +37,9 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
 import { apiFetch, problemMessage } from '@/lib/api'
-import { isClosed, isReturnedForCorrection } from '@/lib/request-state'
+import { currentResponsibility, isClosed } from '@/lib/request-state'
 import { formatDate, formatDateTime } from '@/lib/format'
-import type { DocumentApprovalInput, Request, SignatureType } from '@/lib/types'
+import type { DocumentApprovalInput, SignatureType } from '@/lib/types'
 
 const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
   signerName: '',
@@ -49,11 +49,6 @@ const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
   note: '',
 }
 
-export type Responsibility =
-  | { kind: 'closed' }
-  | { kind: 'single'; who: string }
-  | { kind: 'varies' }
-
 function approvalDateValue() {
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
   return now.toISOString().slice(0, 16)
@@ -61,14 +56,6 @@ function approvalDateValue() {
 
 function normalizeApprovalDate(value: string) {
   return value.length === 16 ? `${value}:00` : value
-}
-
-export function currentResponsibility(request: Request): Responsibility {
-  if (request.currentState.isFinal) return { kind: 'closed' }
-  const responsibilities = [...new Set(request.availableTransitions.map((transition) => transition.responsible))]
-  return responsibilities.length === 1
-    ? { kind: 'single', who: responsibilities[0] }
-    : { kind: 'varies' }
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -83,10 +70,11 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function RequestDetailPage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { getRequest, refreshRequest, transition, registerDocumentApproval, workflowConfig } = useTramita()
+  const { getRequest, refreshRequest, transition, registerDocumentApproval } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
   const [toast, setToast] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [now] = useState(() => Date.now())
   const [approvalDrafts, setApprovalDrafts] = useState<Record<string, DocumentApprovalInput>>({})
   const [approvalError, setApprovalError] = useState<string>('')
   const [approvalSavingId, setApprovalSavingId] = useState<string | null>(null)
@@ -110,11 +98,6 @@ export default function RequestDetailPage() {
     const t = setTimeout(() => setToast(''), 3500)
     return () => clearTimeout(t)
   }, [toast])
-
-  const stages = useMemo(
-    () => workflowConfig.find((w) => w.id === req?.type)?.stages ?? [],
-    [workflowConfig, req?.type],
-  )
 
   if (loading) {
     return (
@@ -222,6 +205,10 @@ export default function RequestDetailPage() {
   }
 
   const isFinalized = isClosed(req)
+  const responsibility = currentResponsibility(req)
+  // Última entrada del timeline (índice `length − 1`), nunca `createdAt` — mutante P1/P2
+  // (design.md D4): con el timeline vacío no se cae a `createdAt`, se muestra `null`.
+  const waitingSince = req.timeline.length > 0 ? req.timeline[req.timeline.length - 1].date : null
   const transitionActions = (req.availableTransitions ?? []).map((availableTransition): ActionConfig => ({
     action: availableTransition.targetState.code,
     targetStateCode: availableTransition.targetState.code,
@@ -306,19 +293,12 @@ export default function RequestDetailPage() {
           </div>
         </div>
 
-        {/* Workflow stepper */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Etapa del flujo de trabajo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowStepper
-              stages={stages}
-              currentStageId={req.currentStage}
-              returned={isReturnedForCorrection(req)}
-            />
-          </CardContent>
-        </Card>
+        <CurrentStateBlock
+          state={req.currentState}
+          responsibility={responsibility}
+          waitingSince={waitingSince}
+          now={now}
+        />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left column */}
@@ -593,7 +573,6 @@ export default function RequestDetailPage() {
                     label="Tipo de trámite"
                     value={req.definition.name}
                   />
-                  <InfoRow label="Asignado a" value={req.assignedTo} />
                 </dl>
               </CardContent>
             </Card>
