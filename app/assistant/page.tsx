@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useRef, useState } from 'react'
 import { Bot, BookOpen, LoaderCircle, RotateCcw, Send, ShieldAlert, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   response?: AssistantResponse
+  followUps?: string[]
 }
 
 const SUGGESTIONS = [
@@ -19,17 +20,44 @@ const SUGGESTIONS = [
   '¿Cuáles son los pasos generales de una adición de créditos?',
 ]
 
-const FOLLOW_UP_SUGGESTIONS = [
+// Repertorio amplio para que las preguntas sugeridas roten turno a turno en vez de repetirse.
+const FOLLOW_UP_POOL = [
   '¿Qué actor interviene después?',
   '¿Cuánto tiempo puede tardar el trámite?',
   '¿Qué debo hacer si no tengo todos los documentos?',
+  '¿Qué significa ese estado del trámite?',
+  '¿Qué pasa si la solicitud es devuelta?',
+  '¿Cuántas solicitudes hay pendientes ahora mismo?',
+  '¿Cómo va el proceso en general?',
+  '¿Cuál es el tiempo promedio de ciclo?',
+  '¿Qué diferencia hay con el otro trámite?',
+  '¿Qué revisa la facultad en este punto?',
+  '¿Qué hace Registro y Control aquí?',
+  '¿Dónde queda definida esa regla?',
+  '¿Qué requisitos exige la coordinación?',
+  '¿Qué pasa si el trámite es rechazado?',
+  '¿Cuál es el siguiente paso en la bandeja?',
 ]
+
+function pickFollowUps(used: string[], count = 3): { picks: string[]; used: string[] } {
+  let pool = FOLLOW_UP_POOL.filter((item) => !used.includes(item))
+  let nextUsed = used
+  if (pool.length < count) {
+    // Se agotó el repertorio sin repetir: reinicia el ciclo para seguir variando.
+    pool = FOLLOW_UP_POOL
+    nextUsed = []
+  }
+  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+  const picks = shuffled.slice(0, count)
+  return { picks, used: [...nextUsed, ...picks] }
+}
 
 export default function AssistantPage() {
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const usedFollowUpsRef = useRef<string[]>([])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -42,11 +70,14 @@ export default function AssistantPage() {
     setLoading(true)
     try {
       const assistantResponse = await askAssistant(trimmedQuestion)
+      const { picks, used } = pickFollowUps(usedFollowUpsRef.current)
+      usedFollowUpsRef.current = used
       // La conversación vive solo en memoria para no retener preguntas potencialmente personales.
       setMessages((current) => [...current, {
         role: 'assistant',
         content: assistantResponse.answer,
         response: assistantResponse,
+        followUps: picks,
       }])
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No se pudo consultar el asistente.')
@@ -59,6 +90,7 @@ export default function AssistantPage() {
     setQuestion('')
     setMessages([])
     setError('')
+    usedFollowUpsRef.current = []
   }
 
   return (
@@ -127,20 +159,10 @@ export default function AssistantPage() {
                       <div className="mt-3 border-t border-border/70 pt-3">
                         <div className="text-xs text-muted-foreground">
                           <p>{message.response.disclaimer}</p>
-                          {message.response.sources.length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              <p className="font-semibold text-foreground">Fuentes consultadas</p>
-                              {message.response.sources.map((source) => (
-                                <p key={`${source.sourceId}-${source.version}`}>
-                                  {source.title} · versión {source.version}{source.locator ? ` · ${source.locator}` : ''}
-                                </p>
-                              ))}
-                            </div>
-                          )}
                         </div>
-                        {index === messages.length - 1 && !loading && (
+                        {index === messages.length - 1 && !loading && message.followUps && (
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {FOLLOW_UP_SUGGESTIONS.map((suggestion) => (
+                            {message.followUps.map((suggestion) => (
                               <Button
                                 key={suggestion}
                                 type="button"
