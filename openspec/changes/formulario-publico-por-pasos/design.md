@@ -76,7 +76,7 @@ con despacho frente a uno por paso, sabiendo que el costo es una bifurcación qu
 vista. **Defensa**: elegí un aviso tipado frente al status, sabiendo que el costo es un tipo más; a
 cambio, la vista no interpreta HTTP (regla 5, `SKILL.md:60-67`).
 
-### 6 — Foco: `flushSync` y una ref al encabezado activo
+### 6 — Foco: `flushSync`, una ref al encabezado activo y el primer campo inválido
 
 **Elegido**: `goToStep` ejecuta `flushSync(() => { setStep(target); … })`, con los estados que
 acompañan el salto, y después `activeHeadingRef.current?.focus()`. Cada panel titula con
@@ -89,8 +89,7 @@ en `STEPS`. Antes del render, el destino sigue con `hidden`
 (no enfocable) y la ref apunta al encabezado anterior;
 [`flushSync`](https://react.dev/learn/manipulating-the-dom-with-refs#flushing-state-updates-synchronously-with-flush-sync)
 aplica el render antes de enfocar, y `focus()` desplaza el encabezado a la vista
-([MDN](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus)). Un «Continuar»
-fallido no mueve el foco: lo anuncian los `role="alert"` de campo (`sections.tsx:67`).
+([MDN](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus)).
 **Alternativa**: `useEffect` sobre `step`, que reacciona a un estado y no al evento (criterio de la
 regla 6, `SKILL.md:73-78`) y necesita una bandera para no robar el foco al cargar. **Defensa**:
 elegí `flushSync` frente al efecto, sabiendo que el costo es su primer uso en el repo (0
@@ -98,6 +97,26 @@ coincidencias en `app/`, `components/`, `lib/`), con un comentario. Existe en la
 (`node_modules/@types/react-dom/index.d.ts:22`). Verificado con Context7 el 2026-09-25: la guía de
 react.dev usa este mismo patrón para mover la vista tras un cambio de estado, y la
 [referencia](https://react.dev/reference/react-dom/flushSync) pide usarlo con moderación.
+
+**Enmienda del 2026-09-25 (#58): tras un error, el foco va al campo.** Un «Continuar» fallido
+aplica los errores con `flushSync` y llama a `focusFirstInvalid()`; el salto del `422` usa
+`goToStep(target, 'firstInvalid')`. `focusFirstInvalid()` enfoca el primer `[aria-invalid="true"]`
+del panel activo, en orden del DOM (`sections.tsx:64,138`), y si no hay ninguno, el encabezado.
+Es el caso de la firma: ningún control suyo marca `aria-invalid` (`sections.tsx:152-158`), el lienzo
+no es enfocable (`canvas-firma.tsx:204-213`, sin `tabIndex`) y la carga de imagen (`:216-223`) es
+una alternativa, no el campo. El DOM da el orden visual sin mantener una lista aparte (ninguna
+clase de `order` ni `*-reverse` en `components/do-fr-100/` ni en la página), y `focus()` desplaza
+el campo a la vista. La versión aprobada no movía el foco tras un
+«Continuar» fallido y confiaba el aviso a los `role="alert"` de campo (`sections.tsx:67`): el
+lector de pantalla lo anuncia, pero el campo puede quedar fuera de la vista. En la prueba en vivo
+de #58, sobre el formulario de una sola página, quedó a −395 px con una ventana de 857 px; cada
+paso del asistente es más corto, pero en un celular «Continuar» puede seguir lejos del primer
+campo. **Alternativa**: enfocar el aviso de errores de PR-4 (T6), que no existe en PR-3 y dejaría
+el hueco abierto hasta entonces. **Defensa**: elegí el primer campo inválido frente al encabezado,
+sabiendo que el costo es un segundo destino de foco y que un lector de pantalla puede anunciar el
+error dos veces: el `role="alert"` y la descripción del campo enfocado. Para la firma, la
+alternativa es marcar la carga de imagen con `aria-invalid` y asociarle el error; cambiaría
+`CanvasFirma`, que la decisión 7 deja intacto.
 
 ### 7 — `hidden` (D2) deja intacto `CanvasFirma`
 
@@ -132,10 +151,15 @@ es tener los cinco pasos en el DOM; a cambio `CanvasFirma` y sus diez pruebas no
 ## Data Flow
 
     <form onSubmit> ─► step ≠ review ? handleContinue : handleSubmit
-      handleContinue: errorsOfStep(validate(…), step) ─► vacío ? goToStep(siguiente) : marca
+      handleContinue: errorsOfStep(validate(…), step) ─► vacío ? goToStep(siguiente)
+                      : flushSync(marca) → focusFirstInvalid()
       handleSubmit:   validate(…) ─► submitPublicRequest ─► 201 acuse
-                      · 422 con campos → goToStep(firstStepWithError) · resto → formError en revisión
-      goToStep:       flushSync(setStep …) → activeHeadingRef.focus()
+                      · con errores (defensa: cada paso ya se validó) → goToStep(firstStepWithError,
+                        'firstInvalid'), sin enviar
+                      · 422 con campos → goToStep(firstStepWithError, 'firstInvalid')
+                      · resto → formError en revisión
+      goToStep:       flushSync(setStep …) → encabezado, o focusFirstInvalid() con 'firstInvalid'
+      focusFirstInvalid: primer [aria-invalid="true"] de activePanelRef, o activeHeadingRef
     props ▼ StepProgress · StepPanel ×5 (hidden) · campos · ReviewSummary(onEdit) · StepNavigation
 
 ## Interfaces / Contracts
@@ -155,9 +179,13 @@ export function firstStepWithError(errors: FormErrors): FieldStepId | null
 export function stepsWithErrors(errors: FormErrors): ReadonlySet<StepId>
 // page.tsx
 interface FormError { message: string; offerSignatureStep: boolean }
-function goToStep(target: StepId): void // flushSync(setStep…) y foco al encabezado (decisión 6)
-// Presentacionales: StepPanel({ step, active, headingRef, children }) · StepProgress({ current,
-// stepsWithErrors }), sin controles (resolución 2) · StepNavigation({ step, isSubmitting, onBack })
+// flushSync(setStep…) y foco: al encabezado por omisión, o al primer campo inválido (decisión 6)
+function goToStep(target: StepId, focus?: 'heading' | 'firstInvalid'): void
+// Primer [aria-invalid="true"] del panel activo; si no hay, su encabezado (decisión 6)
+function focusFirstInvalid(): void
+// Presentacionales: StepPanel({ step, active, headingRef, panelRef, children }) · StepProgress({
+// current, stepsWithErrors }), sin controles (resolución 2) · StepNavigation({ step, isSubmitting,
+// onBack })
 // · ReviewSummary({ values, signature, onEdit }), cada «Cambiar» con su bloque en el nombre accesible
 ```
 
@@ -186,10 +214,15 @@ jsdom. Helpers: `fillField`, `signCanvas` (de `page.test.tsx:36-45`), `expectSte
 
 Nuevas en PR-3: la firma sobrevive a «Volver» y «Cambiar» y viaja; Enter en el paso 1 avanza sin
 enviar; tras «Cambiar», «Continuar» recorre los pasos siguientes; el foco va al encabezado nuevo y no
-se mueve al cargar; un 422 abre el primer paso con errores y marca la barra; la barra no tiene
-controles; el correo incompleto impide continuar; el 413 ofrece «Ir a la firma». Mutantes: quitar
-`flushSync` o el despacho de `onSubmit` debe poner su prueba en rojo. El gesto táctil se prueba en
-vivo antes de cada PR.
+se mueve al cargar; un «Continuar» fallido enfoca el primer campo inválido y, en «Firma», el
+encabezado; un 422 abre el primer paso con errores, enfoca su primer campo con error y marca la
+barra; la barra no tiene controles; el correo incompleto impide continuar; el 413 ofrece «Ir a la
+firma». Las pruebas del foco aseveran `document.activeElement`. Mutantes: quitar `flushSync` o el
+despacho de `onSubmit` debe poner su prueba en rojo, y también quitar el `flushSync` que aplica los
+errores antes de `focusFirstInvalid()`: sin él, el DOM va un render atrás, así que en un primer
+intento fallido no hay ningún `aria-invalid` y el foco cae en el encabezado. Por eso la prueba
+parte de un formulario sin errores previos. El gesto táctil, y que el campo enfocado quede a la
+vista (jsdom no desplaza), se prueban en vivo antes de cada PR.
 
 ## Entrega
 
