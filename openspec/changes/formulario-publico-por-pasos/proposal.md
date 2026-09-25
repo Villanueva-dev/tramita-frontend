@@ -40,7 +40,8 @@ enviado no cambia y ninguna pieza descartada llega a la pantalla.
   registra al enviar la solicitud».
 - Un 422 lleva al primer paso con errores y marca los pasos afectados en la barra (D4). 404, 413
   y 429 se muestran en la revisión con los textos de hoy; el 413 suma «Ir a la firma».
-- Foco en el encabezado del paso a cada cambio de paso.
+- Foco en el encabezado del paso a cada cambio de paso; tras un error («Continuar» fallido o 422),
+  en el primer campo con error (#58).
 - El correo incompleto impide continuar desde el paso 1 (resolución 1, abajo).
 
 **PR-4 — Pulido visual** (presentación y textos):
@@ -102,7 +103,7 @@ lineales no justifican una librería de asistentes.
 | Visibilidad | Todos los pasos montados; el inactivo con `hidden` (D2) | `CanvasFirma` emite una firma vacía al montarse (`canvas-firma.tsx:47-49`): desmontar el paso la borraría. El preflight de Tailwind 4 fuerza `display: none !important` sobre `[hidden]` (`node_modules/tailwindcss/preflight.css:391-393`), así que `flex` o `grid` no lo anulan |
 | Validación por paso | Un mapa de campo a paso sobre el `validate` actual (`page.tsx:56-77`) | Una sola fuente de reglas; «Enviar» vuelve a validar los once campos |
 | Salto del 422 | Los errores de `fieldErrorsFromProblem` (`page.tsx:42-54`) eligen el primer paso con error | El 422 sigue atado al campo; hoy el aviso general aparece debajo del formulario (`page.tsx:154`) |
-| Foco | Al encabezado del paso en cada cambio | Un lector de pantalla anuncia dónde está el estudiante |
+| Foco | Al encabezado del paso en cada cambio; tras un error, al primer campo con error | Un lector de pantalla anuncia dónde está el estudiante, y el campo por corregir queda a la vista (#58) |
 | Firma (PR-4) | 200 px en vez de 160 (`canvas-firma.tsx:20,207`), línea guía y texto | La lógica ajustada no se toca |
 
 **Entrega.** PRs secuenciales contra `main` (`odd/tasks/adopcion-diseno-do-fr-100.md:145-152`):

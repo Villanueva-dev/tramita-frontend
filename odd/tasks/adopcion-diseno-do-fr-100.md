@@ -205,7 +205,8 @@ la cédula del formulario interno.
 ### PR-3 — Asistente (se detalla al empezar)
 
 - [ ] **T5** — Estado de pasos, validación por paso, revisión con «Cambiar», salto del 422 y foco
-  en el encabezado del paso. Reescribir las pruebas afectadas.
+  en el encabezado del paso o, tras un error, en el primer campo inválido (cierra #58). Reescribir
+  las pruebas afectadas.
 
 ### PR-4 — Pulido visual (se detalla al empezar)
 

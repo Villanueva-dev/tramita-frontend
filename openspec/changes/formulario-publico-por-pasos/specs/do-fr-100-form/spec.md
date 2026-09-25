@@ -132,6 +132,7 @@ bloquear «Continuar»; no existía una regla explícita para un correo sin `@` 
 - WHEN el estudiante pulsa «Continuar»
 - THEN el paso visible no cambia
 - AND el campo se marca como inválido
+- AND el foco pasa al primer campo inválido del paso visible
 
 #### Scenario: Un correo sin arroba o sin dominio impide continuar
 
@@ -215,10 +216,10 @@ El sistema **MUST** interpretar los errores como `application/problem+json` (RFC
 | otros | Aviso general del formulario |
 
 Un `422` **MUST** llevar al estudiante al primer paso, en orden, que tenga un campo con error,
-con el foco en su encabezado, y **MUST** marcar en la barra de progreso todos los pasos que
-tengan al menos un campo con error, sin perder el mensaje de ninguno de los campos señalados.
-`404`, `413` y `429` **MUST** mostrarse en el paso de revisión, sin mover al estudiante a otro
-paso.
+con el foco en el primer campo con error de ese paso, y **MUST** marcar en la barra de progreso
+todos los pasos que tengan al menos un campo con error, sin perder el mensaje de ninguno de los
+campos señalados. `404`, `413` y `429` **MUST** mostrarse en el paso de revisión, sin mover al
+estudiante a otro paso.
 
 En todos los casos el sistema **MUST** conservar los datos ya diligenciados.
 
@@ -288,7 +289,7 @@ indicaba a qué paso, o a cuál pantalla del asistente, debía llevar al estudia
 - GIVEN el backend responde `422` con campos con error repartidos en dos pasos distintos
 - WHEN se procesa la respuesta
 - THEN el asistente muestra el primer paso, en orden, que tiene un campo con error
-- AND el foco se mueve al encabezado de ese paso
+- AND el foco se mueve al primer campo con error de ese paso
 - AND la barra de progreso marca todos los pasos con al menos un campo con error
 - AND cada campo señalado conserva su propio mensaje
 
@@ -301,9 +302,10 @@ El sistema **MUST** presentar el formulario como un asistente de cinco pasos: «
 **MUST** estar montados desde el primer render; en cada momento, **MUST** haber exactamente uno
 visible.
 
-«Continuar» **MUST** validar únicamente los campos del paso visible, **MUST NOT** avanzar si
-alguno falla, y **MUST** avanzar al paso siguiente cuando todos son válidos. «Volver» **MUST**
-conservar lo escrito en todos los pasos, incluidos los que ya se dejaron atrás.
+«Continuar» **MUST** validar únicamente los campos del paso visible. Si alguno falla, **MUST NOT**
+avanzar y **MUST** mover el foco al primer campo inválido del paso, en el orden en que aparecen;
+si todos son válidos, **MUST** avanzar al paso siguiente. «Volver» **MUST** conservar lo escrito
+en todos los pasos, incluidos los que ya se dejaron atrás.
 
 La barra de progreso **MUST** indicar el paso activo y **MUST NOT** ofrecer saltar a otro paso:
 sus elementos **MUST NOT** responder a una interacción del estudiante.
@@ -314,7 +316,10 @@ estudiante al paso de ese bloque; desde ahí, **MUST** recorrer los pasos siguie
 con «Continuar», validando cada uno, hasta volver al paso de revisión.
 
 El sistema **MUST** mover el foco al encabezado del paso visible en cada cambio de paso, incluida
-la llegada al paso de revisión.
+la llegada al paso de revisión, salvo en el salto de un `422`, que lo lleva al primer campo con
+error. Si el paso no tiene ningún campo inválido que pueda recibir el foco —el caso de la firma,
+cuyo lienzo no es enfocable—, el foco **MUST** ir al encabezado del paso. El elemento que recibe el
+foco **MUST** quedar a la vista.
 
 El sistema **MUST NOT** emitir ninguna petición al backend antes de que el estudiante pulse
 «Enviar solicitud» en el paso de revisión.
@@ -357,6 +362,13 @@ El sistema **MUST NOT** emitir ninguna petición al backend antes de que el estu
 - GIVEN el asistente renderizado
 - WHEN el estudiante cambia de paso con «Continuar», «Volver» o «Cambiar»
 - THEN el foco queda en el encabezado del paso que se muestra
+
+#### Scenario: Una firma faltante lleva el foco al encabezado del paso «Firma»
+
+- GIVEN el paso «Firma» visible y sin firma
+- WHEN el estudiante pulsa «Continuar»
+- THEN el paso visible no cambia
+- AND el foco queda en el encabezado del paso «Firma»
 
 #### Scenario: No se emite ninguna petición antes de enviar en la revisión
 

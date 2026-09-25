@@ -78,17 +78,18 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 ## Slice 4 — PR-3d: cableado (el cambio de comportamiento)
 
 - [ ] 4.1 RED→GREEN `page.tsx`: estado `step`, `handleContinue`/`handleBack`/`goToStep`
-      (`flushSync` + foco al encabezado, decisión 6), `<form onSubmit>` con despacho único
-      (decisión 4), rama de correo en `validate` (decisión 3). Escenarios: Continuar avanza con
-      paso válido; Volver conserva lo escrito; Continuar no avanza con campo inválido; correo sin
-      `@`/dominio impide continuar; foco al encabezado en cada cambio sin moverse al cargar;
-      Enter en paso 1 avanza sin enviar.
+      (`flushSync` + foco al encabezado o, tras un error, al primer campo inválido; decisión 6),
+      `<form onSubmit>` con despacho único (decisión 4), rama de correo en `validate`
+      (decisión 3). Escenarios: Continuar avanza con paso válido; Volver conserva lo escrito;
+      Continuar no avanza con campo inválido y enfoca el primer campo inválido (en «Firma», el
+      encabezado); correo sin `@`/dominio impide continuar; foco al encabezado en cada cambio
+      sin moverse al cargar; Enter en paso 1 avanza sin enviar.
 - [ ] 4.2 RED→GREEN: componer `page.tsx` con `wizard.tsx` + `review-summary.tsx` (`onEdit` →
       `goToStep`) + los grupos de `sections.tsx` de 3.3; «Cambiar» recorre los pasos siguientes
       hasta volver a la revisión.
-- [ ] 4.3 RED→GREEN: 422 → `goToStep(firstStepWithError)` + `StepProgress` marca
-      `stepsWithErrors`; 404/413/429/422-sin-campos-propios en la revisión; atajo «Ir a la
-      firma» del 413 (texto de hoy — PR-4 lo cambia).
+- [ ] 4.3 RED→GREEN: 422 → `goToStep(firstStepWithError, 'firstInvalid')` (foco al primer campo
+      con error) + `StepProgress` marca `stepsWithErrors`; 404/413/429/422-sin-campos-propios en
+      la revisión; atajo «Ir a la firma» del 413 (texto de hoy — PR-4 lo cambia).
 - [ ] 4.4 RED→GREEN: la firma sobrevive a Volver/Cambiar (`hidden` no desmonta `CanvasFirma`,
       decisión 7); reescribir con los helpers de 2.1 las pruebas de firma existentes para llegar
       al paso «Firma».
