@@ -27,6 +27,18 @@ type FormField = keyof PublicRequestFormValues | 'signature'
 type FormErrors = Partial<Record<FormField, string>>
 const FORM_FIELDS = new Set<FormField>([...Object.keys(INITIAL_VALUES), 'signature'] as FormField[])
 
+// Cédula y teléfono son numéricos: descartar todo lo que no sea dígito al tecleo (también al
+// pegar, porque pegar dispara el mismo evento de cambio) evita que el usuario tenga que
+// corregir separadores a mano y hace inalcanzable por la UI el mensaje defensivo de "solo
+// dígitos" de `validate` (D3 en odd/tasks/adopcion-diseno-do-fr-100.md).
+const DIGITS_ONLY_FIELDS = new Set<keyof PublicRequestFormValues>(['studentDocument', 'studentPhone'])
+const DIGITS_ONLY_PATTERN = /^[0-9]+$/
+const PHONE_PATTERN = /^[0-9]{10}$/
+
+function stripNonDigits(value: string): string {
+  return value.replace(/\D/g, '')
+}
+
 function fieldErrorsFromProblem(error: ApiError): FormErrors {
   const errors: FormErrors = {}
   const invalidFields = error.invalidFields ?? error.fieldNames ?? []
@@ -44,9 +56,21 @@ function fieldErrorsFromProblem(error: ApiError): FormErrors {
 function validate(values: PublicRequestFormValues, signature: SignatureCapture): FormErrors {
   const errors: FormErrors = {}
   for (const [field, value] of Object.entries(values) as [keyof PublicRequestFormValues, string][]) {
-    if (!value.trim()) errors[field] = 'Este campo es obligatorio.'
-    else if (value.length > PUBLIC_REQUEST_FIELD_LIMITS[field])
+    if (!value.trim()) {
+      errors[field] = 'Este campo es obligatorio.'
+    } else if (field === 'studentPhone') {
+      // El teléfono exige exactamente diez dígitos: este mensaje reemplaza al genérico de
+      // longitud, tanto por debajo como por encima de diez (D3).
+      if (!PHONE_PATTERN.test(value)) {
+        errors[field] = 'El número debe tener 10 dígitos, sin espacios. Por ejemplo: 3001234567'
+      }
+    } else if (value.length > PUBLIC_REQUEST_FIELD_LIMITS[field]) {
       errors[field] = `Este campo supera el máximo de ${PUBLIC_REQUEST_FIELD_LIMITS[field]} caracteres.`
+    } else if (field === 'studentDocument' && !DIGITS_ONLY_PATTERN.test(value)) {
+      // Defensivo: el filtro de tecleo ya descarta lo que no sea dígito, así que este mensaje
+      // no debería ser alcanzable desde la UI.
+      errors[field] = 'Escriba solo números, sin puntos ni espacios. Por ejemplo: 1234567890'
+    }
   }
   if (!signature.hayFirma || !signature.dataUrl) errors.signature = 'La firma es obligatoria.'
   return errors
@@ -61,7 +85,8 @@ export default function PublicAdditionalCreditsPage() {
   const [submitted, setSubmitted] = useState(false)
 
   function handleChange(field: keyof PublicRequestFormValues, value: string) {
-    setValues((current) => ({ ...current, [field]: value }))
+    const nextValue = DIGITS_ONLY_FIELDS.has(field) ? stripNonDigits(value) : value
+    setValues((current) => ({ ...current, [field]: nextValue }))
   }
 
   async function handleSubmit() {

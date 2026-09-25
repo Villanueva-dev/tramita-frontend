@@ -18,9 +18,9 @@ afterEach(() => {
 
 const completeValues = {
   studentName: 'Estudiante Sintético',
-  studentDocument: 'SIN-DATO-REAL-100',
+  studentDocument: '0000000100',
   studentEmail: 'estudiante.sintetico@example.test',
-  studentPhone: '000 000 0000',
+  studentPhone: '0000000000',
   program: 'Programa de Prueba',
   campus: 'Sede Sintética',
   faculty: 'Facultad de Prueba',
@@ -195,12 +195,17 @@ describe('PublicAdditionalCreditsPage', () => {
   })
 
   it.each([
-    ['studentName', 121], ['studentDocument', 21], ['studentEmail', 256], ['studentPhone', 31],
+    ['studentName', 121], ['studentDocument', 21], ['studentEmail', 256], ['studentPhone', 11],
     ['program', 121], ['campus', 121], ['faculty', 121], ['modality', 51], ['semester', 51], ['reason', 2001],
   ])('blocks %s over its contract limit', (field, length) => {
     render(<PublicAdditionalCreditsPage />)
     completeForm()
-    fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value: 'a'.repeat(length) } })
+    // La cédula y el teléfono son numéricos: con dígitos, el caso falla por longitud (lo que
+    // se quiere probar) y no por formato, que el filtro de tecleo ya vuelve inalcanzable.
+    const overLimitValue = field === 'studentDocument' || field === 'studentPhone'
+      ? '1'.repeat(length)
+      : 'a'.repeat(length)
+    fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value: overLimitValue } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
 
@@ -281,5 +286,69 @@ describe('PublicAdditionalCreditsPage', () => {
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/no pudimos identificar los campos/i)
     expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(0)
+  })
+
+  it('strips every non-digit character from studentDocument and studentPhone, even when pasted', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    fireEvent.change(document.getElementById('studentDocument') as HTMLInputElement, { target: { value: '12.345-678 90' } })
+    fireEvent.change(document.getElementById('studentPhone') as HTMLInputElement, { target: { value: '12.345-678 90' } })
+
+    expect((document.getElementById('studentDocument') as HTMLInputElement).value).toBe('1234567890')
+    expect((document.getElementById('studentPhone') as HTMLInputElement).value).toBe('1234567890')
+  })
+
+  it.each([
+    ['nine digits, one short', '1'.repeat(9)],
+    ['eleven digits, one over', '1'.repeat(11)],
+  ])('blocks submission when studentPhone has %s and shows the ten-digit message', (_label, phone) => {
+    render(<PublicAdditionalCreditsPage />)
+    completeForm()
+    fireEvent.change(document.getElementById('studentPhone') as HTMLInputElement, { target: { value: phone } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+
+    expect(document.getElementById('studentPhone')?.getAttribute('aria-invalid')).toBe('true')
+    expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
+    expect(screen.getByText('El número debe tener 10 dígitos, sin espacios. Por ejemplo: 3001234567')).toBeDefined()
+  })
+
+  it('marks studentDocument and studentPhone as numeric inputs with a linked hint', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    const documentInput = document.getElementById('studentDocument') as HTMLInputElement
+    const phoneInput = document.getElementById('studentPhone') as HTMLInputElement
+
+    expect(documentInput.getAttribute('inputmode')).toBe('numeric')
+    expect(phoneInput.getAttribute('inputmode')).toBe('numeric')
+    expect(documentInput.getAttribute('aria-describedby')).toContain('studentDocument-hint')
+    expect(phoneInput.getAttribute('aria-describedby')).toContain('studentPhone-hint')
+    expect(document.getElementById('studentDocument-hint')?.textContent).toBe('Solo números, sin puntos ni espacios.')
+    expect(document.getElementById('studentPhone-hint')?.textContent).toBe('10 dígitos, sin espacios.')
+  })
+
+  it('leaves studentDocument and studentPhone without a raw maxLength, so a pasted value keeps all its digits', () => {
+    // El navegador recorta al maxLength el texto crudo, separadores incluidos, antes del filtro:
+    // con maxLength=10, pegar «300 123 4567» dejaba 8 dígitos (observado en Chrome). jsdom no
+    // aplica ese recorte, así que se fija la ausencia del atributo.
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(document.getElementById('studentDocument')?.hasAttribute('maxlength')).toBe(false)
+    expect(document.getElementById('studentPhone')?.hasAttribute('maxlength')).toBe(false)
+  })
+
+  it('sends studentDocument and studentPhone as digit-only strings in the request body', async () => {
+    vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
+    render(<PublicAdditionalCreditsPage />)
+    completeForm()
+    fireEvent.change(document.getElementById('studentDocument') as HTMLInputElement, { target: { value: '00.000.010-0' } })
+    fireEvent.change(document.getElementById('studentPhone') as HTMLInputElement, { target: { value: '000 000-0100' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+
+    await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
+      'ADICION_CREDITOS',
+      expect.objectContaining({ studentDocument: '000000100', studentPhone: '0000000100' }),
+    ))
   })
 })

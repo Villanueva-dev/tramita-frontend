@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 export interface PublicRequestFormValues {
   studentName: string
@@ -35,24 +35,34 @@ function TextField({
   onChange,
   error,
   maxLength,
+  hint,
+  inputMode,
 }: {
   field: keyof PublicRequestFormValues
   label: string
   value: string
   onChange: PublicRequestSectionsProps['onChange']
   error?: string
-  maxLength: number
+  maxLength?: number
+  hint?: string
+  inputMode?: ComponentProps<'input'>['inputMode']
 }) {
+  const describedBy = [hint ? `${field}-hint` : null, error ? `${field}-error` : null]
+    .filter(Boolean)
+    .join(' ') || undefined
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={field}>{label}</Label>
+      {hint ? <p id={`${field}-hint`} className="text-sm text-muted-foreground">{hint}</p> : null}
       <Input
         id={field}
         value={value}
         onChange={(event) => onChange(field, event.target.value)}
         maxLength={maxLength}
+        inputMode={inputMode}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${field}-error` : undefined}
+        aria-describedby={describedBy}
       />
       {error ? <p id={`${field}-error`} role="alert" className="text-sm text-destructive">{error}</p> : null}
     </div>
@@ -91,9 +101,14 @@ export function PublicRequestSections({ values, onChange, signatureCapture, erro
               maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentName}
             />
           </div>
-          <TextField field="studentDocument" label="Número de identificación" value={values.studentDocument} onChange={onChange} error={errors.studentDocument} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentDocument} />
+          {/*
+            Cédula y teléfono no llevan maxLength: el navegador recortaría el texto pegado,
+            separadores incluidos, antes de que la página filtre los dígitos. Su tope lo aplica
+            la validación de la página.
+          */}
+          <TextField field="studentDocument" label="Número de identificación" value={values.studentDocument} onChange={onChange} error={errors.studentDocument} hint="Solo números, sin puntos ni espacios." inputMode="numeric" />
           <TextField field="studentEmail" label="Correo electrónico" value={values.studentEmail} onChange={onChange} error={errors.studentEmail} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentEmail} />
-          <TextField field="studentPhone" label="Número de contacto" value={values.studentPhone} onChange={onChange} error={errors.studentPhone} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentPhone} />
+          <TextField field="studentPhone" label="Número de contacto" value={values.studentPhone} onChange={onChange} error={errors.studentPhone} hint="10 dígitos, sin espacios." inputMode="numeric" />
           <TextField field="program" label="Programa académico en el que se encuentra" value={values.program} onChange={onChange} error={errors.program} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.program} />
           <TextField field="campus" label="Sede" value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} />
           <TextField field="faculty" label="Facultad" value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} />
