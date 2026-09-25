@@ -166,8 +166,8 @@ la cédula del formulario interno.
 - PR-1 actualiza la spec viva en el mismo commit que el código, porque ajusta un requisito que ya
   existe («Todos los campos son obligatorios»). El asistente sí va como cambio OpenSpec (PR-2),
   porque agrega un requisito y cambia la forma de la pantalla.
-- Que el front salga antes que la 008 es compatible: el backend en `main` (004) acepta cualquier
-  texto de hasta 30 caracteres en `studentPhone`, y diez dígitos cumplen esa regla.
+- Que el front salga antes que la 008 es compatible: hasta su merge (`0cf3fa3`), `main` (004)
+  aceptaba hasta 30 caracteres en `studentPhone`, y diez dígitos cumplen las dos reglas.
 - Ruta de PR-1: implementación delegada. Trigger: toca más de un archivo no trivial
   (`app/solicitud/creditos-adicionales/page.tsx`, `components/do-fr-100/sections.tsx`, sus
   pruebas y la spec).
@@ -193,7 +193,7 @@ la cédula del formulario interno.
     obligatorios»: reglas numéricas y escenarios nuevos.
   - Comprobación: pruebas enfocadas en verde, `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm lint`.
 
-- [ ] **T3 — Cerrar la unidad de trabajo**
+- [x] **T3 — Cerrar la unidad de trabajo**
   - Mostrar el diff con la evidencia RED/GREEN; commit convencional después del «aprobado».
   - Probar en vivo con permiso previo, y abrir el PR con el borrador mostrado antes.
 
@@ -285,4 +285,37 @@ la cédula del formulario interno.
   su requisito (FR-009). Las citas de este documento se rehicieron contra `main`, y las de la
   008 quedan marcadas como de su rama.
 
-**Siguiente paso:** publicar PR-1 con el borrador revisado por el usuario.
+- Commit de corrección `d922c33`, aprobado por el usuario. PR-1 publicado como #57
+  (`main` ← `feat/campos-numericos-do-fr-100`, commits `a373065` y `d922c33`) con el borrador
+  aprobado. El cuerpo leído desde la API coincide con el borrador, salvo el salto de línea final.
+- CI de #57: job `build` (`pnpm lint`, `tsc --noEmit`, `pnpm test` y `pnpm build`) en verde,
+  50 s (run `36169212482`).
+- #57 mergeado el 2026-09-25 (`9c40acc`, 17:52 UTC). PR-1 cerrado.
+- La 008 se mergeó al `main` del backend el mismo día (`0cf3fa3`, 18:10 UTC), después de #57, como
+  pedía su research D9: el filtro del cliente salió antes. Desde ahí, `main` del backend exige los
+  diez dígitos. Las citas de este documento fijadas a `412a5e0` siguen valiendo para ese commit.
+- PR-2 (T4), rama `docs/spec-formulario-publico-por-pasos` desde `9c40acc`. Preflight SDD del
+  usuario: ritmo `auto`, artefactos `openspec`, entrega `auto-chain`; cadena `stacked-to-main`,
+  como la 007 (#45 a #48, todos a `main`).
+  - Propuesta: 177 líneas. Resolvió cuatro preguntas con el diseño adoptado: el correo incompleto
+    impide continuar, la barra solo indica, «Cambiar» recorre los pasos siguientes y el 413 dice
+    «Bórrela y fírmela de nuevo».
+  - Delta de spec: 365 líneas; cuatro requisitos modificados y «Diligenciamiento por pasos»
+    nuevo.
+  - Diseño: 234 líneas. El validador de contexto limpio dio `FAIL` por un hallazgo crítico: el
+    PR-3 decía cumplir el delta completo, pero dejaba el texto del 413 para el PR-4. Se corrigió,
+    y el cambio se archiva después del PR-4. `flushSync` quedó verificado con Context7 en
+    react.dev.
+  - Tamaño medido de los tres artefactos: 776 líneas; el PR-2 se parte en tres PRs de menos de
+    400.
+  - Fuera de alcance, sin decidir: que el botón Atrás del navegador retroceda un paso.
+  - Tareas: el primer borrador (239 líneas) no pasó el control. Metía los helpers de prueba en el
+    corte del asistente, al revés del diseño, y declaraba que no había partición honesta. El
+    reintento (129 líneas) parte PR-3 en 3a (modelo puro), 3b (helpers sobre la página actual,
+    sin cambio de comportamiento), 3c (presentacionales sin cablear) y 3d (cableado). Pronóstico:
+    3a 180–220, 3b 200–280, 3c 380–450, 3d 450–550 y PR-4 300–400 líneas. El 3d necesitará
+    `size:exception`, que se pide al usuario al llegar a ese corte.
+  - Artefactos: 905 líneas en total. El PR-2 se entrega en tres PRs encadenados a `main`: 2a,
+    propuesta y este documento; 2b, delta de spec; 2c, diseño y tareas.
+
+**Siguiente paso:** revisión y commits de los tres cortes del PR-2.
