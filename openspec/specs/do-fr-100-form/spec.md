@@ -75,8 +75,18 @@ vacío.** La verificación de vacío **MUST** aplicarse después de `trim()`, de
 compuesto solo por espacios no cuente como diligenciado.
 
 El sistema **MUST** respetar los límites de longitud del contrato: `studentName` ≤120,
-`studentDocument` ≤20, `studentEmail` ≤255, `studentPhone` ≤30, `program` ≤120, `campus` ≤120,
-`faculty` ≤120, `modality` ≤50, `semester` ≤50, `reason` ≤2000.
+`studentDocument` ≤20, `studentEmail` ≤255, `studentPhone` exactamente 10 dígitos, `program`
+≤120, `campus` ≤120, `faculty` ≤120, `modality` ≤50, `semester` ≤50, `reason` ≤2000.
+`studentPhone` deja de ser un tope de longitud como los demás: la feature 008 del backend lo
+enmienda a exactamente diez dígitos (`^[0-9]{10}$`,
+`Tramita/specs/004-public-request-capture/contracts/openapi.yaml:253-262`), y diez dígitos
+también cumplen la regla anterior de la 004 (cualquier texto de hasta 30 caracteres), así que el
+formulario puede adoptarla antes que el backend.
+
+`studentDocument` y `studentPhone` **MUST** aceptar solo dígitos y **MUST** descartar
+cualquier otro carácter al teclearlo o pegarlo. `studentDocument` conserva su tope de 20 y
+viaja como texto. Esta es una regla de UX decidida el 2026-09-25: el backend no la exige para
+`studentDocument`.
 
 Esta validación es **de UX**: el backend sigue siendo la autoridad.
 
@@ -104,6 +114,19 @@ Esta validación es **de UX**: el backend sigue siendo la autoridad.
 - GIVEN un valor que pasa la validación del cliente
 - WHEN el backend lo rechaza igualmente
 - THEN el sistema muestra el error devuelto, sin asumir que el envío fue válido
+
+#### Scenario: Pegar un número con separadores deja solo los dígitos
+
+- GIVEN el formulario renderizado
+- WHEN el estudiante teclea o pega un valor con puntos, guiones o espacios en `studentDocument`
+  o en `studentPhone`
+- THEN el campo conserva solo los dígitos de ese valor
+
+#### Scenario: Un teléfono sin diez dígitos impide el envío
+
+- GIVEN `studentPhone` con menos o más de diez dígitos
+- WHEN se intenta enviar
+- THEN el campo se marca como inválido y no se emite la petición
 
 ### Requirement: El trámite viaja en la ruta, no en el cuerpo
 
