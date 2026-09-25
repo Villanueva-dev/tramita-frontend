@@ -78,9 +78,8 @@ El sistema **MUST** respetar los límites de longitud del contrato: `studentName
 `studentDocument` ≤20, `studentEmail` ≤255, `studentPhone` exactamente 10 dígitos, `program`
 ≤120, `campus` ≤120, `faculty` ≤120, `modality` ≤50, `semester` ≤50, `reason` ≤2000.
 `studentPhone` deja de ser un tope de longitud como los demás: la feature 008 del backend lo
-enmienda a exactamente diez dígitos (`^[0-9]{10}$`,
-`Tramita/specs/004-public-request-capture/contracts/openapi.yaml:253-262`), y diez dígitos
-también cumplen la regla anterior de la 004 (cualquier texto de hasta 30 caracteres), así que el
+enmienda a exactamente diez dígitos (`^[0-9]{10}$`, FR-009 de la 008), y diez dígitos también
+cumplen la regla anterior de la 004 (cualquier texto de hasta 30 caracteres), así que el
 formulario puede adoptarla antes que el backend.
 
 `studentDocument` y `studentPhone` **MUST** aceptar solo dígitos y **MUST** descartar

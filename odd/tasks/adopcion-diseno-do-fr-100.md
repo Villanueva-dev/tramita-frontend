@@ -15,16 +15,19 @@ contrato o la spec vigente, así que no se adopta tal cual: cada pieza quedó cl
 
 La revisión se hizo el 2026-09-25 sobre el diseño exportado y un prototipo navegable del
 resultado ajustado (artefacto privado:
-<https://claude.ai/artifact/RNDL2YhLErmnXjbMJwg7tn>). Evidencia que decide el alcance:
+<https://claude.ai/artifact/RNDL2YhLErmnXjbMJwg7tn>). Evidencia que decide el alcance. Las
+citas de `openapi.yaml` son del contrato 004 en `main` del backend (`412a5e0`); las de la 008,
+de su rama `008-student-closure-notice` (`3e9ffd4`), sin publicar al 2026-09-25:
 
-- `Tramita/specs/004-public-request-capture/contracts/openapi.yaml:305-309`: el acuse público es
+- `Tramita/specs/004-public-request-capture/contracts/openapi.yaml:292-296`: el acuse público es
   «deliberadamente pobre: sin identificador, sin estado y sin enlace de consulta».
-- `…/openapi.yaml:239-240`: el cuerpo público solo tiene los once campos del formato; no admite
+- `…/openapi.yaml:232-234`: el cuerpo público solo tiene los once campos del formato; no admite
   adjuntos.
-- `…/openapi.yaml:253-262`: la 008 del backend enmienda `studentPhone` a exactamente diez dígitos
-  (`^[0-9]{10}$`). La 008 está en su rama `008-student-closure-notice`, no en `main` (`412a5e0`).
-- `Tramita/specs/008-student-closure-notice/spec.md:21`: la Coordinación pidió avisar al
-  estudiante solo al final, y el aviso lo envía ella a mano.
+- 008, FR-009 (`specs/008-student-closure-notice/spec.md:97`) y `PublicRequestBody.java:49`
+  (`@Pattern(regexp = "[0-9]{10}")`): la 008 enmienda `studentPhone` a exactamente diez dígitos.
+  En `main` el campo sigue en `maxLength: 30` (`openapi.yaml:247-249`).
+- 008, `specs/008-student-closure-notice/spec.md:21`: la Coordinación pidió avisar al estudiante
+  solo al final, y el aviso lo envía ella a mano.
 - `openspec/specs/do-fr-100-form/spec.md:41-67`: los bloques van en el orden del papel, empezando
   por «Lugar y fecha» y «Tipo de solicitud».
 - `components/firma/canvas-firma.tsx:47-49`: `CanvasFirma` emite una firma vacía al montarse.
@@ -67,7 +70,7 @@ depende del código.
 - Los mismos tokens del proyecto: Source Sans 3, Source Serif 4 y el primario
   `oklch(0.42 0.16 264)` (`app/globals.css:59,66`, `app/layout.tsx:3`). No hay tema nuevo.
 - Aviso amable si el correo está incompleto; el contrato declara `format: email`
-  (`openapi.yaml:248-251`).
+  (`openapi.yaml:242-245`).
 - Ejemplos en cada campo y mensajes que dicen qué falta («Falta este dato. Por ejemplo: Cali»).
 - «Volver» conserva lo escrito (D2).
 - Contador «N de 2000 caracteres» en «Compromisos adquiridos».
@@ -109,11 +112,11 @@ depende del código.
 ### Descartados
 
 - **Número de radicado en el acuse** («TRA-2026-0142»): el contrato omite el identificador a
-  propósito (`openapi.yaml:305-309`, `spec.md:197-218`).
+  propósito (`openapi.yaml:292-296`, `spec.md:197-218`).
 - **Línea de tiempo con las etapas del trámite en el acuse**: expone estado y ruta, que el acuse
   no debe mostrar, y las etapas no se verificaron contra la configuración.
 - **«Le avisaremos cada vez que avance»**: la Coordinación pidió avisar solo al final
-  (`008…/spec.md:21`).
+  (008, `spec.md:21`).
 - **Adjuntar documentos de soporte**: el contrato público no los admite; en el diseño era un
   simulacro. Necesitaría una feature del backend.
 - **Botón «Volver al inicio del formulario»** en el acuse (D5).
@@ -123,7 +126,7 @@ depende del código.
 - **Exigir dígitos en la cédula también en el backend**, decidido por el usuario el 2026-09-25.
   Las dos pantallas que crean solicitudes entregan solo dígitos: el formulario interno ya lo exige
   (`app/requests/new/page.tsx:79-80`) y el público lo hará con PR-1. Riesgo aceptado: el
-  endpoint público no tiene autenticación (`openapi.yaml:49`, `security: []`), así que una
+  endpoint público no tiene autenticación (`openapi.yaml:43`, `security: []`), así que una
   llamada directa todavía puede traer otro formato; lo peor es que esa solicitud no aparezca al
   buscar por cédula.
 - **Copiar al formulario público el rango de 6 a 12 dígitos del formulario interno.** Ese rango
@@ -254,5 +257,32 @@ la cédula del formulario interno.
     `tsc --noEmit` y `pnpm lint` con código 0.
   - Recomprobado en Chrome: insertar «300 123 4567» deja `3001234567`, e insertar
     «1.144.123.456» deja `1144123456`.
+- T3: diff revisado y aprobado por el usuario el 2026-09-25; commit `a373065`
+  (`feat(solicitud): cédula y teléfono del formulario público solo aceptan dígitos`),
+  6 archivos, +414 −16. Pendiente: prueba en vivo del envío completo y abrir el PR.
+- Prueba en vivo (2026-09-25, con permiso del usuario, datos ficticios): Chrome sobre el servidor
+  de desarrollo de esta rama, contra el backend local arrancado a las 09:43 desde
+  `Tramita/target/classes`. Esas clases se compilaron el 2026-09-24 sobre la rama
+  `008-student-closure-notice` (`3e9ffd4`), cuyo `PublicRequestBody.java:49` exige
+  `@Pattern(regexp = "[0-9]{10}")` en `studentPhone`.
+  - Insertar «00.000.010-0» en la cédula dejó `000000100`; insertar «000 000 010» en el teléfono
+    dejó `000000010`.
+  - Con el teléfono en 9 dígitos y la firma trazada con el mouse, «Enviar solicitud» no emitió
+    ninguna petición y marcó solo el teléfono, con «El número debe tener 10 dígitos, sin
+    espacios. Por ejemplo: 3001234567».
+  - Una extensión de Chrome tomó la pestaña y la automatización dejó de responder
+    (`Cannot access a chrome-extension:// URL of different extension`). El usuario escribió
+    los diez dígitos y envió a mano.
+  - La instrumentación de `fetch` en la página registró una sola petición en toda la prueba:
+    `POST /api/public/requests/ADICION_CREDITOS` → `201`, con los once campos del contrato y sin
+    `definitionCode`, cédula `000000100` y teléfono de diez dígitos. El acuse reemplazó al
+    formulario en la misma ruta.
 
-**Siguiente paso:** T3, revisión del diff por el usuario antes del commit.
+- Corrección de citas después de `a373065`: las líneas del contrato 004 se habían leído del
+  checkout del backend, que estaba en la rama 008 (sin publicar), y no coincidían con `main`.
+  En `main` (`412a5e0`) el contrato no tiene la enmienda de la 008, y `openapi.yaml:253-262` son
+  otros campos. El comentario de `lib/public-request-limits.ts` y la spec citan ahora la 008 por
+  su requisito (FR-009). Las citas de este documento se rehicieron contra `main`, y las de la
+  008 quedan marcadas como de su rama.
+
+**Siguiente paso:** publicar PR-1 con el borrador revisado por el usuario.

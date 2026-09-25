@@ -16,11 +16,10 @@ export type PublicRequestTextField = Exclude<keyof PublicRequestBody, 'signature
  * Tipar el registro contra `PublicRequestBody` hace que el compilador rechace un campo
  * faltante o mal escrito, así que la tabla no puede desalinearse del contrato.
  *
- * `studentPhone` pasó de 30 a 10: la feature 008 del backend enmienda el campo a exactamente
- * diez dígitos (`^[0-9]{10}$`,
- * `Tramita/specs/004-public-request-capture/contracts/openapi.yaml:253-262`). Diez dígitos
- * también cumplen la regla anterior de la 004 (cualquier texto de hasta 30 caracteres), así que
- * el frontend puede adoptarla antes que el backend sin romper la integración.
+ * `studentPhone` pasó de 30 a 10: la feature 008 del backend (FR-009) enmienda el campo a
+ * exactamente diez dígitos (`^[0-9]{10}$`). Diez dígitos también cumplen la regla anterior de
+ * la 004 (cualquier texto de hasta 30 caracteres), así que el frontend puede adoptarla antes
+ * que el backend sin romper la integración.
  */
 export const PUBLIC_REQUEST_FIELD_LIMITS: Record<PublicRequestTextField, number> = {
   studentName: 120,
