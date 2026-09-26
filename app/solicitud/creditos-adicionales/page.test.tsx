@@ -88,6 +88,7 @@ describe('PublicAdditionalCreditsPage', () => {
       'app/solicitud/creditos-adicionales/page.tsx',
       'components/do-fr-100/sections.tsx',
       'components/do-fr-100/steps.ts',
+      'components/do-fr-100/wizard.tsx',
       'components/firma/canvas-firma.tsx',
     ])
 
