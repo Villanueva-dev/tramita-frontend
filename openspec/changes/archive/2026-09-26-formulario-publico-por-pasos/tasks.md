@@ -172,6 +172,10 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 
 ## Cierre
 
-- [ ] 6.1 Grep dirigido: ninguna pieza descartada (radicado, línea de tiempo, «le avisaremos»,
+- [x] 6.1 Grep dirigido: ninguna pieza descartada (radicado, línea de tiempo, «le avisaremos»,
       adjuntos, «Volver al inicio», equivalencia con firma escaneada, «5 minutos») en pantalla.
-- [ ] 6.2 Archivar el cambio solo tras PR-4 en `main`.
+      Corrido el 2026-09-26 sobre `main` en `70de563` (merge de PR-4, #72): `git grep -n -i -E
+      "radicado|línea de tiempo|le avisaremos|adjunto|Volver al inicio|firma escaneada|5 minutos"`
+      en `app/solicitud`, `components/do-fr-100` y `components/firma`, sin salida en código de
+      producción; la única coincidencia es la prueba que afirma su ausencia (`page.test.tsx:467`).
+- [x] 6.2 Archivar el cambio solo tras PR-4 en `main` — archivado en `openspec/changes/archive/2026-09-26-formulario-publico-por-pasos/`.

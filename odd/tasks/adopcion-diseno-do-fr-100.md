@@ -393,8 +393,14 @@ la cédula del formulario interno.
   - Puerta en vivo con el mouse en Chrome: aviso por paso y foco en el primer campo inválido,
     contador, guía que no bloquea el trazo ni entra en la imagen, borrado a cero, revisión con la
     imagen, consola sin el aviso de `src=""`. Firmar con el dedo sigue pendiente de un celular.
-  - Suite: 27 archivos, 323/323; `tsc`, `lint`, `build` en verde. Commit `020429a` más el commit
-    de docs que registra este cierre.
+  - Suite: 27 archivos, 323/323; `tsc`, `lint`, `build` en verde. Commits `020429a` y `81777a6`;
+    PR #72, CI en verde, mergeada el 2026-09-26 (`70de563`, 08:25 UTC); #27 cerrado.
+- Cierre (6.1 y 6.2), rama `docs/archiva-formulario-publico-por-pasos` desde `70de563`: el grep
+  dirigido de piezas descartadas no encuentra nada en el código del formulario en `main`; el
+  cambio se archiva en `openspec/changes/archive/2026-09-26-formulario-publico-por-pasos/` y la spec `do-fr-100-form`
+  incorpora los cuatro requisitos modificados y el nuevo «Diligenciamiento por pasos».
 
-**Siguiente paso:** mergear PR-4; después, 6.1 (grep dirigido de piezas descartadas) y 6.2
-(archivar el cambio `formulario-publico-por-pasos`), que cierran la adopción del diseño.
+**Estado:** adopción del rediseño completa en `main`. Fuera de este documento quedan: confirmar
+la firma con el dedo en un celular; #19 y #33 (lienzo al rotar, captura de puntero); las tres
+decisiones de PR-4 marcadas para veto del responsable; y que el botón Atrás del navegador
+retroceda un paso, decisión de producto no tomada.
