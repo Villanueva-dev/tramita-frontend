@@ -98,8 +98,9 @@ compuesto solo por espacios no cuente como diligenciado.
 
 Antes de validar y enviar, el sistema **MUST** normalizar cada campo de una sola línea: elimina
 espacios al inicio y al final y reemplaza cada secuencia de espacios internos por uno solo.
-`reason` («Compromisos adquiridos») **MUST NOT** normalizarse: `trim()` se usa únicamente para
-determinar si está vacío y el valor original se conserva al revisar y enviar.
+`program`, que procede del catálogo, y `reason` («Compromisos adquiridos») **MUST NOT**
+normalizarse: `trim()` se usa únicamente para determinar si `reason` está vacío y ambos valores
+se conservan exactamente al revisar y enviar.
 
 El sistema **MUST** exigir esta obligatoriedad **por paso**: «Continuar» **MUST NOT** avanzar al
 siguiente paso si algún campo del paso visible está vacío, excede su límite o es inválido. El
@@ -202,6 +203,41 @@ bloquear «Continuar»; no existía una regla explícita para un correo sin `@` 
 - GIVEN `studentEmail` con una dirección completa de un proveedor personal o institucional
 - WHEN el estudiante pulsa «Continuar» en el paso que lo contiene
 - THEN el asistente acepta el valor y permite avanzar
+
+### Requirement: El programa académico procede del catálogo público
+
+El sistema **MUST** obtener el catálogo mediante `GET /api/public/programs`, sin asumir su
+orden ni preseleccionar uno de sus valores. Cada respuesta contiene objetos con `name`; el campo
+`program` **MUST** ser un selector nativo requerido, no texto libre, y conservar el nombre
+seleccionado en el resumen y el cuerpo público.
+
+Mientras el catálogo carga, el selector **MUST** estar bloqueado y explicar que está cargando. Si
+la carga falla, el selector **MUST** permanecer bloqueado, explicar el error y ofrecer
+«Reintentar»; nunca vuelve a texto libre. Reintentar **MUST NOT** perder los demás valores del
+formulario. La carga se cancela lógicamente al desmontar la pantalla para que una respuesta vieja
+no modifique su estado.
+
+#### Scenario: El selector se llena sin preselección
+
+- GIVEN la pantalla pública abierta
+- WHEN el catálogo público responde con programas en cualquier orden
+- THEN cada `name` aparece como opción del selector nativo
+- AND ningún programa queda seleccionado hasta que el estudiante elige uno
+
+#### Scenario: La carga del catálogo se informa y bloquea el campo
+
+- GIVEN el catálogo público aún pendiente
+- WHEN el estudiante llega al campo de programa
+- THEN el selector requerido está deshabilitado y explica que el catálogo está cargando
+
+#### Scenario: Una falla permite reintentar sin texto libre
+
+- GIVEN que la consulta del catálogo falla
+- WHEN el estudiante observa el campo de programa
+- THEN el selector sigue bloqueado, se informa la falla y aparece «Reintentar»
+- AND no se presenta un control de texto libre
+- WHEN el estudiante reintenta y la consulta tiene éxito
+- THEN las opciones se habilitan sin perder los demás valores diligenciados
 
 ### Requirement: El trámite viaja en la ruta, no en el cuerpo
 

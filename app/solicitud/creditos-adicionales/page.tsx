@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import {
   ApplicantFields,
@@ -28,7 +28,7 @@ import { CanvasFirma, type SignatureCapture } from '@/components/firma/canvas-fi
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ApiError, submitPublicRequest } from '@/lib/api'
+import { ApiError, listPublicPrograms, submitPublicRequest } from '@/lib/api'
 import { apiErrorMessages } from '@/lib/api-errors'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
 import type { PublicRequestBody } from '@/lib/types'
@@ -82,6 +82,11 @@ interface FormError {
   offerSignatureStep: boolean
 }
 
+type ProgramCatalog =
+  | { status: 'loading'; programs: string[] }
+  | { status: 'ready'; programs: string[] }
+  | { status: 'error'; programs: string[] }
+
 // Cédula y teléfono son numéricos: descartar todo lo que no sea dígito al tecleo (también al
 // pegar, porque pegar dispara el mismo evento de cambio) evita que el usuario tenga que
 // corregir separadores a mano y hace inalcanzable por la UI el mensaje defensivo de "solo
@@ -92,12 +97,11 @@ const PHONE_PATTERN = /^[0-9]{10}$/
 // Comparte la validación del formulario interno: correo completo con dominio y sufijo, sin
 // restringir el proveedor del estudiante.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const SINGLE_LINE_FIELDS: Exclude<keyof PublicRequestFormValues, 'reason'>[] = [
+const SINGLE_LINE_FIELDS: Exclude<keyof PublicRequestFormValues, 'reason' | 'program'>[] = [
   'studentName',
   'studentDocument',
   'studentEmail',
   'studentPhone',
-  'program',
   'campus',
   'faculty',
   'modality',
@@ -179,9 +183,34 @@ export default function PublicAdditionalCreditsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [step, setStep] = useState<StepId>('applicant')
+  const [programCatalog, setProgramCatalog] = useState<ProgramCatalog>({ status: 'loading', programs: [] })
+  const [programCatalogRequest, setProgramCatalogRequest] = useState(0)
 
   const activeHeadingRef = useRef<HTMLHeadingElement>(null)
   const activePanelRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadPrograms() {
+      setProgramCatalog({ status: 'loading', programs: [] })
+      try {
+        const programs = await listPublicPrograms()
+        if (!ignore) setProgramCatalog({ status: 'ready', programs: programs.map((program) => program.name) })
+      } catch {
+        if (!ignore) setProgramCatalog({ status: 'error', programs: [] })
+      }
+    }
+
+    void loadPrograms()
+    return () => {
+      ignore = true
+    }
+  }, [programCatalogRequest])
+
+  function retryProgramCatalog() {
+    setProgramCatalogRequest((request) => request + 1)
+  }
 
   function handleChange(field: keyof PublicRequestFormValues, value: string) {
     const nextValue = DIGITS_ONLY_FIELDS.has(field) ? stripNonDigits(value) : value
@@ -342,7 +371,12 @@ export default function PublicAdditionalCreditsPage() {
             <StepErrorNotice errors={errorsOfStep(errors, 'academic')} />
             <Card>
               <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <AcademicFields values={values} onChange={handleChange} errors={errors} />
+                <AcademicFields
+                  values={values}
+                  onChange={handleChange}
+                  errors={errors}
+                  programCatalog={{ ...programCatalog, retry: retryProgramCatalog }}
+                />
               </CardContent>
             </Card>
           </StepPanel>
