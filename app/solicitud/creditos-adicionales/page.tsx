@@ -89,12 +89,36 @@ interface FormError {
 const DIGITS_ONLY_FIELDS = new Set<keyof PublicRequestFormValues>(['studentDocument', 'studentPhone'])
 const DIGITS_ONLY_PATTERN = /^[0-9]+$/
 const PHONE_PATTERN = /^[0-9]{10}$/
-// No exige punto en el dominio: coincide con el delta de spec («sin @ o sin dominio después de
-// él») y no es más estricta que el backend (`format: email`, design.md decisión 3).
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
+// Comparte la validación del formulario interno: correo completo con dominio y sufijo, sin
+// restringir el proveedor del estudiante.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const SINGLE_LINE_FIELDS: Exclude<keyof PublicRequestFormValues, 'reason'>[] = [
+  'studentName',
+  'studentDocument',
+  'studentEmail',
+  'studentPhone',
+  'program',
+  'campus',
+  'faculty',
+  'modality',
+  'semester',
+]
 
 function stripNonDigits(value: string): string {
   return value.replace(/\D/g, '')
+}
+
+function normalizeSingleLineValue(field: Exclude<keyof PublicRequestFormValues, 'reason'>, value: string): string {
+  if (DIGITS_ONLY_FIELDS.has(field)) return stripNonDigits(value)
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeFormValues(values: PublicRequestFormValues): PublicRequestFormValues {
+  const normalized = { ...values }
+  for (const field of SINGLE_LINE_FIELDS) {
+    normalized[field] = normalizeSingleLineValue(field, values[field])
+  }
+  return normalized
 }
 
 function fieldErrorsFromProblem(error: ApiError): FormErrors {
@@ -184,7 +208,9 @@ export default function PublicAdditionalCreditsPage() {
   }
 
   function handleContinue() {
-    const stepErrors = errorsOfStep(validate(values, signature), step)
+    const normalizedValues = normalizeFormValues(values)
+    setValues(normalizedValues)
+    const stepErrors = errorsOfStep(validate(normalizedValues, signature), step)
     if (Object.keys(stepErrors).length > 0) {
       flushSync(() => setErrors((current) => replaceErrorsOfStep(current, step, stepErrors)))
       focusFirstInvalid()
@@ -202,7 +228,9 @@ export default function PublicAdditionalCreditsPage() {
   }
 
   async function handleSubmit() {
-    const validationErrors = validate(values, signature)
+    const normalizedValues = normalizeFormValues(values)
+    setValues(normalizedValues)
+    const validationErrors = validate(normalizedValues, signature)
     if (Object.keys(validationErrors).length > 0) {
       // Defensa: cada paso ya se validó al recorrerlo con «Continuar», así que este caso no
       // debería alcanzarse desde la UI expuesta; se conserva para no confiar ciegamente en eso.
@@ -213,7 +241,7 @@ export default function PublicAdditionalCreditsPage() {
     }
 
     setErrors({})
-    const body: PublicRequestBody = { ...values, signature: signature.dataUrl }
+    const body: PublicRequestBody = { ...normalizedValues, signature: signature.dataUrl }
     setIsSubmitting(true)
     try {
       await submitPublicRequest(PUBLIC_REQUEST_DEFINITION_CODE, body)
