@@ -10,12 +10,14 @@
 
 - **Institución**: Universidad Remington — Sede Cali. Programa de Ingeniería de Sistemas,
   modalidad Distancia (SNIES 53112, Resolución 015939 del 1 de septiembre de 2023).
-- **Usuario del sistema**: la **Coordinación Académica de la Sede Cali**. Es el único rol que
-  inicia sesión — de ahí que el primer sprint sea `auth-login`. Los aprobadores aguas abajo
+- **Usuario interno del sistema**: la **Coordinación Académica de la Sede Cali**. Es el único rol que
+  inicia sesión en el cockpit interno. Los aprobadores aguas abajo
   (Facultad/Decano en Medellín, Dirección de CD, Área Financiera, Registro y Control) operan por
   correo y OneDrive: **no son usuarios** del sistema.
-- **El estudiante NO es usuario**: no hay portal de auto-consulta (decisión explícita de la
-  Coordinación). Solo recibe un aviso por correo institucional al finalizar su trámite.
+- **El estudiante no usa el portal interno ni tiene auto-consulta** (decisión explícita de la
+  Coordinación), pero puede radicar públicamente el formato DO-FR-100 de créditos adicionales
+  sin cuenta. Tras el envío, la pantalla confirma la recepción e indica que la Coordinación
+  responderá al correo diligenciado; no se documenta un aviso automático por correo.
 
 ## Qué resuelve
 
@@ -35,6 +37,8 @@ y avance del estado. **No** orquesta de punta a punta la cadena de firmas extern
 
 ## Dónde estamos ahora
 
-**Sprint `auth-login`**: autenticación de la Coordinación. El motor de workflow configurable
-(los trámites) es la fase siguiente y **aún no tiene backend**. La UI de trámites de la maqueta
-es un borrador visual: no cablear todavía.
+La autenticación protege el cockpit interno de la Coordinación. El motor de workflow del backend
+ya está integrado en el frontend, y el DO-FR-100 público de créditos adicionales se radica desde
+una ruta pública sin autenticación como asistente de cinco pasos (PR #70, mergeado a `main` el
+2026-09-26). Queda pendiente el pulido visual, Slice 5 del cambio OpenSpec
+[`formulario-publico-por-pasos`](../openspec/changes/formulario-publico-por-pasos/tasks.md).
