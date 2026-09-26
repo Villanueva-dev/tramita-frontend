@@ -199,7 +199,7 @@ la cédula del formulario interno.
 
 ### PR-2 — Cambio OpenSpec «formulario público por pasos» (se detalla al empezar)
 
-- [ ] **T4** — Propuesta, delta de spec (dos requisitos modificados, dos escenarios nuevos y un
+- [x] **T4** — Propuesta, delta de spec (dos requisitos modificados, dos escenarios nuevos y un
   requisito nuevo: «Diligenciamiento por pasos»), diseño con D1 a D5 y tareas.
 
 ### PR-3 — Asistente (se detalla al empezar)
@@ -318,5 +318,28 @@ la cédula del formulario interno.
     `size:exception`, que se pide al usuario al llegar a ese corte.
   - Artefactos: 905 líneas en total. El PR-2 se entrega en tres PRs encadenados a `main`: 2a,
     propuesta y este documento; 2b, delta de spec; 2c, diseño y tareas.
+- PR-2 cerrado el 2026-09-25: #60 (`38bfb65`), #61 (`c86fd85`) y #62 (`76b792c`) mergeados a
+  `main`, cada uno con el CI en verde. La enmienda del foco tras un error (#58) entró en #64
+  (`68cda99`, merge `5a5f848`): spec, diseño (decisión 6), propuesta, tareas 4.1 y 4.3 y T5.
+- PR-3a (T5, primer corte), rama `feat/formulario-publico-3a-steps` desde `5a5f848`. Ruta: SDD
+  apply delegado por corte (`sdd-apply`, sonnet), con validador de contrato de fase de contexto
+  limpio. Preflight SDD del usuario: `auto`, `openspec`, `auto-chain`; cadena `stacked-to-main`.
+  - `components/do-fr-100/steps.ts` (87 líneas) y 18 pruebas (131 líneas): RED observado antes
+    de crear el módulo; 18/18 en verde. Tamaño medido: 219 líneas contra 180–220 de pronóstico.
+  - Hallazgo: el guardián de frontera de `page.test.tsx:75-87` enumera los archivos de producción
+    del directorio, así que se rompió al crear `steps.ts`; `tasks.md` difería su actualización a
+    4.5. Se adelantó al corte que crea cada archivo (1.2 y 3.4) con una línea en el test; el CI
+    corre `pnpm test`, así que dejarlo en rojo no era opción.
+  - Validador de contexto limpio: 4/5 puertas en PASS; una cifra vieja del reporte, corregida.
+  - Commit `c6e3bf2` tras el «Aprobado» del diff; PR #65 con el borrador mostrado antes, CI en
+    verde (1m02s), mergeado el 2026-09-26 (`6693811`, 02:04 UTC). Sin prueba en vivo: el módulo
+    no tiene consumidor todavía.
+- PR-3b (T5, segundo corte), rama `feat/formulario-publico-3b-test-helpers` desde `6693811`:
+  helpers `fillPublicRequestForm` y `submitForm` sobre la página actual, sin cambio de
+  comportamiento. Medido: 56 líneas contra 200–280 de pronóstico; 9 de las 12 definiciones
+  «reescritas» del diseño tenían llenado y envío y se migraron (una solo a `submitForm()`, porque
+  depende de no firmar); las 3 de solo render quedan para la reescritura de navegación de 4.5.
+  Suite idéntica antes y después: 39/39 en el archivo, 265/265 en total; `tsc`, `lint` en verde.
 
-**Siguiente paso:** revisión y commits de los tres cortes del PR-2.
+**Siguiente paso:** PR-3c, módulos presentacionales sin cablear (`wizard.tsx`,
+`review-summary.tsx`, extracción de `sections.tsx`).

@@ -54,13 +54,17 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 
 ## Slice 2 — PR-3b: helpers de test nivel-estudiante (sin cambio de comportamiento)
 
-- [ ] 2.1 REFACTOR `page.test.tsx`: agregar `fillPublicRequestForm(values)` /
+- [x] 2.1 REFACTOR `page.test.tsx`: agregar `fillPublicRequestForm(values)` /
       `submitForm()` (hoy: llenan los once campos y pulsan «Enviar solicitud») y migrar las 12
       reescritas de `design.md` *Testing Strategy* (líneas 89,153,163,174,185,197,216,231,245,
-      272,301,340) a llamarlos. Mismas aserciones; suite verde antes y después.
-- [ ] 2.2 Verify: `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx`;
+      272,301,340) a llamarlos. Mismas aserciones; suite verde antes y después. De las 12, 9
+      tenían fill/submit para migrar (8 a ambos helpers, 1 solo a `submitForm()` porque
+      depende de no firmar); las 3 restantes (`:90`,`:154`,`:164` actuales) no llenan ni
+      envían hoy y quedan para su reescritura de navegación en el Slice 4 — ver
+      `apply-progress.md` para el detalle y la razón.
+- [x] 2.2 Verify: `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx`;
       `pnpm test`; `rm -rf .next && pnpm exec tsc --noEmit`.
-- [ ] 2.3 Commit: `test(do-fr-100): helpers de nivel estudiante antes del asistente`.
+- [x] 2.3 Commit: `test(do-fr-100): helpers de nivel estudiante antes del asistente`.
 
 ## Slice 3 — PR-3c: módulos presentacionales sin cablear
 
