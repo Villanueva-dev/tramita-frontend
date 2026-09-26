@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
 import type { ComponentProps, ReactNode } from 'react'
 
@@ -19,14 +18,12 @@ export interface PublicRequestFormValues {
   reason: string
 }
 
-interface PublicRequestSectionsProps {
-  values: PublicRequestFormValues
-  onChange: (field: keyof PublicRequestFormValues, value: string) => void
-  signatureCapture: ReactNode
-  errors: Partial<Record<keyof PublicRequestFormValues | 'signature', string>>
-  onSubmit: () => void
-  isSubmitting: boolean
-}
+// `PublicRequestSections`, el componente de una sola página que consumía este contrato, se retiró
+// en el corte 3d: `page.tsx` compone estos grupos dentro de su propio `<form>` (design.md,
+// decisión 4). `FieldGroupProps` queda autocontenido en vez de derivar de las props de un
+// componente que ya no existe.
+type FieldChangeHandler = (field: keyof PublicRequestFormValues, value: string) => void
+type FieldErrors = Partial<Record<keyof PublicRequestFormValues | 'signature', string>>
 
 /**
  * Fuente única de los rótulos de campo (checklist «TypeScript»/DRY): `review-summary.tsx` los
@@ -58,7 +55,7 @@ function TextField({
   field: keyof PublicRequestFormValues
   label: string
   value: string
-  onChange: PublicRequestSectionsProps['onChange']
+  onChange: FieldChangeHandler
   error?: string
   maxLength?: number
   hint?: string
@@ -95,8 +92,8 @@ function TextField({
  */
 export interface FieldGroupProps {
   values: PublicRequestFormValues
-  onChange: PublicRequestSectionsProps['onChange']
-  errors: PublicRequestSectionsProps['errors']
+  onChange: FieldChangeHandler
+  errors: FieldErrors
 }
 
 /**
@@ -213,59 +210,3 @@ export function SignatureFields({ signatureCapture, error }: { signatureCapture:
   )
 }
 
-export function PublicRequestSections({ values, onChange, signatureCapture, errors, onSubmit, isSubmitting }: PublicRequestSectionsProps) {
-  return (
-    <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSubmit() }} noValidate>
-      <PublicRequestFixedStrip />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Datos del solicitante</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ApplicantFields values={values} onChange={onChange} errors={errors} />
-          <AcademicFields values={values} onChange={onChange} errors={errors} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Motivo de la solicitud</CardTitle>
-          <CardDescription>Describa el motivo en los compromisos adquiridos.</CardDescription>
-        </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Compromisos adquiridos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ReasonFields values={values} onChange={onChange} errors={errors} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Firma del solicitante</CardTitle>
-          <CardDescription>Trace su firma en el recuadro o cargue una imagen como alternativa accesible.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SignatureFields signatureCapture={signatureCapture} error={errors.signature} />
-        </CardContent>
-      </Card>
-      {/*
-        h-11 son los 44 px de objetivo táctil que invoca design.md:75, por encima de los 36 px
-        que trae la variante `lg`: esta pantalla se diligencia desde el teléfono. En móvil ocupa
-        el ancho completo y desde `sm` se ajusta al contenido.
-      */}
-      <Button
-        type="submit"
-        size="lg"
-        disabled={isSubmitting}
-        className="h-11 w-full sm:w-auto sm:self-end"
-      >
-        {isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud'}
-      </Button>
-    </form>
-  )
-}
