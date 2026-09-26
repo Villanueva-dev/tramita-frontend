@@ -43,12 +43,14 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 
 ## Slice 1 — PR-3a: modelo puro
 
-- [ ] 1.1 RED→GREEN `components/do-fr-100/steps.ts` + `.test.ts`: `STEPS` (5, orden fijo),
+- [x] 1.1 RED→GREEN `components/do-fr-100/steps.ts` + `.test.ts`: `STEPS` (5, orden fijo),
       `FIELD_STEP`, `isFormField`, `errorsOfStep`, `firstStepWithError`, `stepsWithErrors`, per
       `design.md:144-155`. Sin JSX, sin import de `page.tsx`.
-- [ ] 1.2 Verify: `pnpm exec vitest run components/do-fr-100/steps.test.ts`; `pnpm test` (las 19
-      definiciones de `page.test.tsx` intactas); `rm -rf .next && pnpm exec tsc --noEmit`.
-- [ ] 1.3 Commit: `feat(do-fr-100): modelo puro de pasos del asistente`.
+- [x] 1.2 Verify: `pnpm exec vitest run components/do-fr-100/steps.test.ts`; `pnpm test` (las 19
+      definiciones de `page.test.tsx` intactas; la lista cerrada de `:78-82` suma `steps.ts`,
+      porque el guardián enumera los archivos de producción del directorio y se rompe en el
+      slice que crea el archivo, no en 4.5); `rm -rf .next && pnpm exec tsc --noEmit`.
+- [x] 1.3 Commit: `feat(do-fr-100): modelo puro de pasos del asistente`.
 
 ## Slice 2 — PR-3b: helpers de test nivel-estudiante (sin cambio de comportamiento)
 
@@ -70,8 +72,9 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 - [ ] 3.3 REFACTOR `sections.tsx`: extraer franja fija + grupos de campos por `FIELD_STEP`
       (`design.md` decisión 1); `PublicRequestSections` sigue renderizando todo en una pasada —
       cero cambio de comportamiento, `page.test.tsx` queda verde sin tocarlo.
-- [ ] 3.4 Verify: `pnpm exec vitest run components/do-fr-100/`; `pnpm test`;
-      `rm -rf .next && pnpm exec tsc --noEmit`. Medir `git diff --stat`; si >400, dividir en
+- [ ] 3.4 Verify: `pnpm exec vitest run components/do-fr-100/`; `pnpm test` (la lista cerrada de
+      `page.test.tsx:78-82` suma `wizard.tsx` y `review-summary.tsx`, por la misma razón que en
+      1.2); `rm -rf .next && pnpm exec tsc --noEmit`. Medir `git diff --stat`; si >400, dividir en
       3c-i/3c-ii (ver forecast) antes de abrir el PR.
 - [ ] 3.5 Commit: `feat(do-fr-100): módulos presentacionales del asistente, sin cablear`.
 
@@ -94,8 +97,8 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
       decisión 7); reescribir con los helpers de 2.1 las pruebas de firma existentes para llegar
       al paso «Firma».
 - [ ] 4.5 GREEN: apuntar `fillPublicRequestForm`/`submitForm` (slice 2) a navegación real por
-      paso; sumar `{ hidden: true }` en las ausencias (`:121,129`) y actualizar la lista cerrada
-      mecánica (`:75`).
+      paso; sumar `{ hidden: true }` en las ausencias (`:121,129`). La lista cerrada (`:75`) ya
+      quedó al día en 1.2 y 3.4.
 - [ ] 4.6 Verify: `pnpm test` completo; `app/requests/new/page.test.tsx` intacto;
       `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`; `pnpm build`. Mutantes: quitar
       `flushSync` o el despacho de `onSubmit` debe romper al menos una prueba.
