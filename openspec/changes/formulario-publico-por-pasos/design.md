@@ -230,9 +230,12 @@ vista (jsdom no desplaza), se prueban en vivo antes de cada PR.
   de hoy). Cumple el delta **salvo el texto exacto del 413**, que cambia en PR-4 junto con el botón
   que nombra, para que el mensaje nunca remita a un botón que no existe; por eso el cambio se
   archiva después de PR-4. Verificación: `pnpm test`, `tsc --noEmit`, `pnpm lint`, `pnpm build` y
-  firma en vivo. Si pasa de 400 líneas: **3a**, helpers de navegación sobre la página actual, en verde
-  antes y después; **3b**, el asistente. Un corte dentro de 3b dejaría un estado fuera de la spec y
-  solo cabe con `feature-branch-chain`.
+  firma en vivo. Se entrega en cuatro cortes encadenados a `main` (`tasks.md`, *Review Workload
+  Forecast*): **3a**, el modelo puro de pasos (`steps.ts`); **3b**, los helpers de prueba sobre la
+  página actual, en verde antes y después; **3c**, los módulos presentacionales sin cablear;
+  **3d**, el cableado, el único cambio de comportamiento. Un corte dentro de 3d dejaría un estado
+  fuera de la spec y solo cabe con `feature-branch-chain`. (Enmendado el 2026-09-26: la versión
+  aprobada describía dos cortes, 3a helpers y 3b asistente, anteriores al desglose de `tasks.md`.)
 - **PR-4**: decisión 8 y el texto del 413; con él, el delta queda cumplido por completo. No cambia
   requisitos vigentes (proposal, `:89-91`). Verificación: las mismas cinco comprobaciones que PR-3. Toca las cinco consultas
   de «Limpiar firma» (`canvas-firma.test.tsx:17,176,180,230`; `page.test.tsx:160`) y `h-11`

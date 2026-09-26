@@ -68,19 +68,23 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 
 ## Slice 3 — PR-3c: módulos presentacionales sin cablear
 
-- [ ] 3.1 RED→GREEN `components/do-fr-100/wizard.tsx` + test: `StepPanel` (`hidden` por
+- [x] 3.1 RED→GREEN `components/do-fr-100/wizard.tsx` + test: `StepPanel` (`hidden` por
       `active`), `StepProgress` (labels + marca de `stepsWithErrors`, sin elemento interactivo —
       «la barra no permite saltar»), `StepNavigation`. No lo importa `page.tsx` todavía.
-- [ ] 3.2 RED→GREEN `components/do-fr-100/review-summary.tsx` + test: resumen por bloque,
+- [x] 3.2 RED→GREEN `components/do-fr-100/review-summary.tsx` + test: resumen por bloque,
       botón «Cambiar» con el bloque en su nombre accesible (`onEdit`).
-- [ ] 3.3 REFACTOR `sections.tsx`: extraer franja fija + grupos de campos por `FIELD_STEP`
+- [x] 3.3 REFACTOR `sections.tsx`: extraer franja fija + grupos de campos por `FIELD_STEP`
       (`design.md` decisión 1); `PublicRequestSections` sigue renderizando todo en una pasada —
       cero cambio de comportamiento, `page.test.tsx` queda verde sin tocarlo.
-- [ ] 3.4 Verify: `pnpm exec vitest run components/do-fr-100/`; `pnpm test` (la lista cerrada de
+- [x] 3.4 Verify: `pnpm exec vitest run components/do-fr-100/`; `pnpm test` (la lista cerrada de
       `page.test.tsx:78-82` suma `wizard.tsx` y `review-summary.tsx`, por la misma razón que en
-      1.2); `rm -rf .next && pnpm exec tsc --noEmit`. Medir `git diff --stat`; si >400, dividir en
-      3c-i/3c-ii (ver forecast) antes de abrir el PR.
-- [ ] 3.5 Commit: `feat(do-fr-100): módulos presentacionales del asistente, sin cablear`.
+      1.2); `rm -rf .next && pnpm exec tsc --noEmit`. Medir `git diff --stat`; **646 líneas
+      medidas tras las correcciones de revisión, supera 400** → dividir en 3c-i (`wizard.tsx`,
+      282 líneas)/3c-ii (`review-summary.tsx` + `sections.tsx`, 364 líneas) antes de abrir el PR
+      — ver `apply-progress.md` para el detalle de la medición y de las correcciones.
+- [x] 3.5 Commit: `feat(do-fr-100): módulos presentacionales del asistente, sin cablear`.
+      Entregado como dos commits por la medición de 3.4: `b6d2418` (3c-i, `wizard.tsx`) y
+      `b0bb338` (3c-ii, `review-summary.tsx` + `sections.tsx`), en ramas apiladas a `main`.
 
 ## Slice 4 — PR-3d: cableado (el cambio de comportamiento)
 
