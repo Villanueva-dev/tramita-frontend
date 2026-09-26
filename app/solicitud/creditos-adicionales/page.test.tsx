@@ -50,6 +50,14 @@ function fillField(id: string, value: string) {
   fireEvent.change(field, { target: { value } })
 }
 
+function typeFieldCharacterByCharacter(id: string, value: string) {
+  const field = document.getElementById(id) as HTMLInputElement | null
+  if (!field) throw new Error(`No existe el campo #${id}.`)
+  for (const character of value) {
+    fireEvent.change(field, { target: { value: field.value + character } })
+  }
+}
+
 function fillFieldsOfStep(step: 'applicant' | 'academic' | 'reason', values: PublicRequestFormValues) {
   for (const field of Object.keys(values) as (keyof PublicRequestFormValues)[]) {
     if (FIELD_STEP[field] === step) fillField(field, values[field])
@@ -309,6 +317,14 @@ describe('PublicAdditionalCreditsPage', () => {
     continueTo('Datos académicos')
   })
 
+  it('preserves spaces while a single-line value is typed character by character', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    typeFieldCharacterByCharacter('studentName', 'Estudiante Sintético')
+
+    expect((document.getElementById('studentName') as HTMLInputElement).value).toBe('Estudiante Sintético')
+  })
+
   it('keeps typed values when Volver is pressed and the student returns to the step', () => {
     render(<PublicAdditionalCreditsPage />)
     fillFieldsOfStep('applicant', { ...completeValues, studentName: 'Nombre Provisional' })
@@ -423,6 +439,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it.each([
     ['sin arroba', 'nombresinarroba.test'],
     ['sin dominio', 'nombre@'],
+    ['sin sufijo de dominio', 'nombre@dominio'],
   ])('blocks Continuar when studentEmail is %s', (_label, email) => {
     render(<PublicAdditionalCreditsPage />)
     fillFieldsOfStep('applicant', { ...completeValues, studentEmail: email })
@@ -432,6 +449,45 @@ describe('PublicAdditionalCreditsPage', () => {
     expectStep('Datos del solicitante')
     expect(document.getElementById('studentEmail')?.getAttribute('aria-invalid')).toBe('true')
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['personal', 'nombre@gmail.com'],
+    ['institucional', 'nombre@uniremington.edu.co'],
+  ])('accepts a well-formed %s email address', (_label, studentEmail) => {
+    render(<PublicAdditionalCreditsPage />)
+    fillFieldsOfStep('applicant', { ...completeValues, studentEmail })
+
+    continueTo(HEADING_OF.academic)
+  })
+
+  it('normalizes single-line values before review and submission while preserving reason byte-for-byte', async () => {
+    vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
+    const values: PublicRequestFormValues = {
+      ...completeValues,
+      studentName: '  Estudiante   Sintético  ',
+      studentEmail: '  estudiante.sintetico@example.test  ',
+      program: '  Programa   de Prueba  ',
+      reason: '  Conserva   todos los espacios\n  y saltos.  ',
+    }
+    render(<PublicAdditionalCreditsPage />)
+    fillPublicRequestForm(values)
+
+    expect((document.getElementById('studentName') as HTMLInputElement).value).toBe('Estudiante Sintético')
+    expect((document.getElementById('program') as HTMLInputElement).value).toBe('Programa de Prueba')
+    expect((document.getElementById('reason') as HTMLTextAreaElement).value).toBe(values.reason)
+
+    submitForm()
+
+    await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
+      'ADICION_CREDITOS',
+      expect.objectContaining({
+        studentName: 'Estudiante Sintético',
+        studentEmail: 'estudiante.sintetico@example.test',
+        program: 'Programa de Prueba',
+        reason: values.reason,
+      }),
+    ))
   })
 
   it.each([

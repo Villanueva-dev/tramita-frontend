@@ -96,6 +96,11 @@ El sistema **MUST** exigir los once campos del contrato público antes de emitir
 vacío.** La verificación de vacío **MUST** aplicarse después de `trim()`, de modo que un valor
 compuesto solo por espacios no cuente como diligenciado.
 
+Antes de validar y enviar, el sistema **MUST** normalizar cada campo de una sola línea: elimina
+espacios al inicio y al final y reemplaza cada secuencia de espacios internos por uno solo.
+`reason` («Compromisos adquiridos») **MUST NOT** normalizarse: `trim()` se usa únicamente para
+determinar si está vacío y el valor original se conserva al revisar y enviar.
+
 El sistema **MUST** exigir esta obligatoriedad **por paso**: «Continuar» **MUST NOT** avanzar al
 siguiente paso si algún campo del paso visible está vacío, excede su límite o es inválido. El
 sistema **MUST** exigirla también **una segunda vez sobre los once campos**, inmediatamente antes
@@ -116,8 +121,10 @@ viaja como texto. Esta es una regla de UX decidida el 2026-09-25: el backend no 
 `studentDocument`.
 
 El sistema **MUST** considerar `studentEmail` inválido, y en consecuencia **MUST NOT** dejar
-avanzar «Continuar» del paso que lo contiene, cuando el valor no tiene el carácter `@` o no tiene
-un dominio después de él (por ejemplo, `nombre@` o un valor sin `@`).
+avanzar «Continuar» del paso que lo contiene, cuando no representa una dirección completa con
+la forma `local@dominio.sufijo` (por ejemplo, un valor sin `@`, `nombre@` o `nombre@dominio`).
+El sufijo es obligatorio, pero el sistema **MUST NOT** restringir el proveedor ni exigir un
+dominio institucional.
 
 Esta validación es **de UX**: el backend sigue siendo la autoridad.
 
@@ -136,6 +143,19 @@ bloquear «Continuar»; no existía una regla explícita para un correo sin `@` 
 - GIVEN un campo obligatorio cuyo valor es solo espacios
 - WHEN se intenta enviar
 - THEN el campo se marca como inválido y no se emite la petición
+
+#### Scenario: Los campos de una línea se normalizan
+
+- GIVEN un campo de una línea con espacios al inicio, al final o repetidos entre palabras
+- WHEN el estudiante continúa hasta la revisión y envía la solicitud
+- THEN el control, el resumen y el cuerpo muestran el valor sin espacios exteriores
+- AND cada secuencia de espacios interiores se reemplaza por un solo espacio
+
+#### Scenario: Compromisos adquiridos conserva su formato
+
+- GIVEN `reason` con espacios repetidos y saltos de línea
+- WHEN el estudiante revisa y envía la solicitud
+- THEN el valor se conserva exactamente como fue escrito
 
 #### Scenario: Un campo que excede su límite impide el envío
 
@@ -170,12 +190,18 @@ bloquear «Continuar»; no existía una regla explícita para un correo sin `@` 
 - AND el campo se marca como inválido
 - AND el foco pasa al primer campo inválido del paso visible
 
-#### Scenario: Un correo sin arroba o sin dominio impide continuar
+#### Scenario: Un correo incompleto impide continuar
 
-- GIVEN `studentEmail` con un valor sin `@` o sin dominio después de `@`
+- GIVEN `studentEmail` con un valor sin `@`, sin dominio o sin sufijo del dominio
 - WHEN el estudiante pulsa «Continuar» en el paso que lo contiene
 - THEN el paso visible no cambia
 - AND el campo se marca como inválido
+
+#### Scenario: El correo no exige un proveedor institucional
+
+- GIVEN `studentEmail` con una dirección completa de un proveedor personal o institucional
+- WHEN el estudiante pulsa «Continuar» en el paso que lo contiene
+- THEN el asistente acepta el valor y permite avanzar
 
 ### Requirement: El trámite viaja en la ruta, no en el cuerpo
 
