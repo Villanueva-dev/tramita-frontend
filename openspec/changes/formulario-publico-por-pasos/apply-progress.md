@@ -28,7 +28,7 @@
 | 4.6 — Verify (4 comandos + mutantes) | **Completa** | 4/4 en verde; 3/3 mutantes confirmados en rojo y revertidos |
 | 4.7 — Puerta en vivo | **Completa** | Corrida el 2026-09-26 en Chrome con el mouse; ver «Puerta en vivo (tarea 4.7)» en Slice 4 |
 | 4.8 — Medir tamaño | **Completa** | **607 líneas**, supera el pronóstico (450–550) y el presupuesto de 400 — ver Slice 4 |
-| 4.9 — Commit | **Completa** | Tras el «aprobado» del diff y el `size:exception` (607 líneas) del 2026-09-26; hash en el commit de docs del corte |
+| 4.9 — Commit | **Completa** | `1fb9de9` tras el «aprobado» del diff y el `size:exception` (607 líneas) del 2026-09-26; hash registrado en el commit de docs del corte |
 
 Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest 4.1.11).
 

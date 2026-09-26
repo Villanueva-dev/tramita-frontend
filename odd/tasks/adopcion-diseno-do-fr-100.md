@@ -358,6 +358,24 @@ la cédula del formulario interno.
     (`wizard.tsx`, 282) y 3c-ii (`review-summary.tsx` + `sections.tsx`, 364), apiladas a `main`.
   - Suite: 27 archivos, 292/292; `tsc`, `lint` en verde. Sin prueba en vivo: nada lo renderiza
     en producción todavía.
+- PR-3d (T5, cuarto corte), rama `feat/formulario-publico-3d-cableado` desde `ff4b6ab`: el
+  cableado del asistente en `page.tsx` (estado `step`, `handleContinue`/`handleBack`/`goToStep`
+  con `flushSync` y foco al encabezado o al primer campo inválido, `<form onSubmit>` con despacho
+  único, 422 → paso del primer campo con error) y la baja de `PublicRequestSections` en
+  `sections.tsx`. Un solo RED→GREEN para 4.1–4.5 (43/50 en rojo contra la página vieja, 50/50 en
+  verde); tres mutantes en rojo y revertidos; validador de contexto limpio en PASS 5/5.
+  - Medido: 607 líneas contra 450–550 de pronóstico; el usuario concedió el `size:exception` el
+    2026-09-26 junto con el «aprobado» del diff (sin corte honesto adicional bajo
+    `stacked-to-main`).
+  - Puerta en vivo con el mouse en Chrome: el foco no se mueve al cargar, va al encabezado en
+    cada transición y al primer campo inválido cuando Continuar falla; la firma sobrevive a
+    Volver, Continuar y «Cambiar» y llega a la revisión como imagen; sin enviar. Firmar con el
+    dedo queda para la puerta 5.7 en un celular. Hallazgo: el «1 issue» del overlay de `next dev`
+    es un `img src=""` de `review-summary.tsx` (Slice 3) al montarse la revisión oculta; el
+    usuario decidió diferirlo a la tarea 5.5.
+  - Suite: 27 archivos, 303/303; `tsc`, `lint`, `build` en verde. Commit `1fb9de9` (código y
+    artefactos del corte) más el commit de docs que registra este cierre; cierra #58 al mergear.
 
-**Siguiente paso:** PR-3d, el cableado del asistente en `page.tsx` (único cambio de
-comportamiento; pedirá `size:exception`).
+**Siguiente paso:** PR-4, el pulido visual (Slice 5 de `tasks.md`), que ahora incluye la tarea
+5.5 (la `<img>` de la firma no se renderiza sin firma) y la única puerta que puede confirmar la
+firma con el dedo (5.7).

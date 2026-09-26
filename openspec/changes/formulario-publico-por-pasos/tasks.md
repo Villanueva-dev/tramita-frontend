@@ -128,8 +128,8 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
       recortó nada para acercarlo al presupuesto. `size:exception` concedido por el responsable
       el 2026-09-26, junto con el «aprobado» del diff.
 - [x] 4.9 Commit: `feat(do-fr-100): asistente cableado — navegación, envío y errores por paso`.
-      Entregado tras el «aprobado» del diff y el `size:exception`; el hash se registra en el
-      commit de docs que cierra el corte, como en 3c.
+      Entregado como `1fb9de9` tras el «aprobado» del diff y el `size:exception`; el hash se
+      registró en el commit de docs que cierra el corte, como en 3c.
 
 ## Slice 5 — PR-4: pulido visual
 
