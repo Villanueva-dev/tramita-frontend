@@ -48,14 +48,16 @@ export function ReviewSummary({ values, signature, onEdit }: ReviewSummaryProps)
           </CardHeader>
           <CardContent>
             {step.id === 'signature' ? (
-              // `next/image` optimiza recursos remotos o estáticos; esta imagen es un `data:`
-              // URL generado en el navegador por CanvasFirma, sin URL que optimizar.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={signature.dataUrl}
-                alt="Firma capturada del solicitante"
-                className="max-w-xs rounded-md border border-border"
-              />
+              signature.hayFirma ? (
+                // `next/image` optimiza recursos remotos o estáticos; esta imagen es un `data:`
+                // URL generado en el navegador por CanvasFirma, sin URL que optimizar.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={signature.dataUrl}
+                  alt="Firma capturada del solicitante"
+                  className="max-w-xs rounded-md border border-border"
+                />
+              ) : null
             ) : (
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {fieldsOfStep(step.id).map((field) => (

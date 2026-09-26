@@ -96,11 +96,11 @@ export function StepNavigation({ step, isSubmitting, onBack }: StepNavigationPro
   return (
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
       {isFirstStep ? null : (
-        <Button type="button" variant="outline" size="lg" className="h-11 w-full sm:w-auto" onClick={onBack}>
+        <Button type="button" variant="outline" size="lg" className="h-13 w-full sm:w-auto" onClick={onBack}>
           Volver
         </Button>
       )}
-      <Button type="submit" size="lg" disabled={isSubmitting} className="h-11 w-full sm:w-auto sm:self-end">
+      <Button type="submit" size="lg" disabled={isSubmitting} className="h-13 w-full sm:w-auto sm:self-end">
         {isReview ? (isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud') : 'Continuar'}
       </Button>
     </div>

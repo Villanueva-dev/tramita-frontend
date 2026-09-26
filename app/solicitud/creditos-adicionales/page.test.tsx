@@ -157,6 +157,44 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(screen.getByRole('heading', { name: /solicitud de matrícula de créditos adicionales/i })).toBeDefined()
   })
 
+  it('shows the brand logo and the official form code in the header', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(screen.getByAltText('Trámita Universidad Remington')).toBeDefined()
+    expect(screen.getByText('Formato DO-FR-100')).toBeDefined()
+  })
+
+  it('offers the institutional WhatsApp contact as text and as a new-tab link inside a native Ayuda disclosure', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(document.querySelector('details > summary')?.textContent).toBe('Ayuda')
+    expect(screen.getByText('+57 315 2966601')).toBeDefined()
+    const link = document.querySelector('a[href="https://wa.me/573152966601"]')
+    expect(link).not.toBeNull()
+    expect(link?.getAttribute('target')).toBe('_blank')
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer')
+  })
+
+  it('does not show a per-step error notice when the visible step has no errors', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(screen.queryByText(/faltan?\s+\d+\s+campos?\s+por\s+corregir/i)).toBeNull()
+  })
+
+  it('shows a per-step notice listing the missing fields when Continuar fails, without duplicating the field alerts as a live region', () => {
+    render(<PublicAdditionalCreditsPage />)
+
+    clickContinue()
+
+    const notice = screen.getByText(/Faltan 4 campos por corregir en este paso/i)
+    expect(notice.getAttribute('role')).toBeNull()
+    expect(notice.getAttribute('aria-live')).toBeNull()
+    expect(notice.textContent).toContain('Nombres completos del solicitante')
+    expect(notice.textContent).toContain('Correo electrónico')
+    // Los avisos de campo (role="alert") no se duplican ni se reemplazan por el aviso del paso.
+    expect(screen.getAllByRole('alert')).toHaveLength(4)
+  })
+
   it('guards the complete public-request boundary from AppShell and request-store dependencies', () => {
     const sources = publicRequestFeatureSource()
 
@@ -249,19 +287,19 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(screen.queryByRole('figure', { name: 'Espacio para firma' })).toBeNull()
     expect(screen.getByLabelText('Área para dibujar la firma')).toBe(signatureFigure.querySelector('canvas'))
     expect(screen.getByLabelText('Cargar una imagen de firma')).toBe(signatureFigure.querySelector('input[type="file"]'))
-    expect(screen.getByRole('button', { name: 'Limpiar firma' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' })).toBeDefined()
   })
 
-  it('renders the submit control with the design-system button and a 44 px touch target on review', () => {
+  it('renders the submit control with the design-system button and a 52 px touch target on review', () => {
     render(<PublicAdditionalCreditsPage />)
     reachReview()
 
     const submit = screen.getByRole('button', { name: 'Enviar solicitud' })
     // `data-slot` lo pone components/ui/button.tsx: distingue el componente del proyecto
     // de un <button> crudo. jsdom no calcula layout, así que la altura se verifica sobre
-    // la clase declarada (h-11 = 44 px, el mínimo que invoca design.md:75), no medida.
+    // la clase declarada (h-13 = 52 px, el mínimo que invoca design.md, decisión 8), no medida.
     expect(submit.getAttribute('data-slot')).toBe('button')
-    expect(submit.className).toContain('h-11')
+    expect(submit.className).toContain('h-13')
   })
 
   it('advances to the next step when Continuar is pressed on a valid step', () => {
@@ -427,6 +465,19 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(screen.queryByRole('button', { name: 'Enviar solicitud' })).toBeNull()
     expect(screen.getByText(/coordinación responderá al correo/i)).toBeDefined()
     expect(screen.queryByText(/estado|radicado|identificador/i)).toBeNull()
+    // El acuse destaca el correo diligenciado, sin reiniciar el estado (design.md, decisión 8).
+    const highlightedEmail = screen.getByText(completeValues.studentEmail)
+    expect(highlightedEmail.tagName).toBe('STRONG')
+  })
+
+  it('gives the exact 413 wording pointing to redo the signature, replacing the retired "Límpiela" phrasing', async () => {
+    vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(413, 'Payload Too Large'))
+    render(<PublicAdditionalCreditsPage />)
+    reachReview()
+
+    submitForm()
+
+    expect(await screen.findByText('La firma es demasiado pesada. Bórrela y fírmela de nuevo.')).toBeDefined()
   })
 
   it.each([
@@ -561,6 +612,80 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(phoneInput.getAttribute('aria-describedby')).toContain('studentPhone-hint')
     expect(document.getElementById('studentDocument-hint')?.textContent).toBe('Solo números, sin puntos ni espacios.')
     expect(document.getElementById('studentPhone-hint')?.textContent).toBe('10 dígitos, sin espacios.')
+  })
+
+  it.each([
+    ['studentName', 'applicant'],
+    ['studentEmail', 'applicant'],
+    ['program', 'academic'],
+    ['campus', 'academic'],
+    ['faculty', 'academic'],
+    ['semester', 'academic'],
+    ['modality', 'academic'],
+    ['reason', 'reason'],
+  ] as [keyof PublicRequestFormValues, 'applicant' | 'academic' | 'reason'][])(
+    'links a synthetic example hint to %s via aria-describedby',
+    (field, step) => {
+      render(<PublicAdditionalCreditsPage />)
+      if (step !== 'applicant') {
+        fillFieldsOfStep('applicant', completeValues)
+        continueTo(HEADING_OF.academic)
+      }
+      if (step === 'reason') {
+        fillFieldsOfStep('academic', completeValues)
+        continueTo(HEADING_OF.reason)
+      }
+
+      const input = document.getElementById(field)
+      const hintId = `${field}-hint`
+      expect(input?.getAttribute('aria-describedby')).toContain(hintId)
+      const hint = document.getElementById(hintId)
+      expect(hint?.textContent).toMatch(/^Por ejemplo:/)
+    },
+  )
+
+  it('gives text inputs a 52 px minimum touch height, matching the wizard navigation buttons', () => {
+    // Mismo patrón ya aceptado para los botones (h-11/h-13, jsdom no calcula layout): se lee la
+    // clase declarada porque no hay otra forma de comprobar la altura mínima táctil en jsdom.
+    render(<PublicAdditionalCreditsPage />)
+
+    expect((document.getElementById('studentName') as HTMLInputElement).className).toContain('h-13')
+  })
+
+  it('renders labels, inputs and the textarea at the 17 px reading size, in rem so the browser font preference still scales it', () => {
+    // La propuesta pide letra de 17 px; `Input`, `Label` y `Textarea` fijan `text-sm` (14 px), así
+    // que el tamaño del `<main>` no les llega. Se aplica en los puntos de uso y en rem
+    // (1.0625rem = 17 px con la raíz por omisión de 16 px): un valor en px ignoraría el tamaño
+    // de letra que el estudiante configure en su navegador. jsdom no calcula layout: se lee la
+    // clase declarada, como en las pruebas de altura táctil.
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(document.querySelector('main')?.className).toContain('text-[1.0625rem]')
+    expect(document.getElementById('studentName')?.className).toContain('text-[1.0625rem]')
+    expect(document.querySelector('label[for="studentName"]')?.className).toContain('text-[1.0625rem]')
+
+    fillFieldsOfStep('applicant', completeValues)
+    continueTo('Datos académicos')
+    fillFieldsOfStep('academic', completeValues)
+    continueTo('Motivo de la solicitud')
+
+    expect(document.getElementById('reason')?.className).toContain('text-[1.0625rem]')
+    expect(document.querySelector('label[for="reason"]')?.className).toContain('text-[1.0625rem]')
+  })
+
+  it('shows a character counter for Compromisos adquiridos that reflects what was typed, not a fixed count', () => {
+    render(<PublicAdditionalCreditsPage />)
+    fillFieldsOfStep('applicant', completeValues)
+    continueTo('Datos académicos')
+    fillFieldsOfStep('academic', completeValues)
+    continueTo('Motivo de la solicitud')
+
+    expect(screen.getByText('0 de 2000 caracteres')).toBeDefined()
+
+    fillField('reason', 'Compromiso sintético de prueba.')
+
+    expect(screen.getByText('31 de 2000 caracteres')).toBeDefined()
+    expect(screen.queryByText('0 de 2000 caracteres')).toBeNull()
   })
 
   it('leaves studentDocument and studentPhone without a raw maxLength, so a pasted value keeps all its digits', () => {
