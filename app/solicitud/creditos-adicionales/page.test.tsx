@@ -86,6 +86,7 @@ describe('PublicAdditionalCreditsPage', () => {
 
     expect(sources.map(({ path }) => path).sort()).toEqual([
       'app/solicitud/creditos-adicionales/page.tsx',
+      'components/do-fr-100/review-summary.tsx',
       'components/do-fr-100/sections.tsx',
       'components/do-fr-100/steps.ts',
       'components/do-fr-100/wizard.tsx',
