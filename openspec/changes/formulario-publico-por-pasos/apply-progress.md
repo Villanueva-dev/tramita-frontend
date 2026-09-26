@@ -5,7 +5,7 @@
 > el diff antes de cada commit). Rama `feat/formulario-publico-3a-steps`, creada desde `main` en
 > `5a5f848`; no se hizo push ni se abrió PR.
 
-## Estado global (acumulado, Slices 1–3)
+## Estado global (acumulado, Slices 1–4)
 
 | Tarea | Estado | Nota |
 |---|---|---|
@@ -19,7 +19,16 @@
 | 3.2 — `review-summary.tsx` + test | **Completa** | RED→GREEN observado, 10/10 tests |
 | 3.3 — REFACTOR `sections.tsx` | **Completa** | Approval testing: `innerHTML` idéntico antes/después, `page.test.tsx` 39/39 sin tocarlo (salvo la línea del guardián) |
 | 3.4 — Verify (4 comandos) | **Completa** | 4/4 en verde; medición de tamaño supera 400 líneas — ver hallazgo abajo |
-| 3.5 — Commit | **Completa** | Dos commits tras el «Procede» del diff: `b6d2418` (3c-i) y `b0bb338` (3c-ii); PR-3c-i y PR-3c-ii apiladas a `main` |
+| 3.5 — Commit | **Completa** | Dos commits tras el «Procede» del diff: `b6d2418` (3c-i, PR #67, merge `09078d0`) y `7e18017` (3c-ii, PR #68, merge `ff4b6ab`) — corrección: GitHub reescribió el hash de 3c-ii de `b0bb338` a `7e18017` al reencauzar su rama contra el `main` que ya incluía 3c-i; PR-3c-i y PR-3c-ii apiladas a `main` |
+| 4.1 — `page.tsx`: estado, navegación, correo | **Completa** | RED→GREEN observado, 50/50 tests en `page.test.tsx`; ver sección Slice 4 abajo |
+| 4.2 — Composición con `wizard.tsx`/`review-summary.tsx` | **Completa** | Mismo commit de implementación que 4.1 (un solo `page.tsx` cohesivo, ver nota metodológica en Slice 4) |
+| 4.3 — 422/404/413/429 por paso | **Completa** | Cubierto por la misma implementación; escenarios propios verificados |
+| 4.4 — Firma sobrevive a Volver/Cambiar | **Completa** | Verificado; `CanvasFirma` no se desmonta |
+| 4.5 — Helpers a navegación real | **Completa** | `fillPublicRequestForm`/`submitForm`/`reachReview` repuntados; `{ hidden: true }` no fue necesario (ver Slice 4) |
+| 4.6 — Verify (4 comandos + mutantes) | **Completa** | 4/4 en verde; 3/3 mutantes confirmados en rojo y revertidos |
+| 4.7 — Puerta en vivo | **Completa** | Corrida el 2026-09-26 en Chrome con el mouse; ver «Puerta en vivo (tarea 4.7)» en Slice 4 |
+| 4.8 — Medir tamaño | **Completa** | **607 líneas**, supera el pronóstico (450–550) y el presupuesto de 400 — ver Slice 4 |
+| 4.9 — Commit | **Completa** | `1fb9de9` tras el «aprobado» del diff y el `size:exception` (607 líneas) del 2026-09-26; hash registrado en el commit de docs del corte |
 
 Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest 4.1.11).
 
@@ -665,3 +674,241 @@ archivo fue leído para escritura ni modificado. No se hizo `git add` ni `git co
 2. Con cualquiera de las dos rutas, commitea (3.5) y continúa con Slice 4 (PR-3d, el cableado:
    estado, navegación, envío, foco y errores por paso — el único cambio de comportamiento de todo
    el cambio).
+
+---
+
+# Slice 4 — PR-3d: cableado (el cambio de comportamiento)
+
+> PR boundary de esta ejecución: **Slice 4 = PR-3d (cableado)**, tareas 4.1–4.6 y la medición de
+> 4.8 de `tasks.md`. Sin commit (4.9 queda sin marcar a propósito: el responsable del proyecto
+> revisa el diff antes de cada commit). Tarea 4.7 (puerta en vivo) queda para que el orquestador
+> la corra con permiso del usuario. Rama `feat/formulario-publico-3d-cableado`, creada desde
+> `main` en `ff4b6ab` (merge de PR #68 = Slice 3c-ii); no se hizo push ni se abrió PR. Archivos de
+> producción/test tocados: `app/solicitud/creditos-adicionales/page.tsx`,
+> `app/solicitud/creditos-adicionales/page.test.tsx`, `components/do-fr-100/sections.tsx` (solo
+> la baja de código muerto y la autocontención de `FieldGroupProps`). `steps.ts`, `wizard.tsx`,
+> `review-summary.tsx` y `canvas-firma.tsx` no se tocaron.
+
+Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest
+4.1.11).
+
+## Nota metodológica: un solo RED para 4.1–4.5
+
+Las tareas 4.1 a 4.5 de `tasks.md` están descritas como pasos `RED→GREEN` separados, pero
+`page.tsx` es un único archivo cuyo cableado (estado, composición con `wizard.tsx`/
+`review-summary.tsx`, manejo de errores del backend y repunte de los helpers de prueba) no se
+puede componer parcialmente: no existe un `page.tsx` intermedio que tenga «solo el estado» pero
+no la composición, porque sin la composición no hay ningún paso que probar. Por eso el RED
+observado es **el archivo de pruebas completo (50 definiciones, cubriendo 4.1–4.5) corrido contra
+el `page.tsx` viejo de una sola página**, y el GREEN es el mismo archivo corrido contra el
+`page.tsx` nuevo — un único ciclo RED→GREEN que cubre las cinco tareas a la vez, no cinco ciclos
+independientes. Esto se ajusta a la razón del propio prompt de esta ejecución (asignar 4.1–4.6 a
+una sola unidad de trabajo con una sola puerta de verificación, 4.6) y a la advertencia de
+`tasks.md`: «3d es la única unidad sin corte honesto adicional». La tabla de abajo reporta una
+fila por tarea para trazabilidad, pero las cinco comparten el mismo RED/GREEN.
+
+**RED observado** (`pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx`, con
+el archivo de pruebas nuevo — 50 definiciones — corrido contra el `page.tsx`/`sections.tsx`
+viejos, de una sola página):
+
+```
+Test Files  1 failed (1)
+     Tests  43 failed | 7 passed (50)
+```
+
+Los 7 que pasaban ya entonces son los que no dependen de la navegación por pasos (el `h1`, la
+guarda de frontera, la franja fija sin casillas, el filtro de dígitos, y las tres pruebas de solo
+lectura de `studentDocument`/`studentPhone` que no invocan `continueTo`).
+
+**GREEN observado** (mismo comando, tras escribir `page.tsx`/`sections.tsx` nuevos, con dos
+correcciones intermedias — nombres accesibles de «Cambiar», ver «Decisiones» abajo):
+
+```
+Test Files  1 passed (1)
+     Tests  50 passed (50)
+```
+
+### TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 4.1 | `app/solicitud/creditos-adicionales/page.test.tsx` | Integration (RTL) | ✅ 39/39 antes de tocar el archivo (baseline de la rama) | ✅ Escrito (43/50 en rojo, ver arriba) | ✅ 50/50 en verde | ✅ Múltiples escenarios por comportamiento (Continuar válido/inválido, Volver, correo con y sin arroba/dominio, foco en carga/cambio, Enter implícito) | ➖ No hizo falta — la implementación quedó limpia salvo la corrección de nombres accesibles |
+| 4.2 | (mismo archivo, mismo ciclo — ver nota metodológica) | Integration (RTL) | — | ✅ (incluido en el RED de 4.1) | ✅ (incluido en el GREEN de 4.1) | ✅ «Cambiar» + recorrido de pasos siguientes + firma que viaja en el cuerpo | ➖ No hizo falta |
+| 4.3 | (mismo archivo, mismo ciclo) | Integration (RTL) | — | ✅ (incluido) | ✅ (incluido) | ✅ 422 con campos propios, 422 sin campos propios, 404, 413 (+ atajo), 429 | ➖ No hizo falta |
+| 4.4 | (mismo archivo, mismo ciclo) | Integration (RTL) | — | ✅ (incluido) | ✅ (incluido) | ✅ Firma tras Volver, firma tras Cambiar, firma en el cuerpo enviado | ➖ No hizo falta |
+| 4.5 | (mismo archivo, mismo ciclo) | Integration (RTL) | — | ✅ (incluido) | ✅ (incluido) | ➖ N/A — repunte de helpers, no comportamiento nuevo propio | ➖ No hizo falta |
+
+### Test Summary
+
+- **Total tests en el archivo**: 50 (39 antes + 11 nuevas; ninguna borrada sin razón declarada —
+  ver «Decisiones» para las 3 renombradas y las reescritas).
+- **Total tests pasando**: 50/50.
+- **Layers usados**: Integration (React Testing Library) — el mismo layer que ya tenía el
+  archivo; no aplica una capa distinta.
+- **Approval tests**: Ninguna — Slice 4 es la unidad de comportamiento nuevo, no un refactor.
+- **Funciones puras nuevas**: `replaceErrorsOfStep` (`page.tsx`), pura y sin dependencias del
+  DOM; `focusFirstInvalid`/`goToStep`/`handleContinue`/`handleBack`/`handleSubmit` son impuras
+  por diseño (foco, estado, red — decisión 2/6 de `design.md`, ya adoptada en slices previas).
+
+## Mutantes (tarea 4.6)
+
+Los tres exigidos por el prompt de esta ejecución, cada uno aplicado, verificado en rojo y
+revertido antes de continuar (diff idéntico al original confirmado con `diff` tras cada reversión):
+
+| # | Mutante | Resultado | Prueba(s) que lo detecta |
+|---|---|---|---|
+| 1 | Quitar el `flushSync` que envuelve `setStep`/`setFormError` en `goToStep` | **Rojo**: 3 fallos, 47/50 | `walks the following steps with Continuar after Cambiar…`, `does not move focus on load, then moves it to the new heading…`, `maps missing and invalid 422 fields separately…` |
+| 2 | Quitar el despacho por paso del `onSubmit` (dejar que siempre llame a `handleContinue`) | **Rojo**: 8 fallos, 42/50 | Las 8 pruebas que dependen de llegar a `handleSubmit`/`submitPublicRequest`: el envío en 201, los 4 códigos de error, el atajo del 413, el 422/429 combinado, el envío tras «Cambiar», y el envío con dígitos limpiados |
+| 3 | Quitar el `flushSync` que aplica los errores antes de `focusFirstInvalid()` en el `handleContinue` fallido | **Rojo**: 1 fallo, 49/50 | `does not advance and focuses the first invalid field when Continuar fails on a step` — exactamente la predicción de `design.md` («el DOM va un render atrás… el foco cae en el encabezado») |
+
+Los tres confirman lo que `design.md` (Testing Strategy) exige. Después de cada mutante se
+restauró el archivo desde una copia de respaldo (`diff` sin salida contra el original, confirmado
+las tres veces) antes de aplicar el siguiente.
+
+## Verify (tarea 4.6)
+
+| Comando | Resultado observado |
+|---|---|
+| `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx` | **1 archivo, 50 tests, todos verdes** |
+| `pnpm test` | **27 archivos, 303 tests, todos verdes** (292 base + 11 nuevas en `page.test.tsx`) |
+| `pnpm exec vitest run app/requests/new/page.test.tsx` | **1 archivo, 3 tests, todos verdes** — archivo intacto (`git status` no lo lista) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0, sin errores |
+| `pnpm lint` | `eslint .` → exit 0, sin salida |
+| `pnpm build` | Compilación exitosa; 9 rutas generadas, incluida `/solicitud/creditos-adicionales` como estática |
+
+## Decisiones de implementación (no fijadas del todo por spec/design — para veto del responsable)
+
+1. **Nombre accesible de «Cambiar» usa el `heading` del paso, no el `label` de la barra.**
+   `review-summary.tsx` (ya existente, Slice 3) construye `aria-label={`Cambiar ${step.heading}`}`.
+   Para el primer paso, `label` es «Sus datos» pero `heading` es «Datos del solicitante»
+   (`design.md`, decisión 6: la barra usa el nombre corto, el encabezado el nombre oficial del
+   bloque). Escribí una prueba con `'Cambiar Sus datos'` por error y la corregí a
+   `'Cambiar Datos del solicitante'` tras verla fallar — no es una decisión nueva de esta unidad,
+   sino un acierto de una decisión ya adoptada en Slice 3.
+2. **`SignatureFields`, `ReasonFields`, `ApplicantFields` y `AcademicFields` se componen dentro
+   de `page.tsx` sin un `CardHeader`/`CardTitle` propio para «Sus datos»/«Datos académicos»**
+   (task 4.2 del prompt de esta ejecución: «applicant/academic: a Card with the grid and the
+   field group»); el título del bloque lo pone el `<h2>` de `StepPanel` (`wizard.tsx`, ya
+   existente), evitando la duplicación que `review-summary.tsx` ya había resuelto para
+   `ReasonFields`/`SignatureFields` en la corrección 2 de Slice 3. Consecuencia: «Firma del
+   solicitante» y «Motivo de la solicitud» ya no son `[data-slot="card-title"]` (son el `h2` del
+   panel); «Compromisos adquiridos» sigue siendo un `CardTitle` real, sin cambios.
+3. **La prueba «guards the exact contract controls…» pasó de consultar
+   `'input, textarea, select, button'` a `'input, textarea, select'`.** D2 (los cinco pasos
+   siempre montados) hace que esa consulta cruda vea los botones de navegación del asistente
+   (Continuar, Volver, 4× Cambiar, Limpiar firma) además de los 11 controles del contrato,
+   ensanchando la lista de IDs vacíos de 2 a 6 sin que eso diga nada sobre el contrato de datos
+   que la prueba vigila. Quité `button` de la consulta: el propósito declarado de la prueba —
+   orden correcto, sin campos espurios, una sola `textarea`— queda intacto y ya no es frágil a
+   cada botón de navegación que el asistente agregue. La lista de IDs esperada no cambió.
+4. **«Ir a la firma» usa el foco por omisión de `goToStep` (encabezado), no un destino
+   especial.** Ni `design.md` ni la spec fijan a dónde va el foco tras ese atajo; el encabezado
+   de «Firma» es la opción mínima y consistente con el resto de transiciones no derivadas de un
+   error de campo (decisión 6: solo el salto de un 422 usa `'firstInvalid'`).
+5. **La revalidación defensiva de `handleSubmit` («con errores… sin enviar») no tiene una prueba
+   de UI dedicada — gap documentado, no un olvido.** Implementé el código exactamente como
+   describe el *Data Flow* de `design.md` (`validate(…)` con errores → `goToStep(firstStepWithError,
+   'firstInvalid')`, sin enviar), pero **no encontré una secuencia de interacción legítima** (sin
+   manipular el DOM oculto directamente, algo que el propio *Risks* de `design.md` prohíbe) que
+   llegue a `handleSubmit` con un campo inválido: cada «Continuar» valida su propio paso antes de
+   avanzar, así que el estudiante no puede alcanzar la revisión con un dato inválido a través de
+   la interfaz expuesta — es, literalmente, la «defensa» que el propio comentario del código
+   nombra. El mecanismo subyacente (`firstStepWithError` + `goToStep(target, 'firstInvalid')`) sí
+   queda probado por la prueba del 422. Señalo esto para que el responsable decida si quiere una
+   prueba unitaria que llame a la función interna igualmente (hoy no exportada), o si acepta que
+   el gap quede así, documentado.
+6. **La prueba de «blocks submission…» por campo se renombró a «blocks Continuar…».** El
+   comportamiento cambió de verdad (ya no se bloquea al enviar desde una sola página, se bloquea
+   al intentar continuar desde el paso del campo), así que el nombre viejo ya no describía lo que
+   la prueba hace (regla del proyecto: «el nombre del test es una afirmación»).
+
+## Deviations from Design
+
+Ninguna en `wizard.tsx` ni en `review-summary.tsx`: no fue necesario tocarlos para satisfacer
+ningún escenario de la spec. Todo el cableado vive en `page.tsx` y en la poda de código muerto de
+`sections.tsx`, tal como delimita el alcance de esta ejecución.
+
+## Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx` → **50/50 verdes** |
+| Arnés de runtime | Puerta en vivo 4.7, corrida el 2026-09-26 con el mouse en Chrome — ver la sección siguiente |
+| Rollback | `git checkout -- app/solicitud/creditos-adicionales/page.tsx app/solicitud/creditos-adicionales/page.test.tsx components/do-fr-100/sections.tsx` revierte el cableado completo sin afectar Slices 1–3 (`steps.ts`, `wizard.tsx`, `review-summary.tsx` no se tocaron); `page.tsx` vuelve a una sola página, exactamente como describe la columna *Rollback boundary* de `tasks.md` para la Unidad 4 |
+
+## Puerta en vivo (tarea 4.7)
+
+Corrida por el orquestador el 2026-09-26 con permiso del usuario, en Chrome contra `next dev`
+en `localhost:3000`, ruta `/solicitud/creditos-adicionales`, con datos ficticios (nombre
+«Estudiante de Prueba Uno», identificación `1000000001`, correo `prueba.uno@example.com`,
+teléfono `3001234567`). La firma se trazó con el mouse (dos arrastres): firmar con el dedo solo
+lo puede confirmar el usuario en un celular, y queda como puerta de 5.7. «Enviar solicitud» no se
+pulsó: no hay backend levantado y el envío lo cubren las pruebas de 4.3. Cada fila es una lectura
+de `document.activeElement`, del DOM o del `ImageData` del canvas, no una inferencia.
+
+| Paso | Acción | Observado |
+|---|---|---|
+| Carga | Abrir la ruta | `activeElement` = `body`: el foco no se mueve al cargar |
+| 1 → 2 | Llenar «Sus datos» y Continuar | Panel «Datos académicos» visible; foco en su `h2` |
+| 2 | Continuar con los cinco campos vacíos | No avanza; cinco «Este campo es obligatorio.»; foco en `#program` (primer campo inválido); la barra marca «Datos académicos» en rojo |
+| 2 → 3 → 4 | Llenar y Continuar dos veces | Foco en el `h2` de «Motivo de la solicitud» y luego en el de «Firma del solicitante» |
+| 4 | Firmar con el mouse | Canvas de 950×198 con 1693 píxeles de tinta (alfa > 0); sin `#signature-error` |
+| 4 → 3 | Volver | Foco en el `h2` de «Motivo»; el canvas sigue montado bajo `hidden` con los mismos 1693 píxeles; `#reason` conserva el texto (decisión 7: `hidden` no desmonta) |
+| 3 → 4 | Continuar | El trazo se ve otra vez, 1693 píxeles |
+| 4 → 5 | Continuar | «Revisar y enviar» con foco en su `h2`; `img[alt="Firma capturada del solicitante"]` con `src` `data:image/png;base64,…` de 950×198; cuatro «Cambiar» y «Enviar solicitud» presentes |
+| 5 → 1 → … → 5 | «Cambiar Datos del solicitante», luego Continuar cuatro veces | Paso 1 con los valores conservados y foco en su `h2`; «Cambiar» recorre los pasos siguientes; la tinta sigue en «Firma» (1693) y la revisión vuelve a mostrar la imagen |
+
+Consola del navegador: sin errores propios del cableado. El único mensaje es el aviso «1 issue»
+del overlay de `next dev`, un error de React: `An empty string ("") was passed to the src
+attribute`. Lo dispara `components/do-fr-100/review-summary.tsx:55` (`<img src={signature.dataUrl}>`),
+que D2 monta oculto con `dataUrl: ''` desde la carga; no es del diff de este corte (el archivo es
+de Slice 3 y ya vive en `main`), pero solo se manifiesta al cablear. En el DOM el atributo no
+llega a emitirse (`getAttribute('src')` devuelve `null`), así que no hay petición de red: es ruido
+de desarrollo que tapa avisos reales. Decisión del usuario (2026-09-26): diferirlo a Slice 5 como
+tarea 5.5, sin tocar `review-summary.tsx` en 3d (conserva «Deviations from Design: ninguna» y las
+607 líneas medidas).
+
+## Tamaño medido (tarea 4.8) — supera el pronóstico y el presupuesto
+
+`git diff --numstat` sobre los tres archivos de código tocados (sin tracking previo de
+`openspec/`, que no cuenta contra el presupuesto de revisión):
+
+| Archivo | Inserciones | Borrados | Total |
+|---|---|---|---|
+| `app/solicitud/creditos-adicionales/page.test.tsx` | 276 | 51 | 327 |
+| `app/solicitud/creditos-adicionales/page.tsx` | 177 | 26 | 203 |
+| `components/do-fr-100/sections.tsx` | 9 | 68 | 77 |
+| **Total código** | **462** | **145** | **607** |
+
+**607 > 400** (presupuesto) y por encima del pronóstico de 450–550 que `tasks.md` ya marcaba
+como **Riesgo Alto** y como «la única unidad sin corte honesto adicional» bajo
+`stacked-to-main`: partirla dejaría en `main` un paso sin destino o una revisión sin resumen,
+un estado que no cumple la spec. Conforme a la instrucción explícita de esta ejecución, **reporto
+el número exacto y no divido ni recorto** nada (comentarios, pruebas y aserciones íntegros) para
+acercarlo al presupuesto. Los 68 borrados de `sections.tsx` son la baja de `PublicRequestSections`
+y su interfaz (código muerto tras la composición en `page.tsx`, instruido explícitamente en el
+alcance). El responsable del proyecto concedió el `size:exception` el 2026-09-26, junto con el
+«aprobado» del diff, tal como indica la ⚠️ del *Review Workload Forecast* de `tasks.md`.
+
+## Archivos tocados en esta ejecución (Slice 4)
+
+| Archivo | Acción |
+|---|---|
+| `app/solicitud/creditos-adicionales/page.tsx` | Reescrito — estado `step`, `handleContinue`/`handleBack`/`goToStep`/`focusFirstInvalid`, `<form onSubmit>` con despacho único, rama de correo en `validate`, `FormError` tipado, composición con `wizard.tsx`/`review-summary.tsx`/`sections.tsx` |
+| `app/solicitud/creditos-adicionales/page.test.tsx` | Reescrito — helpers `fillField`/`expectStep`/`continueTo`/`signCanvas`/`reachSignatureStep`/`fillPublicRequestForm`/`reachReview`/`reachStepWithOverride`, 50 definiciones (39 base + 11 nuevas; 3 renombradas por cambio de comportamiento) |
+| `components/do-fr-100/sections.tsx` | Modificado — baja de `PublicRequestSections`/`PublicRequestSectionsProps` (código muerto); `FieldGroupProps` y `TextField` autocontenidos con tipos propios (`FieldChangeHandler`/`FieldErrors`) |
+| `openspec/changes/formulario-publico-por-pasos/tasks.md` | Modificado — checkboxes 4.1–4.9 (4.7 y 4.9 por el orquestador); tarea 5.5 nueva por el hallazgo de la puerta en vivo; corrección del hash `b0bb338` → `7e18017` en 3.5 |
+| `openspec/changes/formulario-publico-por-pasos/apply-progress.md` | Modificado — tabla global extendida a Slices 1–4, corrección del mismo hash, esta sección agregada (la puerta en vivo la escribió el orquestador); Slices 1–3 intactas |
+
+Ningún otro archivo fue leído para escritura ni modificado. El agente no hizo `git add` ni
+`git commit`; el orquestador commiteó tras el «aprobado» del diff (4.9).
+Los tres mutantes se aplicaron y revirtieron sobre `page.tsx` únicamente, con `diff` confirmando
+cada reversión exacta antes de continuar.
+
+## Próximo paso sugerido (tras Slice 4)
+
+1. Abrir la PR de 3d contra `main` con el formato de #65–#68 y `Closes #58` (el foco tras un
+   error es lo que ese issue pide); registrar el hash del commit en 4.9 y en el documento ODD.
+2. Slice 5 (PR-4, pulido visual), que ahora incluye la tarea 5.5 (la `<img>` de la firma no se
+   renderiza sin firma) y cuya puerta en vivo 5.7 es la única que puede confirmar la firma con el
+   dedo en un celular.

@@ -83,38 +83,53 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
       282 líneas)/3c-ii (`review-summary.tsx` + `sections.tsx`, 364 líneas) antes de abrir el PR
       — ver `apply-progress.md` para el detalle de la medición y de las correcciones.
 - [x] 3.5 Commit: `feat(do-fr-100): módulos presentacionales del asistente, sin cablear`.
-      Entregado como dos commits por la medición de 3.4: `b6d2418` (3c-i, `wizard.tsx`) y
-      `b0bb338` (3c-ii, `review-summary.tsx` + `sections.tsx`), en ramas apiladas a `main`.
+      Entregado como dos commits por la medición de 3.4: `b6d2418` (3c-i, `wizard.tsx`, PR #67,
+      merge `09078d0`) y `7e18017` (3c-ii, `review-summary.tsx` + `sections.tsx`, PR #68, merge
+      `ff4b6ab`), en ramas apiladas a `main`. Corrección: `b0bb338` era el hash de 3c-ii antes de
+      que GitHub reescribiera el commit al reencauzar la rama contra el `main` actualizado por
+      3c-i; el hash que vive en `main` es `7e18017`.
 
 ## Slice 4 — PR-3d: cableado (el cambio de comportamiento)
 
-- [ ] 4.1 RED→GREEN `page.tsx`: estado `step`, `handleContinue`/`handleBack`/`goToStep`
+- [x] 4.1 RED→GREEN `page.tsx`: estado `step`, `handleContinue`/`handleBack`/`goToStep`
       (`flushSync` + foco al encabezado o, tras un error, al primer campo inválido; decisión 6),
       `<form onSubmit>` con despacho único (decisión 4), rama de correo en `validate`
       (decisión 3). Escenarios: Continuar avanza con paso válido; Volver conserva lo escrito;
       Continuar no avanza con campo inválido y enfoca el primer campo inválido (en «Firma», el
       encabezado); correo sin `@`/dominio impide continuar; foco al encabezado en cada cambio
       sin moverse al cargar; Enter en paso 1 avanza sin enviar.
-- [ ] 4.2 RED→GREEN: componer `page.tsx` con `wizard.tsx` + `review-summary.tsx` (`onEdit` →
+- [x] 4.2 RED→GREEN: componer `page.tsx` con `wizard.tsx` + `review-summary.tsx` (`onEdit` →
       `goToStep`) + los grupos de `sections.tsx` de 3.3; «Cambiar» recorre los pasos siguientes
       hasta volver a la revisión.
-- [ ] 4.3 RED→GREEN: 422 → `goToStep(firstStepWithError, 'firstInvalid')` (foco al primer campo
+- [x] 4.3 RED→GREEN: 422 → `goToStep(firstStepWithError, 'firstInvalid')` (foco al primer campo
       con error) + `StepProgress` marca `stepsWithErrors`; 404/413/429/422-sin-campos-propios en
       la revisión; atajo «Ir a la firma» del 413 (texto de hoy — PR-4 lo cambia).
-- [ ] 4.4 RED→GREEN: la firma sobrevive a Volver/Cambiar (`hidden` no desmonta `CanvasFirma`,
+- [x] 4.4 RED→GREEN: la firma sobrevive a Volver/Cambiar (`hidden` no desmonta `CanvasFirma`,
       decisión 7); reescribir con los helpers de 2.1 las pruebas de firma existentes para llegar
       al paso «Firma».
-- [ ] 4.5 GREEN: apuntar `fillPublicRequestForm`/`submitForm` (slice 2) a navegación real por
+- [x] 4.5 GREEN: apuntar `fillPublicRequestForm`/`submitForm` (slice 2) a navegación real por
       paso; sumar `{ hidden: true }` en las ausencias (`:121,129`). La lista cerrada (`:75`) ya
       quedó al día en 1.2 y 3.4.
-- [ ] 4.6 Verify: `pnpm test` completo; `app/requests/new/page.test.tsx` intacto;
+- [x] 4.6 Verify: `pnpm test` completo; `app/requests/new/page.test.tsx` intacto;
       `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`; `pnpm build`. Mutantes: quitar
       `flushSync` o el despacho de `onSubmit` debe romper al menos una prueba.
-- [ ] 4.7 **Puerta en vivo** (el orquestador la corre con permiso del usuario): firmar con el
-      dedo en «Firma», navegar y volver, confirmar que el trazo sobrevive.
-- [ ] 4.8 Medir `git diff --stat main`; si >400, reportar el número exacto y pedir
-      `size:exception` (ver ⚠️ del forecast).
-- [ ] 4.9 Commit: `feat(do-fr-100): asistente cableado — navegación, envío y errores por paso`.
+- [x] 4.7 **Puerta en vivo** (el orquestador la corre con permiso del usuario): firmar con el
+      dedo en «Firma», navegar y volver, confirmar que el trazo sobrevive. Corrida el 2026-09-26
+      en Chrome contra `next dev`, con el mouse (el dedo solo lo confirma el usuario en un
+      celular): el trazo sobrevive a Volver, a Continuar y a «Cambiar», y llega a la revisión
+      como imagen; el foco va al encabezado en cada cambio y al primer campo inválido cuando
+      Continuar falla; sin enviar. Evidencia en `apply-progress.md`. Hallazgo: el aviso
+      «1 issue» del overlay de Next es un `img src=""` de `review-summary.tsx` (Slice 3),
+      diferido a 5.5 por decisión del usuario.
+- [x] 4.8 Medido `git diff --numstat` sobre los tres archivos tocados (código, sin `openspec/`):
+      **607 líneas** (327 `page.test.tsx` + 203 `page.tsx` + 77 `sections.tsx`), por encima del
+      pronóstico de 450–550 y del presupuesto de 400 — ver `apply-progress.md` para el detalle.
+      Se reporta el número exacto tal como indica la ⚠️ del forecast; no se dividió ni se
+      recortó nada para acercarlo al presupuesto. `size:exception` concedido por el responsable
+      el 2026-09-26, junto con el «aprobado» del diff.
+- [x] 4.9 Commit: `feat(do-fr-100): asistente cableado — navegación, envío y errores por paso`.
+      Entregado como `1fb9de9` tras el «aprobado» del diff y el `size:exception`; el hash se
+      registró en el commit de docs que cierra el corte, como en 3c.
 
 ## Slice 5 — PR-4: pulido visual
 
@@ -129,10 +144,16 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 - [ ] 5.3 RED→GREEN `sections.tsx`: ejemplo por campo (datos sintéticos, #14), contador «N de
       2000» en `reason`, 17px en `<main>`, controles 52–56px.
 - [ ] 5.4 RED→GREEN `page.tsx`: el acuse destaca `studentEmail` diligenciado (sin reinicio, D5).
-- [ ] 5.5 Verify: `pnpm test`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`;
+- [ ] 5.5 RED→GREEN `review-summary.tsx` + test: no renderizar la `<img>` de la firma mientras
+      `signature.hayFirma` sea falso. Hallazgo de la puerta en vivo de 3d (4.7): D2 monta la
+      revisión oculta con `dataUrl: ''` desde la carga y React avisa «An empty string ("") was
+      passed to the src attribute» (el aviso «1 issue» del overlay de `next dev`). En el DOM el
+      atributo no llega a emitirse, así que no hay petición de red: es ruido de desarrollo que
+      tapa avisos reales. Diferido a este corte por decisión del usuario (2026-09-26).
+- [ ] 5.6 Verify: `pnpm test`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`;
       `pnpm build`.
-- [ ] 5.6 **Puerta en vivo**: firmar con el dedo en el recuadro de 200px con la guía.
-- [ ] 5.7 Commit: `feat(do-fr-100): pulido visual del asistente`.
+- [ ] 5.7 **Puerta en vivo**: firmar con el dedo en el recuadro de 200px con la guía.
+- [ ] 5.8 Commit: `feat(do-fr-100): pulido visual del asistente`.
 
 ## Cierre
 
