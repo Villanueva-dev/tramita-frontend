@@ -36,8 +36,10 @@ enviado no cambia y ninguna pieza descartada llega a la pantalla.
   del progreso. Los campos conservan el orden del papel.
 - Los cinco pasos siempre montados; el inactivo, oculto con el atributo `hidden` (D2).
 - Validación por paso: «Continuar» valida solo los campos del paso; «Volver» conserva lo escrito.
-- Revisión con un resumen por bloque, el botón «Cambiar» y la nota «La fecha de radicación se
-  registra al enviar la solicitud».
+- Revisión con un resumen por bloque y el botón «Cambiar». La nota «La fecha de radicación se
+  registra al enviar la solicitud» sigue solo en la franja fija «Lugar y fecha», visible en todos
+  los pasos (enmienda del 2026-09-26: la versión aprobada la repetía dentro de la revisión, y en
+  ese paso se leería dos veces).
 - Un 422 lleva al primer paso con errores y marca los pasos afectados en la barra (D4). 404, 413
   y 429 se muestran en la revisión con los textos de hoy; el 413 suma «Ir a la firma».
 - Foco en el encabezado del paso a cada cambio de paso; tras un error («Continuar» fallido o 422),

@@ -79,7 +79,6 @@ depende del código.
 - «Borrar y firmar de nuevo» reemplaza a «Limpiar firma». Costo: cinco consultas de tests buscan
   el nombre actual.
 - Paso de revisión con un resumen por bloque y el botón «Cambiar».
-- «La fecha de radicación se registra al enviar la solicitud», en la revisión.
 - Acuse con confirmación visual y el correo destacado; cumple el «responderá al correo
   diligenciado» de la spec.
 
@@ -87,6 +86,10 @@ depende del código.
 
 - **Lugar y fecha y Tipo de solicitud se conservan** como una franja arriba del progreso. El
   diseño los quitó; la spec exige los bloques en el orden del papel.
+- **La nota «La fecha de radicación se registra al enviar la solicitud» va solo en la franja**,
+  no también en la revisión como la ponía el diseño (ajustado el 2026-09-26, en PR-3c). La franja
+  ya la muestra desde la fase 1 (`sections.tsx`) y es visible en todos los pasos, así que en la
+  revisión se leería dos veces. La propuesta se enmendó en la misma PR.
 - **Campos en el orden del papel**: nombre, identificación, correo y teléfono; después programa,
   sede, facultad, semestre y modalidad. El diseño cambiaba de lugar el teléfono con el correo y la
   facultad con la sede (`page.test.tsx:89-120`).
@@ -340,6 +343,21 @@ la cédula del formulario interno.
   «reescritas» del diseño tenían llenado y envío y se migraron (una solo a `submitForm()`, porque
   depende de no firmar); las 3 de solo render quedan para la reescritura de navegación de 4.5.
   Suite idéntica antes y después: 39/39 en el archivo, 265/265 en total; `tsc`, `lint` en verde.
+  Commits `4165b63` y `09c6b58`; PR #66, CI en verde, mergeado el 2026-09-26 (`bd1b69d`, 02:30
+  UTC).
+- PR-3c (T5, tercer corte), rama `feat/formulario-publico-3c-presentacionales` desde `bd1b69d`:
+  `wizard.tsx` (`StepPanel`, `StepProgress`, `StepNavigation`), `review-summary.tsx` y la
+  extracción de `sections.tsx` en grupos de campos, todo sin cablear. RED→GREEN en los dos
+  módulos nuevos (18 y 9 pruebas); `sections.tsx` con salida idéntica comprobada por `innerHTML`.
+  - Revisión del orquestador: cuatro correcciones al trabajo del agente (rótulos con una sola
+    fuente, grupos que solo renderizan campos, marca visible de error en la barra, type guard en
+    vez de `as`); validador de contexto limpio en PASS.
+  - Decisión del usuario: la nota de la fecha de radicación va solo en la franja (ver
+    «Ajustados»); propuesta enmendada. `design.md` enmendado: PR-3 en cuatro cortes.
+  - Medido: 646 líneas, sobre el presupuesto; se parte como preveía `tasks.md` en 3c-i
+    (`wizard.tsx`, 282) y 3c-ii (`review-summary.tsx` + `sections.tsx`, 364), apiladas a `main`.
+  - Suite: 27 archivos, 292/292; `tsc`, `lint` en verde. Sin prueba en vivo: nada lo renderiza
+    en producción todavía.
 
-**Siguiente paso:** PR-3c, módulos presentacionales sin cablear (`wizard.tsx`,
-`review-summary.tsx`, extracción de `sections.tsx`).
+**Siguiente paso:** PR-3d, el cableado del asistente en `page.tsx` (único cambio de
+comportamiento; pedirá `size:exception`).
