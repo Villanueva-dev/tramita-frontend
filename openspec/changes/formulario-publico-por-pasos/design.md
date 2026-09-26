@@ -139,6 +139,10 @@ es tener los cinco pasos en el DOM; a cambio `CanvasFirma` y sus diez pruebas no
   elegí superponerla, sabiendo que el costo es un elemento posicionado más sobre el recuadro.
 - **17 px en el `<main>`, no en `html`**: el espaciado de Tailwind está en `rem`
   (`node_modules/tailwindcss/theme.css:325`); subir la raíz agrandaría cada `h-*` y la app interna.
+  (Enmendado el 2026-09-26, en PR-4: `Input`, `Label` y `Textarea` fijan `text-sm`, así que el
+  tamaño del `<main>` no les llega; se aplica también en sus puntos de uso en `sections.tsx`, sin
+  tocar las primitivas, y en rem —`1.0625rem`, 17 px con la raíz por omisión— para respetar el
+  tamaño de letra que el estudiante configure en el navegador, cosa que un valor en px ignoraría.)
 - **Logo**: se reutiliza `Logo` (`components/brand.tsx:8-32`). Los cinco módulos del proyecto que
   importa (`:1-5`) no mencionan `store`, `app-shell` ni `useTramita` (0 coincidencias), así que la guarda
   de frontera de `page.test.tsx:75-87` sigue en pie.
@@ -266,5 +270,8 @@ No requiere migración. Reversión por PR según la proposal (*Rollback Plan*).
 - [x] **Patrón del correo**: alineado con el delta de spec; no exige punto en el dominio (ver 3).
 - [ ] **Botón Atrás del navegador**: sale de la página y pierde lo diligenciado, igual que hoy. Queda
       fuera de este cambio; que retroceda un paso sería una decisión de producto posterior.
-- [ ] **PR-4, región viva**: el aviso y los `role="alert"` de campo (`sections.tsx:67`) se
-      anunciarían dos veces; PR-4 elige una sola.
+- [x] **PR-4, región viva**: el aviso y los `role="alert"` de campo (`sections.tsx:67`) se
+      anunciarían dos veces; PR-4 elige una sola. Resuelto el 2026-09-26: el aviso por paso no es
+      región viva (sin `role` ni `aria-live`) y los `role="alert"` de campo se conservan, porque
+      la decisión 6 ya lleva el foco al primer campo inválido y el lector de pantalla anuncia ese
+      campo con su descripción. Costo aceptado: el lector no anuncia cuántos campos faltan.

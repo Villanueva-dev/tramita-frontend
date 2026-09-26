@@ -42,6 +42,15 @@ export const FIELD_LABELS: Record<keyof PublicRequestFormValues, string> = {
   reason: 'Compromisos adquiridos',
 }
 
+/**
+ * Letra de 17 px de la propuesta (PR-4) para rótulos y controles: `Label`, `Input` y `Textarea`
+ * fijan `text-sm`, así que el tamaño del `<main>` no les llega y se aplica aquí, en el punto de
+ * uso, sin tocar las primitivas que comparte la app interna. En rem, no en px: 1.0625rem son
+ * 17 px con la raíz por omisión (16 px) y escala con el tamaño de letra que el estudiante haya
+ * configurado en su navegador, cosa que un valor en px ignoraría.
+ */
+const READING_TEXT_SIZE = 'text-[1.0625rem]'
+
 function TextField({
   field,
   label,
@@ -67,10 +76,11 @@ function TextField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={field}>{label}</Label>
+      <Label htmlFor={field} className={READING_TEXT_SIZE}>{label}</Label>
       {hint ? <p id={`${field}-hint`} className="text-sm text-muted-foreground">{hint}</p> : null}
       <Input
         id={field}
+        className={`h-13 ${READING_TEXT_SIZE}`}
         value={value}
         onChange={(event) => onChange(field, event.target.value)}
         maxLength={maxLength}
@@ -137,6 +147,7 @@ export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
           onChange={onChange}
           error={errors.studentName}
           maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentName}
+          hint="Por ejemplo: Nombre Apellido Apellido"
         />
       </div>
       {/*
@@ -145,7 +156,7 @@ export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
         la validación de la página.
       */}
       <TextField field="studentDocument" label={FIELD_LABELS.studentDocument} value={values.studentDocument} onChange={onChange} error={errors.studentDocument} hint="Solo números, sin puntos ni espacios." inputMode="numeric" />
-      <TextField field="studentEmail" label={FIELD_LABELS.studentEmail} value={values.studentEmail} onChange={onChange} error={errors.studentEmail} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentEmail} />
+      <TextField field="studentEmail" label={FIELD_LABELS.studentEmail} value={values.studentEmail} onChange={onChange} error={errors.studentEmail} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentEmail} hint="Por ejemplo: nombre@dominio.com" />
       <TextField field="studentPhone" label={FIELD_LABELS.studentPhone} value={values.studentPhone} onChange={onChange} error={errors.studentPhone} hint="10 dígitos, sin espacios." inputMode="numeric" />
     </>
   )
@@ -158,11 +169,11 @@ export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
 export function AcademicFields({ values, onChange, errors }: FieldGroupProps) {
   return (
     <>
-      <TextField field="program" label={FIELD_LABELS.program} value={values.program} onChange={onChange} error={errors.program} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.program} />
-      <TextField field="campus" label={FIELD_LABELS.campus} value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} />
-      <TextField field="faculty" label={FIELD_LABELS.faculty} value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} />
-      <TextField field="semester" label={FIELD_LABELS.semester} value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} />
-      <TextField field="modality" label={FIELD_LABELS.modality} value={values.modality} onChange={onChange} error={errors.modality} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.modality} />
+      <TextField field="program" label={FIELD_LABELS.program} value={values.program} onChange={onChange} error={errors.program} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.program} hint="Por ejemplo: Ingeniería de Sistemas" />
+      <TextField field="campus" label={FIELD_LABELS.campus} value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} hint="Por ejemplo: Cali" />
+      <TextField field="faculty" label={FIELD_LABELS.faculty} value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} hint="Por ejemplo: Ingenierías" />
+      <TextField field="semester" label={FIELD_LABELS.semester} value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} hint="Por ejemplo: Sexto" />
+      <TextField field="modality" label={FIELD_LABELS.modality} value={values.modality} onChange={onChange} error={errors.modality} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.modality} hint="Por ejemplo: Distancia" />
     </>
   )
 }
@@ -174,18 +185,30 @@ export function AcademicFields({ values, onChange, errors }: FieldGroupProps) {
  * duplicaría ese encabezado (design.md, decisión 1).
  */
 export function ReasonFields({ values, onChange, errors }: FieldGroupProps) {
+  // El contador no es una región viva (design.md, decisión 8): se lee al enfocar o revisar el
+  // campo, igual que el hint; no interrumpe al estudiante mientras escribe.
+  const describedBy = ['reason-hint', 'reason-counter', errors.reason ? 'reason-error' : null]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <>
-      <Label htmlFor="reason">{FIELD_LABELS.reason}</Label>
+      <Label htmlFor="reason" className={READING_TEXT_SIZE}>{FIELD_LABELS.reason}</Label>
+      <p id="reason-hint" className="text-sm text-muted-foreground">
+        Por ejemplo: Presentar los trabajos pendientes antes de finalizar el semestre.
+      </p>
       <Textarea
         id="reason"
         value={values.reason}
         onChange={(event) => onChange('reason', event.target.value)}
         maxLength={PUBLIC_REQUEST_FIELD_LIMITS.reason}
         aria-invalid={Boolean(errors.reason)}
-        aria-describedby={errors.reason ? 'reason-error' : undefined}
-        className="mt-1.5"
+        aria-describedby={describedBy}
+        className={`mt-1.5 ${READING_TEXT_SIZE}`}
       />
+      <p id="reason-counter" className="text-sm text-muted-foreground">
+        {values.reason.length} de {PUBLIC_REQUEST_FIELD_LIMITS.reason} caracteres
+      </p>
       {errors.reason ? <p id="reason-error" role="alert" className="text-sm text-destructive">{errors.reason}</p> : null}
     </>
   )

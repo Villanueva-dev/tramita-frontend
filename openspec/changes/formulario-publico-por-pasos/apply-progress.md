@@ -29,6 +29,20 @@
 | 4.7 — Puerta en vivo | **Completa** | Corrida el 2026-09-26 en Chrome con el mouse; ver «Puerta en vivo (tarea 4.7)» en Slice 4 |
 | 4.8 — Medir tamaño | **Completa** | **607 líneas**, supera el pronóstico (450–550) y el presupuesto de 400 — ver Slice 4 |
 | 4.9 — Commit | **Completa** | `1fb9de9` tras el «aprobado» del diff y el `size:exception` (607 líneas) del 2026-09-26; hash registrado en el commit de docs del corte |
+| 5.1 — `canvas-firma.tsx`: 200px, guía y botón «Borrar y firmar de nuevo» | **Completa** | RED→GREEN observado, 13/13 tests; ver sección Slice 5 abajo |
+| 5.2 — `page.tsx`: 413, encabezado, Ayuda, aviso por paso | **Completa** | RED→GREEN observado, 65/65 tests en `page.test.tsx`; ver sección Slice 5 abajo |
+| 5.3 — `sections.tsx`: ejemplos, contador, tamaños | **Completa** | RED→GREEN observado, 60/60 tests en `page.test.tsx` (checkpoint intermedio); ver sección Slice 5 abajo |
+| 5.4 — `page.tsx`: acuse destaca `studentEmail` | **Completa** | Mismo RED→GREEN que 5.2 (un solo `page.tsx` cohesivo); ver nota metodológica en Slice 5 |
+| 5.5 — `review-summary.tsx`: sin `<img>` sin firma | **Completa** | RED→GREEN observado, 10/10 tests; ver sección Slice 5 abajo |
+| 5.6 — Verify (4 comandos + mutantes) | **Completa** | 27 archivos/322 tests verdes; `tsc`, `lint`, `build` en verde; 2/2 mutantes confirmados en rojo y revertidos (`diff` limpio) |
+| 5.7 — Puerta en vivo | **Completa** | Corrida el 2026-09-26 en Chrome con el mouse; ver «Puerta en vivo (tarea 5.7)» en Slice 5 |
+| 5.8 — Commit | **Completa** | `020429a` tras la puerta en vivo y la corrección de la revisión (389 líneas, dentro del presupuesto); hash registrado en el commit de docs del corte |
+
+> **Estado de entrega vigente (2026-09-26):** la PR #70 se integró a `main` en `55c9ede`.
+> El Slice 5 quedó implementado y verificado en esta ejecución (5.1–5.6); 5.7 (puerta en vivo) y
+> 5.8 (commit) quedan para el orquestador, como indica el alcance de esta ejecución. Las notas
+> posteriores que indican «Sin commit», «no se hizo push» o recomiendan abrir la PR describen el
+> estado de cada ejecución histórica; no contradicen este estado acumulado.
 
 Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest 4.1.11).
 
@@ -912,3 +926,311 @@ cada reversión exacta antes de continuar.
 2. Slice 5 (PR-4, pulido visual), que ahora incluye la tarea 5.5 (la `<img>` de la firma no se
    renderiza sin firma) y cuya puerta en vivo 5.7 es la única que puede confirmar la firma con el
    dedo en un celular.
+
+## Slice 5 — PR-4: pulido visual
+
+> PR boundary de esta ejecución: tareas **5.1 a 5.6** de `tasks.md` (implementación y
+> verificación completa del pulido visual). 5.7 (puerta en vivo con el dedo) y 5.8 (commit)
+> quedan para el orquestador, tal como delimita el alcance de esta ejecución. Rama
+> `feat/formulario-publico-4-pulido`, creada desde `origin/main` en `0650548`; sin `git add` ni
+> `git commit` de código por parte de este agente.
+
+Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest
+4.1.11). Base medida antes de empezar: 27 archivos, 303 tests verdes.
+
+### TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 5.1 | `components/firma/canvas-firma.test.tsx` | Integration (RTL) | ✅ 10/10 antes de tocar el archivo | ✅ Escrito (6/13 en rojo: 3 renombres de «Limpiar firma» + 3 pruebas nuevas) | ✅ 13/13 en verde | ✅ Altura/clase, overlay `aria-hidden`/`pointer-events`, nombre del botón y explicación del deshabilitado — 4 comportamientos distintos, cada uno con su propia aserción | ➖ No hizo falta — la implementación quedó limpia en el primer intento |
+| 5.2 | `app/solicitud/creditos-adicionales/page.test.tsx` | Integration (RTL) | ✅ 60/60 antes de tocar el archivo (tras 5.3, ver nota metodológica) | ✅ Escrito (5/65 en rojo: encabezado, Ayuda, aviso por paso ausente/presente, acuse, texto del 413) | ✅ 65/65 en verde | ✅ Aviso por paso con 0 y con 4 errores (ausencia y presencia); Ayuda con `href`/`target`/`rel` | ➖ No hizo falta |
+| 5.3 | `app/solicitud/creditos-adicionales/page.test.tsx` | Integration (RTL) | ✅ 50/50 antes de tocar el archivo | ✅ Escrito (11/60 en rojo: 8 ejemplos por campo vía `it.each`, altura del input, contador en 0 y en 31) | ✅ 60/60 en verde | ✅ `it.each` con 8 campos distintos (incluida la rama `reason`, que exige llegar más lejos en el asistente); contador con dos valores distintos (0 y 31) | ➖ No hizo falta |
+| 5.4 | (mismo archivo/ciclo que 5.2 — ver nota metodológica) | Integration (RTL) | — | ✅ (incluido en el RED de 5.2) | ✅ (incluido en el GREEN de 5.2) | ➖ Single — un solo escenario (201 con acuse) | ➖ No hizo falta |
+| 5.5 | `components/do-fr-100/review-summary.test.tsx` | Unit (RTL) | ✅ 9/9 antes de tocar el archivo | ✅ Escrito (1/10 en rojo, reproduciendo el aviso de React de `src=""`) | ✅ 10/10 en verde | ➖ Single — el caso «con firma» ya existía (prueba previa de Slice 3); este agrega el complementario «sin firma» | ➖ No hizo falta |
+
+### Nota metodológica: orden real de implementación (5.3 antes que 5.2/5.4)
+
+Las tareas se implementaron en el orden 5.1 → 5.5 → wizard (h-13, parte de 5.3/decisión C) →
+5.3 → 5.2/5.4, no en el orden numérico de `tasks.md`: `sections.tsx` (5.3) no depende de los
+cambios de `page.tsx` (5.2/5.4), así que se adelantó para mantener cada RED acotado a un solo
+archivo de producción por vez. Cada fila de la tabla registra el estado del archivo de pruebas
+*en el momento de esa tarea*, no el orden de las filas en `tasks.md`. 5.2 y 5.4 comparten un
+solo RED→GREEN igual que 4.1–4.5 en el Slice 4: ambas tocan el mismo `page.tsx` en la misma
+pasada (encabezado, Ayuda, aviso por paso, texto del 413 y acuse no se pueden separar en un
+`page.tsx` intermedio sin dejar un paso a medio construir).
+
+**RED de 5.1** (`pnpm exec vitest run components/firma/canvas-firma.test.tsx`, tras renombrar
+las 4 consultas de «Limpiar firma» y agregar 3 pruebas nuevas, contra el `canvas-firma.tsx`
+viejo):
+
+```
+Test Files  1 failed (1)
+     Tests  6 failed | 7 passed (13)
+```
+
+**GREEN de 5.1** (mismo comando, tras el nuevo `canvas-firma.tsx`):
+
+```
+Test Files  1 passed (1)
+     Tests  13 passed (13)
+```
+
+Al correr `page.test.tsx` a continuación (antes de tocar `page.tsx`), la consulta restante
+`page.test.tsx:252` («Limpiar firma») quedó roja como efecto directo del renombre de 5.1 — es la
+quinta consulta que anuncia el prompt de esta ejecución, no una regresión de 5.2/5.3. Se corrigió
+de inmediato (evidencia en «Test Summary» abajo).
+
+**RED de 5.5** (`pnpm exec vitest run components/do-fr-100/review-summary.test.tsx`, con la
+prueba nueva «no renderiza la imagen sin firma» contra el `review-summary.tsx` viejo):
+
+```
+stderr: An empty string ("") was passed to the src attribute...
+Tests  1 failed | 9 passed (10)
+```
+
+Reproduce exactamente el aviso de React que la puerta en vivo de 4.7 había registrado. **GREEN**
+(mismo comando, tras condicionar la imagen a `signature.hayFirma`): `10/10` en verde, sin el
+aviso de React.
+
+**RED de 5.3** (`pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx`, con las
+11 pruebas nuevas de ejemplos/contador/altura, contra `sections.tsx` viejo):
+
+```
+Tests  11 failed | 49 passed (60)
+```
+
+**GREEN**: `60/60` tras los ocho `hint` nuevos, el contador de `reason` y `className="h-13"` en
+`TextField`.
+
+**RED de 5.2/5.4** (mismo archivo, con las pruebas de encabezado, Ayuda, aviso por paso y acuse,
+contra el `page.tsx` viejo — ya con `sections.tsx`/`wizard.tsx` de 5.3):
+
+```
+Tests  5 failed | 60 passed (65)
+```
+
+Los cinco: encabezado con `Logo`/código, panel de Ayuda, aviso por paso presente con cuatro
+campos, acuse con el correo resaltado y el texto exacto del 413. **GREEN**: `65/65` tras el
+encabezado, el `<details>` de Ayuda, `StepErrorNotice`, el resaltado del correo y el texto nuevo
+del 413.
+
+### Test Summary
+
+- **Total tests nuevos**: 19 (3 en `canvas-firma.test.tsx`, 1 en `review-summary.test.tsx`, 15 en
+  `page.test.tsx`: 8 de ejemplos por campo vía `it.each`, 1 de altura de input, 1 de contador, 2
+  de encabezado/Ayuda, 2 de aviso por paso, 1 de acuse con correo destacado —más el rename de la
+  prueba del botón h-11→h-13 y la corrección de `page.test.tsx:252`, que no suman tests nuevos).
+- **Total tests pasando**: 322/322 (`pnpm test`, 303 base + 19 nuevas).
+- **Layers usados**: Integration (RTL) en `page.test.tsx` y `canvas-firma.test.tsx`; Unit (RTL,
+  sin mocks de red) en `review-summary.test.tsx` — mismas capas que ya tenían esos archivos.
+- **Approval tests**: Ninguna — Slice 5 es comportamiento/presentación nueva, no un refactor de
+  comportamiento existente.
+- **Funciones puras nuevas**: `fieldLabel` (`page.tsx`) — resuelve el rótulo de un `FormField`,
+  incluida la excepción de `signature` que `FIELD_LABELS` no cubre.
+
+### Mutantes (tarea 5.6)
+
+Los dos exigidos por el prompt de esta ejecución, cada uno aplicado, verificado en rojo y
+revertido antes de continuar (`diff` sin salida contra una copia de respaldo tras cada
+reversión):
+
+| # | Mutante | Resultado | Prueba(s) que lo detecta |
+|---|---|---|---|
+| 1 | Restaurar `src={signature.dataUrl}` sin condicionar a `signature.hayFirma` en `review-summary.tsx` | **Rojo**: 1 fallo, 9/10 | `does not render the signature image when there is no signature yet` |
+| 2 | Volver el texto del 413 a «Límpiela y fírmela de nuevo.» en `page.tsx` | **Rojo**: 1 fallo, 0/1 (corrida focalizada por nombre) | `gives the exact 413 wording pointing to redo the signature, replacing the retired "Límpiela" phrasing` |
+
+Ambos confirman que las pruebas nuevas realmente cubren el comportamiento que describen, no un
+verde falso.
+
+### Verify (tarea 5.6)
+
+| Comando | Resultado observado |
+|---|---|
+| `pnpm exec vitest run components/firma/canvas-firma.test.tsx components/do-fr-100/review-summary.test.tsx app/solicitud/creditos-adicionales/page.test.tsx` | **3 archivos, 88 tests, todos verdes** |
+| `pnpm test` | **27 archivos, 322 tests, todos verdes** (303 base + 19 nuevas) |
+| `pnpm exec vitest run app/requests/new/page.test.tsx` | **1 archivo, 3 tests, todos verdes** — archivo intacto |
+| `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx -t "guards the complete public-request boundary"` | **1/1 verde** — la guarda de frontera (`app-shell\|useTramita\|@/lib/store`) sigue en pie: `Logo` se importa desde `@/components/brand`, fuera de los directorios que la prueba escanea |
+| `pnpm exec tsc --noEmit` | exit 0, sin errores. **Sin `rm -rf .next`**: el prompt de esta ejecución prohíbe limpiarlo con el `next dev` vivo; se corrió `tsc` directo, como indica esa misma instrucción |
+| `pnpm lint` | `eslint .` → exit 0, sin salida |
+| `pnpm build` | Compilación exitosa; 9 rutas generadas, incluida `/solicitud/creditos-adicionales` como estática — corrido dos veces (antes y después de revertir los mutantes), mismo resultado |
+
+## Decisiones de implementación (Slice 5)
+
+Los ocho puntos A–H del prompt de esta ejecución se implementaron tal como se decidieron, sin
+desviación:
+
+- **A (región viva)**: `StepErrorNotice` (`page.tsx`, nueva) es un `<p>` sin `role` ni
+  `aria-live`, derivado de `errorsOfStep(errors, step)`; se renderiza como primer hijo de cada
+  `StepPanel` con campos propios (no en «Revisar y enviar», donde `errorsOfStep` siempre da
+  `{}`). Los `role="alert"` de campo (`sections.tsx`) no se tocaron.
+- **B (ejemplos)**: ocho `hint` nuevos vía la prop existente de `TextField`/`ReasonFields`
+  (nunca `placeholder`), con datos sintéticos que no reproducen un nombre real, un número de
+  documento con estructura colombiana válida ni el dominio institucional. Los dos hints
+  existentes (`studentDocument`, `studentPhone`) no se tocaron. El contador de `reason` deriva de
+  `values.reason.length` contra `PUBLIC_REQUEST_FIELD_LIMITS.reason`, sin `role`/`aria-live`.
+- **C (tamaños)**: `text-[17px]` en los dos `<main>` de `page.tsx` (formulario y acuse), nunca en
+  `html`. `h-13` (52px) en: los `Input` de `TextField` (`sections.tsx`, único punto de cambio,
+  sin tocar `components/ui/input.tsx`), los dos botones de `StepNavigation` (`wizard.tsx` — la
+  única razón por la que se tocó ese archivo en este corte) y el botón «Borrar y firmar de
+  nuevo» (`canvas-firma.tsx`). El `Textarea` de `reason` no se tocó: su `min-h-20` (80px) ya
+  supera el piso de 52px, y reducirlo perdería espacio de escritura sin que el prompt lo pidiera
+  explícitamente («mínimo», no un valor fijo). La prueba de `h-11`→`h-13` en el botón de envío
+  (`page.test.tsx`) es el mismo patrón de excepción ya documentado en el archivo (comentario
+  «jsdom no calcula layout»); esta ejecución no inventa una excepción nueva a la regla del
+  proyecto contra aserciones por clase CSS, la extiende al mismo tipo de control (objetivo
+  táctil) con el mismo comentario justificativo.
+- **D (encabezado y Ayuda)**: `Logo` (sin `variant`, tamaño por omisión) + `<span>` con «Formato
+  DO-FR-100», solo en la vista del formulario (no en el acuse — ver «para veto» abajo). El panel
+  de Ayuda usa `<details>`/`<summary>` nativos, sin estado, con el WhatsApp como texto y como
+  `<a href="https://wa.me/573152966601" target="_blank" rel="noopener noreferrer">`.
+- **E (413)**: texto exacto «La firma es demasiado pesada. Bórrela y fírmela de nuevo.»; el
+  botón «Ir a la firma» no se tocó.
+- **F (firma)**: `CANVAS_HEIGHT` 200, `h-50`; guía (`<div>` con borde punteado) y texto superpuestos
+  con `style={{ pointerEvents: 'none' }}` y `aria-hidden="true"`, fuera del canvas (no dibujados,
+  así que no entran en `toDataURL` ni los borra `clearRect`); botón «Borrar y firmar de nuevo»
+  con el `Button` del proyecto, `variant="outline"`, `h-13`, mismo `disabled` que antes, con
+  `aria-describedby` apuntando a un `<p>` visible «Se habilita cuando haya una firma.» — visible
+  siempre, no solo cuando está deshabilitado (más simple, sin estado nuevo).
+- **G (acuse)**: mantuve la redacción «La Coordinación responderá al correo que diligenció:
+  **{email}**.» en vez del ejemplo literal del prompt («responderá a {email}»), para no tocar
+  la aserción existente `screen.getByText(/coordinación responderá al correo/i)` — se extendió
+  con una aserción nueva sobre el `<strong>`, en vez de reemplazar la existente. **Para veto**:
+  si el responsable prefiere la redacción literal del prompt, es un cambio de una línea.
+- **H (`review-summary.tsx`)**: `signature.hayFirma ? <img .../> : null`, con la prueba RED
+  «does not render the signature image when there is no signature yet» reproduciendo primero el
+  aviso de React documentado en la puerta en vivo de 4.7. **Si esto cierra el hallazgo**: sí —
+  la condición elimina exactamente la rama que emitía `src=""`; no queda ningún otro `<img>` sin
+  condicionar en el árbol de revisión.
+
+**Para veto del responsable** (decisiones no fijadas del todo por el prompt, tomadas para
+avanzar):
+
+1. El encabezado (`Logo` + «Formato DO-FR-100») y el panel de Ayuda se agregaron solo a la vista
+   del formulario, no a la del acuse (`submitted === true`). El prompt describe «Header of the
+   public page» sin distinguir las dos vistas; opté por el alcance mínimo porque la Ayuda
+   (contactar a la Coordinación) tiene menos sentido después de haber enviado, y porque no hay
+   ningún criterio de aceptación ni prueba que exija el encabezado en el acuse. Extenderlo es un
+   cambio pequeño y aislado si se prefiere lo contrario.
+2. La redacción del acuse (punto G arriba): mantuve «correo que diligenció: **email**» en vez de
+   la redacción literal del prompt.
+3. El texto de ejemplo de `reason` («Presentar los trabajos pendientes antes de finalizar el
+   semestre.») es una redacción propia dentro de la pauta «un compromiso genérico de una línea»;
+   no cita ningún compromiso real de un caso observado.
+
+## Deviations from Design
+
+Ninguna en `steps.ts`, `lib/api.ts`, `lib/types.ts`, `lib/public-request-limits.ts`,
+`app/requests/**` ni el contrato del backend — no se tocaron, tal como delimita el alcance de
+esta ejecución. `wizard.tsx` se tocó (dos clases `h-11`→`h-13`), algo que el propio prompt
+anticipa y autoriza explícitamente («wizard.tsx only if the navigation buttons live there — if
+so, that is an allowed minimal edit, note it under Deviations»).
+
+## Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run components/firma/canvas-firma.test.tsx components/do-fr-100/review-summary.test.tsx app/solicitud/creditos-adicionales/page.test.tsx` → **88/88 verdes** |
+| Arnés de runtime | Pendiente — tarea 5.7 (firmar con el dedo en el recuadro de 200px con la guía), a cargo del orquestador con permiso del usuario |
+| Rollback | `git checkout -- app/solicitud/creditos-adicionales/page.tsx app/solicitud/creditos-adicionales/page.test.tsx components/do-fr-100/sections.tsx components/do-fr-100/wizard.tsx components/do-fr-100/review-summary.tsx components/do-fr-100/review-summary.test.tsx components/firma/canvas-firma.tsx components/firma/canvas-firma.test.tsx` revierte el pulido completo sin afectar los Slices 1–4 (`steps.ts` no se tocó) |
+
+## Correcciones de la revisión (Slice 5, orquestador)
+
+### 1 — La letra de 17 px no llegaba a los controles, y estaba en px
+
+Al medir en vivo, `label`, `input`, `textarea` y hints seguían en `text-sm` (14 px con la raíz por
+omisión): `Input`, `Label` y `Textarea` (`components/ui/*`) fijan ese tamaño, así que el
+`text-[17px]` del `<main>` (decisión 8) solo alcanzaba al `h2` del paso. Dos consecuencias: la
+«letra de 17 px» de la propuesta no se cumplía donde el estudiante lee y escribe, y un input menor
+de 16 px provoca el zoom automático de iOS al enfocarlo. Además, el Chrome del usuario tiene la
+raíz en 18 px por preferencia del navegador (`globals.css` no fija `font-size`), lo que mostró que
+un valor en px ignora esa preferencia.
+
+Corrección, con RED→GREEN: `READING_TEXT_SIZE = 'text-[1.0625rem]'` en `sections.tsx`, aplicado a
+`Label` e `Input` de `TextField` y a `Label` y `Textarea` de `ReasonFields` (puntos de uso, sin
+tocar las primitivas que comparte la app interna), y el mismo valor en los dos `<main>` de
+`page.tsx` en lugar de `text-[17px]`. `1.0625rem` son 17 px con la raíz por omisión (16 px) y
+escala con la preferencia del navegador. Los hints, el aviso por paso y el resumen de Ayuda
+conservan `text-sm` como texto secundario. Prueba nueva en `page.test.tsx`: «renders labels,
+inputs and the textarea at the 17 px reading size, in rem so the browser font preference still
+scales it».
+
+| Paso | Comando | Resultado observado |
+|---|---|---|
+| RED | `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx` con la prueba nueva contra el código del agente | `1 failed \| 65 passed (66)` — `expected 'min-h-screen bg-background px-4 py-8 …' to contain 'text-[1.0625rem]'` |
+| GREEN | `pnpm exec vitest run components/firma/canvas-firma.test.tsx components/do-fr-100/review-summary.test.tsx app/solicitud/creditos-adicionales/page.test.tsx` | 3 archivos, **89/89** |
+| Verify | `pnpm test` · `pnpm exec tsc --noEmit` · `pnpm lint` · `pnpm build` | **27 archivos, 323/323** · sin errores · `eslint .` sin salida · 9 rutas, `/solicitud/creditos-adicionales` estática |
+
+Decisión 8 de `design.md` («17 px en el `<main>`») queda enmendada en el commit de docs del corte.
+
+## Puerta en vivo (tarea 5.7)
+
+Corrida por el orquestador el 2026-09-26 en Chrome contra `next dev` (`localhost:3000`), sobre el
+código ya corregido, con los mismos datos ficticios de la puerta 4.7. La firma se trazó con el
+mouse: firmar con el dedo solo lo puede confirmar el usuario en un celular. «Enviar solicitud» no se
+pulsó (sin backend); el acuse y el texto del 413 quedan cubiertos por las pruebas. Cada fila es una
+lectura del DOM, de `getComputedStyle` o del `ImageData` del canvas.
+
+| Qué | Observado |
+|---|---|
+| Encabezado y Ayuda | `Logo` cargado (1280×640 natural); «Formato DO-FR-100»; `<details>` con `summary` «Ayuda» y el enlace `wa.me` con `target="_blank"` |
+| Tamaños (raíz del navegador: 18 px) | `label`, `input`, `textarea` y `<main>` a 19,125 px = 1,0625 rem; hint 15,75 px = `text-sm`; altura de input y botones 58 px = 3,25 rem (`h-13`) |
+| Consola al cargar | Solo DevTools y HMR: el aviso «An empty string ("") was passed to the src attribute» ya no aparece; un solo `<img>` en el DOM (el logo) |
+| Continuar con el paso 1 vacío | Aviso «Faltan 4 campos por corregir en este paso: …» con los cuatro rótulos, sin `role` ni `aria-live`; foco en `#studentName`; cuatro `role="alert"` de campo |
+| Pasos 1→2→3 | Al llenar y continuar, el aviso desaparece; contador «0 de 2000 caracteres» → «31 de 2000 caracteres» al escribir; `aria-describedby` del textarea = `reason-hint reason-counter` |
+| Paso «Firma» | Foco en el `h2`; canvas con `height="200"` (buffer 300×200 mientras estaba oculto, 950×247 al hacerse visible, 864×225 CSS); guía y texto con `pointer-events: none` y `aria-hidden`; «Borrar y firmar de nuevo» con `data-slot="button"`, 58 px, `disabled`, descrito por «Se habilita cuando haya una firma.» |
+| Firmar atravesando la guía | Dos arrastres, uno sobre el texto y otro cruzando la línea: 2194 píxeles de tinta; el overlay no bloqueó el trazo; el botón de borrar se habilitó |
+| Borrar y firmar de nuevo | 0 píxeles de tinta tras el clic; nuevo trazo de 1779 píxeles |
+| Revisión | Foco en el `h2`; `img[alt="Firma capturada del solicitante"]` con `data:image/png` de 950×247 que muestra solo el trazo, sin guía ni texto (están fuera del canvas por construcción) |
+
+## Tamaño medido (Slice 5)
+
+`git diff --numstat -- . ':!openspec' ':!odd'` sobre los archivos de código tocados en esta
+ejecución (excluye `docs/contexto-institucional.md`, modificado por otro proceso antes de que
+empezara esta ejecución — ver «Environment cautions» del prompt):
+
+| Archivo | Inserciones | Borrados | Total |
+|---|---|---|---|
+| `app/solicitud/creditos-adicionales/page.test.tsx` | 108 | 4 | 112 |
+| `app/solicitud/creditos-adicionales/page.tsx` | 64 | 11 | 75 |
+| `components/firma/canvas-firma.tsx` | 49 | 15 | 64 |
+| `components/firma/canvas-firma.test.tsx` | 37 | 4 | 41 |
+| `components/do-fr-100/sections.tsx` | 21 | 7 | 28 |
+| `components/do-fr-100/review-summary.tsx` | 10 | 8 | 18 |
+| `components/do-fr-100/review-summary.test.tsx` | 11 | 0 | 11 |
+| `components/do-fr-100/wizard.tsx` | 2 | 2 | 4 |
+| **Total código (Slice 5)** | **302** | **51** | **353** |
+
+**353 ≤ 400** (presupuesto): dentro del pronóstico de 300–400 de `tasks.md` para PR-4. No se
+pidió `size:exception`.
+
+**Tras la corrección de la revisión** (`git diff --numstat -- . ':!openspec' ':!odd' ':!docs'`):
+`page.test.tsx` 129/4, `sections.tsx` 33/10, el resto sin cambio → **335 inserciones, 54 borrados,
+389 líneas**, dentro del presupuesto de 400 y del pronóstico de 300–400. Sin `size:exception`.
+
+## Archivos tocados en esta ejecución (Slice 5)
+
+| Archivo | Acción |
+|---|---|
+| `components/firma/canvas-firma.tsx` | Modificado — `CANVAS_HEIGHT` 200, `h-50`, overlay de guía y texto, botón «Borrar y firmar de nuevo» vía `Button` con explicación del deshabilitado |
+| `components/firma/canvas-firma.test.tsx` | Modificado — 4 consultas renombradas, 3 pruebas nuevas |
+| `components/do-fr-100/sections.tsx` | Modificado — 8 `hint` nuevos, contador de `reason`, `h-13` en `TextField` |
+| `components/do-fr-100/wizard.tsx` | Modificado — `h-11`→`h-13` en los dos botones de `StepNavigation` |
+| `components/do-fr-100/review-summary.tsx` | Modificado — `<img>` condicionada a `signature.hayFirma` |
+| `components/do-fr-100/review-summary.test.tsx` | Modificado — 1 prueba nueva |
+| `app/solicitud/creditos-adicionales/page.tsx` | Modificado — `StepErrorNotice`, encabezado con `Logo`, panel Ayuda, texto del 413, acuse con correo destacado |
+| `app/solicitud/creditos-adicionales/page.test.tsx` | Modificado — 15 pruebas nuevas, 1 renombrada (`h-11`→`h-13`), 1 corregida (`page.test.tsx:252`) |
+| `openspec/changes/formulario-publico-por-pasos/tasks.md` | Modificado — checkboxes 5.1–5.6 |
+| `openspec/changes/formulario-publico-por-pasos/apply-progress.md` | Modificado — tabla global extendida a Slice 5, esta sección agregada |
+
+Ningún otro archivo fue leído para escritura ni modificado. El agente no hizo `git add` ni
+`git commit`. Los dos mutantes se aplicaron y revirtieron sobre `review-summary.tsx` y
+`page.tsx` respectivamente, con `diff` confirmando cada reversión exacta antes de continuar.
+
+## Próximo paso sugerido (tras Slice 5)
+
+1. Abrir la PR-4 contra `main` con el formato de #65–#70 y `Closes #27` (el botón de borrar ya
+   usa el `Button` del proyecto, mide 52 px y explica su `disabled`); registrar el hash del commit
+   en 5.8 y en el documento ODD, y enmendar la decisión 8 y la pregunta abierta de `design.md`.
+2. Tras el merge de PR-4: 6.1 (grep dirigido de piezas descartadas) y 6.2 (archivar el cambio
+   `formulario-publico-por-pasos`). Firmar con el dedo en un celular sigue pendiente de que el
+   usuario lo confirme.

@@ -213,7 +213,7 @@ la cédula del formulario interno.
 
 ### PR-4 — Pulido visual (se detalla al empezar)
 
-- [ ] **T6** — Encabezado con logo y Ayuda, aviso de errores, recuadro de firma de 200 px y
+- [x] **T6** — Encabezado con logo y Ayuda, aviso de errores, recuadro de firma de 200 px y
   acuse. Revisar si cierra #27 (el botón «Limpiar firma» por debajo del objetivo táctil).
 
 ## Criterios de aceptación de PR-1
@@ -373,9 +373,28 @@ la cédula del formulario interno.
     dedo queda para la puerta 5.7 en un celular. Hallazgo: el «1 issue» del overlay de `next dev`
     es un `img src=""` de `review-summary.tsx` (Slice 3) al montarse la revisión oculta; el
     usuario decidió diferirlo a la tarea 5.5.
-  - Suite: 27 archivos, 303/303; `tsc`, `lint`, `build` en verde. Commit `1fb9de9` (código y
-    artefactos del corte) más el commit de docs que registra este cierre; cierra #58 al mergear.
+  - Suite: 27 archivos, 303/303; `tsc`, `lint`, `build` en verde. Commits `1fb9de9` y `72e40f7`;
+    PR #70, CI en verde, mergeada el 2026-09-26 (`55c9ede`, 07:06 UTC); #58 cerrado.
+- Docs: PR #71 (`b1e60d4`, merge `0650548`) dejó el `README.md` de arranque y puso al día
+  `docs/contexto-institucional.md` y `openspec/project.md`.
+- PR-4 (T6), rama `feat/formulario-publico-4-pulido` desde `0650548`: lienzo de 200 px con guía y
+  texto superpuestos, «Borrar y firmar de nuevo» con el `Button` del proyecto y explicación del
+  deshabilitado (cierra #27), encabezado con `Logo` y «Formato DO-FR-100», panel de Ayuda con el
+  WhatsApp, aviso de errores por paso sin región viva (resuelve la pregunta abierta del diseño),
+  ejemplos sintéticos por campo, contador de `reason`, controles de 52 px, texto del 413, acuse
+  con el correo destacado y la `<img>` de la firma condicionada a que haya firma (5.5). Ruta: SDD
+  apply delegado (`sdd-apply`, sonnet), RED→GREEN por tarea, dos mutantes en rojo; validador de
+  contexto limpio en PASS 5/5.
+  - Revisión del orquestador: una corrección — la letra de 17 px no llegaba a `Label`, `Input` ni
+    `Textarea` (`text-sm` en las primitivas) y el `<main>` la fijaba en px; se aplicó en los
+    puntos de uso y en rem (`1.0625rem`) con su prueba RED→GREEN. `design.md` enmendado (decisión
+    8 y pregunta abierta de la región viva).
+  - Medido: 389 líneas contra 300–400 de pronóstico, dentro del presupuesto.
+  - Puerta en vivo con el mouse en Chrome: aviso por paso y foco en el primer campo inválido,
+    contador, guía que no bloquea el trazo ni entra en la imagen, borrado a cero, revisión con la
+    imagen, consola sin el aviso de `src=""`. Firmar con el dedo sigue pendiente de un celular.
+  - Suite: 27 archivos, 323/323; `tsc`, `lint`, `build` en verde. Commit `020429a` más el commit
+    de docs que registra este cierre.
 
-**Siguiente paso:** PR-4, el pulido visual (Slice 5 de `tasks.md`), que ahora incluye la tarea
-5.5 (la `<img>` de la firma no se renderiza sin firma) y la única puerta que puede confirmar la
-firma con el dedo (5.7).
+**Siguiente paso:** mergear PR-4; después, 6.1 (grep dirigido de piezas descartadas) y 6.2
+(archivar el cambio `formulario-publico-por-pasos`), que cierran la adopción del diseño.

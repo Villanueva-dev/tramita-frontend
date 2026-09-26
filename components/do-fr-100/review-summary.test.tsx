@@ -88,6 +88,17 @@ describe('ReviewSummary', () => {
     expect((image!.getAttribute('alt') ?? '').toLowerCase()).toContain('firma')
   })
 
+  it('does not render the signature image when there is no signature yet', () => {
+    // D2 monta la revisión oculta desde la carga, antes de que exista una firma: un `<img
+    // src="">` sin firma dispara el aviso de React de cadena vacía en `src` (hallazgo de la
+    // puerta en vivo de 3d, tarea 5.5). Ausencia real: se comprueba que no exista ningún `<img>`.
+    const noSignature = { dataUrl: '', hayFirma: false }
+    render(<ReviewSummary values={values} signature={noSignature} onEdit={vi.fn()} />)
+
+    const card = findCard('Firma del solicitante')
+    expect(card.querySelector('img')).toBeNull()
+  })
+
   it.each([
     ['Datos del solicitante', 'applicant'],
     ['Datos académicos', 'academic'],

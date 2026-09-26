@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom'
 import {
   ApplicantFields,
   AcademicFields,
+  FIELD_LABELS,
   PublicRequestFixedStrip,
   ReasonFields,
   SignatureFields,
@@ -24,12 +25,41 @@ import {
   type StepId,
 } from '@/components/do-fr-100/steps'
 import { CanvasFirma, type SignatureCapture } from '@/components/firma/canvas-firma'
+import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError, submitPublicRequest } from '@/lib/api'
 import { apiErrorMessages } from '@/lib/api-errors'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
 import type { PublicRequestBody } from '@/lib/types'
+
+const HELP_WHATSAPP_NUMBER = '+57 315 2966601'
+const HELP_WHATSAPP_LINK = 'https://wa.me/573152966601'
+
+/** Rótulo del campo para el aviso por paso; `FIELD_LABELS` no cubre `signature` (sections.tsx). */
+function fieldLabel(field: FormField): string {
+  return field === 'signature' ? 'Firma' : FIELD_LABELS[field]
+}
+
+/**
+ * Aviso de errores del paso activo (design.md, PR-4, Open Question resuelta): complementa el
+ * `role="alert"` de cada campo, no lo reemplaza, así que no repite ese rol ni `aria-live` — la
+ * única región viva sigue siendo el mensaje de cada campo (decisión 6 ya movía el foco al primer
+ * campo inválido). Sin errores en el paso, no renderiza nada.
+ */
+function StepErrorNotice({ errors }: { errors: FormErrors }) {
+  const fields = (Object.keys(errors) as FormField[]).map(fieldLabel)
+  if (fields.length === 0) return null
+
+  const count = fields.length
+  const verb = count === 1 ? 'Falta' : 'Faltan'
+  const noun = count === 1 ? 'campo' : 'campos'
+  return (
+    <p className="text-sm text-destructive">
+      {verb} {count} {noun} por corregir en este paso: {fields.join(', ')}.
+    </p>
+  )
+}
 
 export const PUBLIC_REQUEST_DEFINITION_CODE = 'ADICION_CREDITOS'
 
@@ -205,7 +235,7 @@ export default function PublicAdditionalCreditsPage() {
         } else if (error.status === 404) {
           setFormError({ message: 'Este enlace no está disponible. Escríbale a la Coordinación.', offerSignatureStep: false })
         } else if (error.status === 413) {
-          setFormError({ message: 'La firma es demasiado pesada. Límpiela y fírmela de nuevo.', offerSignatureStep: true })
+          setFormError({ message: 'La firma es demasiado pesada. Bórrela y fírmela de nuevo.', offerSignatureStep: true })
         } else {
           setFormError({ message: apiErrorMessages(error).join(' '), offerSignatureStep: false })
         }
@@ -219,26 +249,45 @@ export default function PublicAdditionalCreditsPage() {
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:py-12">
+      <main className="min-h-screen bg-background px-4 py-8 text-[1.0625rem] sm:px-6 lg:py-12">
         <div className="mx-auto max-w-3xl">
           <h1 className="font-serif text-3xl font-bold tracking-tight">Solicitud recibida</h1>
-          <p className="mt-2">La Coordinación responderá al correo que diligenció.</p>
+          <p className="mt-2">
+            La Coordinación responderá al correo que diligenció: <strong>{values.studentEmail}</strong>.
+          </p>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:py-12">
+    <main className="min-h-screen bg-background px-4 py-8 text-[1.0625rem] sm:px-6 lg:py-12">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="font-serif text-3xl font-bold tracking-tight">
-            Solicitud de matrícula de créditos adicionales
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Complete la información solicitada para radicar su solicitud.
-          </p>
+        <header className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <Logo />
+            <span className="text-sm font-medium text-muted-foreground">Formato DO-FR-100</span>
+          </div>
+          <div>
+            <h1 className="font-serif text-3xl font-bold tracking-tight">
+              Solicitud de matrícula de créditos adicionales
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Complete la información solicitada para radicar su solicitud.
+            </p>
+          </div>
         </header>
+
+        <details className="rounded-lg border border-border bg-card p-4 text-sm">
+          <summary className="cursor-pointer font-medium">Ayuda</summary>
+          <p className="mt-2 text-muted-foreground">
+            Si tiene dudas, escríbanos por WhatsApp al{' '}
+            <a href={HELP_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="underline">
+              {HELP_WHATSAPP_NUMBER}
+            </a>
+            .
+          </p>
+        </details>
 
         <form
           className="flex flex-col gap-6"
@@ -253,6 +302,7 @@ export default function PublicAdditionalCreditsPage() {
           <StepProgress current={step} stepsWithErrors={stepsWithErrors(errors)} />
 
           <StepPanel step="applicant" active={step === 'applicant'} headingRef={activeHeadingRef} panelRef={activePanelRef}>
+            <StepErrorNotice errors={errorsOfStep(errors, 'applicant')} />
             <Card>
               <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ApplicantFields values={values} onChange={handleChange} errors={errors} />
@@ -261,6 +311,7 @@ export default function PublicAdditionalCreditsPage() {
           </StepPanel>
 
           <StepPanel step="academic" active={step === 'academic'} headingRef={activeHeadingRef} panelRef={activePanelRef}>
+            <StepErrorNotice errors={errorsOfStep(errors, 'academic')} />
             <Card>
               <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <AcademicFields values={values} onChange={handleChange} errors={errors} />
@@ -269,6 +320,7 @@ export default function PublicAdditionalCreditsPage() {
           </StepPanel>
 
           <StepPanel step="reason" active={step === 'reason'} headingRef={activeHeadingRef} panelRef={activePanelRef}>
+            <StepErrorNotice errors={errorsOfStep(errors, 'reason')} />
             <p className="text-sm text-muted-foreground">Describa el motivo en los compromisos adquiridos.</p>
             <Card>
               <CardHeader>
@@ -281,6 +333,7 @@ export default function PublicAdditionalCreditsPage() {
           </StepPanel>
 
           <StepPanel step="signature" active={step === 'signature'} headingRef={activeHeadingRef} panelRef={activePanelRef}>
+            <StepErrorNotice errors={errorsOfStep(errors, 'signature')} />
             <p className="text-sm text-muted-foreground">
               Trace su firma en el recuadro o cargue una imagen como alternativa accesible.
             </p>

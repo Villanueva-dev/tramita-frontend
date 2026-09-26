@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 export interface SignatureCapture {
   dataUrl: string
@@ -17,7 +18,7 @@ interface Point {
 }
 
 const EMPTY_SIGNATURE: SignatureCapture = { dataUrl: '', hayFirma: false }
-const CANVAS_HEIGHT = 160
+const CANVAS_HEIGHT = 200
 const MINIMUM_STROKE_LENGTH = 4
 const ACCEPTED_SIGNATURE_IMAGE_TYPES = ['image/png', 'image/jpeg']
 
@@ -201,17 +202,37 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <canvas
-        ref={canvasRef}
-        aria-label="Área para dibujar la firma"
-        className="h-40 w-full touch-none rounded-lg border border-dashed border-border bg-muted/30"
-        height={CANVAS_HEIGHT}
-        style={{ touchAction: 'none' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={finishStroke}
-        onPointerCancel={finishStroke}
-      />
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          aria-label="Área para dibujar la firma"
+          className="h-50 w-full touch-none rounded-lg border border-dashed border-border bg-muted/30"
+          height={CANVAS_HEIGHT}
+          style={{ touchAction: 'none' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={finishStroke}
+          onPointerCancel={finishStroke}
+        />
+        {/*
+          Guía y texto superpuestos, no dibujados: así no entran en el PNG que emite el canvas
+          (`emitCanvasSignature`) ni los borra `clearRect` (design.md, decisión 8). `aria-hidden`
+          los saca del árbol de accesibilidad y `pointerEvents: none` deja pasar el trazo hacia
+          el canvas que tienen debajo.
+        */}
+        <div
+          aria-hidden="true"
+          style={{ pointerEvents: 'none' }}
+          className="absolute inset-x-6 bottom-10 border-t border-dashed border-muted-foreground/40"
+        />
+        <p
+          aria-hidden="true"
+          style={{ pointerEvents: 'none' }}
+          className="pointer-events-none absolute inset-x-0 top-2 text-center text-sm text-muted-foreground"
+        >
+          Firme aquí con el dedo o con el mouse
+        </p>
+      </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="signature-upload">Cargar una imagen de firma</label>
         <input
@@ -226,9 +247,22 @@ export function CanvasFirma({ onChange }: CanvasFirmaProps) {
         </p>
         {uploadStatus ? <p role="status">{uploadStatus}</p> : null}
       </div>
-      <button type="button" onClick={clearSignature} disabled={!hayFirma && !uploadStatus}>
-        Limpiar firma
-      </button>
+      <div className="flex flex-col gap-1.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-13 w-full sm:w-auto"
+          onClick={clearSignature}
+          disabled={!hayFirma && !uploadStatus}
+          aria-describedby="clear-signature-hint"
+        >
+          Borrar y firmar de nuevo
+        </Button>
+        <p id="clear-signature-hint" className="text-sm text-muted-foreground">
+          Se habilita cuando haya una firma.
+        </p>
+      </div>
     </div>
   )
 }

@@ -133,27 +133,42 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
 
 ## Slice 5 — PR-4: pulido visual
 
-- [ ] 5.1 RED→GREEN `canvas-firma.tsx` + test: `CANVAS_HEIGHT` 200 (`h-50`), guía y texto
+- [x] 5.1 RED→GREEN `canvas-firma.tsx` + test: `CANVAS_HEIGHT` 200 (`h-50`), guía y texto
       superpuestos (`pointer-events: none`), botón «Borrar y firmar de nuevo» con el `Button`
       del proyecto (puede cerrar #27); actualizar las 5 consultas de «Limpiar firma» y `h-11`.
-- [ ] 5.2 RED→GREEN `page.tsx`: texto del 413 → «...Bórrela y fírmela de nuevo.»; encabezado
+      RED→GREEN observado (13/13 tras GREEN); ver `apply-progress.md`, Slice 5.
+- [x] 5.2 RED→GREEN `page.tsx`: texto del 413 → «...Bórrela y fírmela de nuevo.»; encabezado
       con `Logo` + «Formato DO-FR-100»; panel Ayuda (`<details>`) con «+57 315 2966601» y enlace
       `wa.me` (`target="_blank" rel="noopener noreferrer"`); aviso de errores por paso sin
       duplicar los `role="alert"` de campo — resolver una sola región viva (Open Question de
-      `design.md`).
-- [ ] 5.3 RED→GREEN `sections.tsx`: ejemplo por campo (datos sintéticos, #14), contador «N de
-      2000» en `reason`, 17px en `<main>`, controles 52–56px.
-- [ ] 5.4 RED→GREEN `page.tsx`: el acuse destaca `studentEmail` diligenciado (sin reinicio, D5).
-- [ ] 5.5 RED→GREEN `review-summary.tsx` + test: no renderizar la `<img>` de la firma mientras
+      `design.md`). RED→GREEN observado (65/65 tras GREEN); ver `apply-progress.md`, Slice 5.
+- [x] 5.3 RED→GREEN `sections.tsx`: ejemplo por campo (datos sintéticos, #14), contador «N de
+      2000» en `reason`, 17px en `<main>`, controles 52–56px. RED→GREEN observado (60/60 tras
+      GREEN); ver `apply-progress.md`, Slice 5.
+- [x] 5.4 RED→GREEN `page.tsx`: el acuse destaca `studentEmail` diligenciado (sin reinicio, D5).
+      Cubierto por el mismo RED→GREEN de 5.2; ver `apply-progress.md`, Slice 5.
+- [x] 5.5 RED→GREEN `review-summary.tsx` + test: no renderizar la `<img>` de la firma mientras
       `signature.hayFirma` sea falso. Hallazgo de la puerta en vivo de 3d (4.7): D2 monta la
       revisión oculta con `dataUrl: ''` desde la carga y React avisa «An empty string ("") was
       passed to the src attribute» (el aviso «1 issue» del overlay de `next dev`). En el DOM el
       atributo no llega a emitirse, así que no hay petición de red: es ruido de desarrollo que
-      tapa avisos reales. Diferido a este corte por decisión del usuario (2026-09-26).
-- [ ] 5.6 Verify: `pnpm test`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`;
-      `pnpm build`.
-- [ ] 5.7 **Puerta en vivo**: firmar con el dedo en el recuadro de 200px con la guía.
-- [ ] 5.8 Commit: `feat(do-fr-100): pulido visual del asistente`.
+      tapa avisos reales. Diferido a este corte por decisión del usuario (2026-09-26). RED→GREEN
+      observado (10/10 tras GREEN); ver `apply-progress.md`, Slice 5.
+- [x] 5.6 Verify: `pnpm test`; `rm -rf .next && pnpm exec tsc --noEmit`; `pnpm lint`;
+      `pnpm build`. Sin el `rm -rf .next` (dev server vivo, per environment cautions):
+      `pnpm exec tsc --noEmit` directo. 27 archivos/322 pruebas verdes; `tsc` código 0; `lint`
+      exit 0; `build` 9 rutas. Dos mutantes aplicados y revertidos con `diff` limpio (ver
+      `apply-progress.md`, Slice 5).
+- [x] 5.7 **Puerta en vivo**: firmar con el dedo en el recuadro de 200px con la guía. Corrida el
+      2026-09-26 en Chrome con el mouse (el dedo solo lo confirma el usuario en un celular): el
+      trazo atraviesa el texto y la línea de la guía sin que el overlay lo bloquee, la imagen de
+      la revisión muestra solo el trazo, «Borrar y firmar de nuevo» deja el lienzo en cero, el
+      aviso por paso aparece sin `role`/`aria-live` con el foco en el primer campo inválido, el
+      contador de `reason` cambia al escribir y la consola ya no muestra el aviso de `src=""`.
+      Evidencia en `apply-progress.md`, Slice 5.
+- [x] 5.8 Commit: `feat(do-fr-100): pulido visual del asistente`. Entregado tras la puerta en
+      vivo y la corrección de la revisión (389 líneas, dentro del presupuesto) como `020429a`;
+      el hash se registró en el commit de docs que cierra el corte, como en 3c y 3d.
 
 ## Cierre
 
