@@ -40,8 +40,9 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
 
 - Strategy: `ask-on-risk`.
 - Forecast: approximately 250–350 authored changed lines, excluding generated files.
-- Expected delivery: one pull request; push and PR creation require a separate user decision.
-- Branch: `feat/validaciones-basicas-creditos`.
+- Measured (2026-09-26, excluding `odd/`): VAL-1 130 lines, VAL-2 365 lines, 495 combined — above the 400-line policy.
+- Decision (maintainer, 2026-09-26): two stacked pull requests, `stacked-to-main`. #75 carries VAL-1 (`90175e1`) against `main`; #76 carries VAL-2 (`8c9389e`) on top of #75's branch and is retargeted to `main` once #75 merges. Both were pushed and opened on 2026-09-26 after the maintainer's explicit approval.
+- Branches: `feat/validaciones-basicas-creditos-1` (#75, cut at `90175e1`) and `feat/validaciones-basicas-creditos` (#76).
 
 ## Tasks
 
@@ -93,7 +94,7 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
     - RDD: clone-local mode is off; delivery is `disabled/unmanaged`.
     - Runtime boundary: `GET /api/public/programs` verified live (200, 13 programs, no session).
     - Rollback boundary: reverting the VAL-2 commit restores the free-text field, which backend `main` already rejects with 422; fixing forward is preferred.
-    - Commit: pending.
+    - Commit: `8c9389e` (`feat(formulario): elegir el programa del catálogo público`).
 
 ## Progress
 
@@ -108,4 +109,4 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
 
 ## Next Step
 
-Decide the delivery shape with the maintainer (`ask-on-risk`): two stacked pull requests (VAL-1, then VAL-2) or one pull request with `size:exception`. Push and pull request creation remain the maintainer's decision.
+Review and merge #75, then retarget #76 to `main` and merge it; confirm each merge with `gh pr view <N> --json state`. The non-blocking follow-ups listed under Progress stay open.
