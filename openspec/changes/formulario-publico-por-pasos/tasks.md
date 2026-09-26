@@ -167,8 +167,8 @@ antes de abrir el PR — no se fuerza aquí porque ninguna de las dos partes cam
       contador de `reason` cambia al escribir y la consola ya no muestra el aviso de `src=""`.
       Evidencia en `apply-progress.md`, Slice 5.
 - [x] 5.8 Commit: `feat(do-fr-100): pulido visual del asistente`. Entregado tras la puerta en
-      vivo y la corrección de la revisión (389 líneas, dentro del presupuesto); el hash se
-      registra en el commit de docs que cierra el corte, como en 3c y 3d.
+      vivo y la corrección de la revisión (389 líneas, dentro del presupuesto) como `020429a`;
+      el hash se registró en el commit de docs que cierra el corte, como en 3c y 3d.
 
 ## Cierre
 

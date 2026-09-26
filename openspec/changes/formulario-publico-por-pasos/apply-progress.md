@@ -36,7 +36,7 @@
 | 5.5 — `review-summary.tsx`: sin `<img>` sin firma | **Completa** | RED→GREEN observado, 10/10 tests; ver sección Slice 5 abajo |
 | 5.6 — Verify (4 comandos + mutantes) | **Completa** | 27 archivos/322 tests verdes; `tsc`, `lint`, `build` en verde; 2/2 mutantes confirmados en rojo y revertidos (`diff` limpio) |
 | 5.7 — Puerta en vivo | **Completa** | Corrida el 2026-09-26 en Chrome con el mouse; ver «Puerta en vivo (tarea 5.7)» en Slice 5 |
-| 5.8 — Commit | **Completa** | Tras la puerta en vivo y la corrección de la revisión (389 líneas, dentro del presupuesto); hash en el commit de docs del corte |
+| 5.8 — Commit | **Completa** | `020429a` tras la puerta en vivo y la corrección de la revisión (389 líneas, dentro del presupuesto); hash registrado en el commit de docs del corte |
 
 > **Estado de entrega vigente (2026-09-26):** la PR #70 se integró a `main` en `55c9ede`.
 > El Slice 5 quedó implementado y verificado en esta ejecución (5.1–5.6); 5.7 (puerta en vivo) y
