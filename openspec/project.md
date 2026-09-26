@@ -100,12 +100,16 @@ perseguir el trámite, así que el responsable del paso actual vale más que el 
 
 ## Estado actual — 2026-09-26
 
-`main` está en `55c9ede` (merge de la PR #70). La Fase B y el change anterior
+`main` está en `70de563` (merge de la PR #72, 2026-09-26). La Fase B y el change anterior
 `formulario-do-fr-100-creditos-adicionales` son históricos.
 
-El change activo es `formulario-publico-por-pasos`. Su cableado 3d (PR #70, que cerró #58) ya
-está en `main`: el formulario público es un asistente de cinco pasos. Sigue pendiente el pulido
-visual del Slice 5 (PR-4), que incluye la tarea 5.5 surgida de la puerta en vivo de 3d.
+No hay change activo. `formulario-publico-por-pasos` quedó archivado en
+[`changes/archive/2026-09-26-formulario-publico-por-pasos/`](changes/archive/2026-09-26-formulario-publico-por-pasos/archive-report.md):
+el formulario público es un asistente de cinco pasos con su pulido visual (PRs #65–#68, #70 y
+#72; #58 y #27 cerrados), y la spec `do-fr-100-form` incorpora sus cuatro requisitos modificados
+y el nuevo «Diligenciamiento por pasos». Pendientes fuera del cambio: confirmar la firma con el
+dedo en un celular; #19 y #33 (lienzo al rotar, captura de puntero) siguen abiertos; tres
+decisiones de PR-4 marcadas para veto en su `apply-progress.md`.
 
 ## Fase B — contexto histórico (cerrada y mergeada el 2026-08-28)
 

@@ -54,7 +54,7 @@ La ruta pública no requiere `AppShell`. El cockpit sí: `AppShell` redirige al 
 
 - Siga la estructura idiomática `app/`, `components/` y `lib/`; la validación del cliente es UX, la autoridad es el contrato y el backend.
 - La fuente canónica de endpoints y reglas del workflow es el OpenAPI y su implementación en el backend hermano; [la guía de auth](docs/integracion-auth.md) es narrativa.
-- El cambio OpenSpec activo es [`formulario-publico-por-pasos`](openspec/changes/formulario-publico-por-pasos/tasks.md). Consulte esas tareas para conocer el estado vigente: el trabajo de una rama no equivale a que esté incorporado a `main` ni a una entrega o release.
+- El último cambio OpenSpec, [`formulario-publico-por-pasos`](openspec/changes/archive/2026-09-26-formulario-publico-por-pasos/tasks.md), quedó archivado el 2026-09-26 con sus siete PRs en `main`; no hay cambio activo. El estado vigente de cada trabajo está en su registro de tareas: el trabajo de una rama no equivale a que esté incorporado a `main` ni a una entrega o release.
 - Antes de desplegar una captura pública en una topología cross-origin, complete el [checklist de despliegue](docs/deployment-checklist.md). No asuma un despliegue de producción ni envíos automáticos de correo.
 
 ## Documentación de referencia

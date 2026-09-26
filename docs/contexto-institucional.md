@@ -39,6 +39,7 @@ y avance del estado. **No** orquesta de punta a punta la cadena de firmas extern
 
 La autenticación protege el cockpit interno de la Coordinación. El motor de workflow del backend
 ya está integrado en el frontend, y el DO-FR-100 público de créditos adicionales se radica desde
-una ruta pública sin autenticación como asistente de cinco pasos (PR #70, mergeado a `main` el
-2026-09-26). Queda pendiente el pulido visual, Slice 5 del cambio OpenSpec
-[`formulario-publico-por-pasos`](../openspec/changes/formulario-publico-por-pasos/tasks.md).
+una ruta pública sin autenticación como asistente de cinco pasos con su pulido visual (PRs #70 y
+#72, en `main` el 2026-09-26; eso no acredita un despliegue en producción). El cambio OpenSpec
+[`formulario-publico-por-pasos`](../openspec/changes/archive/2026-09-26-formulario-publico-por-pasos/tasks.md) quedó
+archivado; queda por confirmar la firma con el dedo en un celular.
