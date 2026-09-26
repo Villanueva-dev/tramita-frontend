@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
 import type { ComponentProps, ReactNode } from 'react'
@@ -166,10 +167,52 @@ export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
  * Los cinco campos del paso «Datos académicos» (`FIELD_STEP.academic`). Sin tarjeta propia, por
  * la misma razón que `ApplicantFields`.
  */
-export function AcademicFields({ values, onChange, errors }: FieldGroupProps) {
+export function AcademicFields({ values, onChange, errors, programCatalog }: FieldGroupProps & {
+  programCatalog: {
+    status: 'loading' | 'ready' | 'error'
+    programs: string[]
+    retry: () => void
+  }
+}) {
+  const programDescribedBy = [
+    'program-hint',
+    programCatalog.status !== 'ready' ? 'program-catalog-status' : null,
+    errors.program ? 'program-error' : null,
+  ].filter(Boolean).join(' ') || undefined
+
   return (
     <>
-      <TextField field="program" label={FIELD_LABELS.program} value={values.program} onChange={onChange} error={errors.program} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.program} hint="Por ejemplo: Ingeniería de Sistemas" />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="program" className={READING_TEXT_SIZE}>{FIELD_LABELS.program}</Label>
+        <p id="program-hint" className="text-sm text-muted-foreground">Seleccione un programa del catálogo.</p>
+        <Select
+          id="program"
+          value={values.program}
+          onChange={(event) => onChange('program', event.target.value)}
+          disabled={programCatalog.status !== 'ready'}
+          required
+          aria-invalid={Boolean(errors.program)}
+          aria-describedby={programDescribedBy}
+          className={`h-13 ${READING_TEXT_SIZE}`}
+        >
+          <option value="" disabled>
+            {programCatalog.status === 'loading' ? 'Cargando programas…' : 'Seleccione un programa'}
+          </option>
+          {programCatalog.status === 'ready'
+            ? programCatalog.programs.map((program) => <option key={program} value={program}>{program}</option>)
+            : null}
+        </Select>
+        {programCatalog.status === 'loading' ? (
+          <p id="program-catalog-status" className="text-sm text-muted-foreground">Cargando el catálogo de programas.</p>
+        ) : null}
+        {programCatalog.status === 'error' ? (
+          <div id="program-catalog-status" className="flex items-center gap-2">
+            <p role="alert" className="text-sm text-destructive">No pudimos cargar el catálogo de programas. Inténtelo de nuevo.</p>
+            <button type="button" className="text-sm underline" onClick={programCatalog.retry}>Reintentar</button>
+          </div>
+        ) : null}
+        {errors.program ? <p id="program-error" role="alert" className="text-sm text-destructive">{errors.program}</p> : null}
+      </div>
       <TextField field="campus" label={FIELD_LABELS.campus} value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} hint="Por ejemplo: Cali" />
       <TextField field="faculty" label={FIELD_LABELS.faculty} value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} hint="Por ejemplo: Ingenierías" />
       <TextField field="semester" label={FIELD_LABELS.semester} value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} hint="Por ejemplo: Sexto" />
@@ -232,4 +275,3 @@ export function SignatureFields({ signatureCapture, error }: { signatureCapture:
     </>
   )
 }
-

@@ -14,6 +14,7 @@ import {
   ADVANCE_REQUEST_422_FIELD,
   submitPublicRequest,
   getInbox,
+  listPublicPrograms,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition, InboxEntry } from './types'
 import type { CreateRequestBody } from './api'
@@ -138,6 +139,20 @@ describe('listWorkflowDefinitions', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
 
     await expect(listWorkflowDefinitions()).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('listPublicPrograms', () => {
+  it('requests the unauthenticated public program catalog and returns its names without reordering', async () => {
+    const programs = [{ name: 'Zoología' }, { name: 'Administración de Empresas' }]
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, programs))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listPublicPrograms()).resolves.toEqual(programs)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/public/programs',
+      expect.objectContaining({ method: 'GET' }),
+    )
   })
 })
 

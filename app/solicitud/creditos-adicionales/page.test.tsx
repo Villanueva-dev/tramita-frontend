@@ -1,19 +1,30 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { StrictMode } from 'react'
 import PublicAdditionalCreditsPage from './page'
 import type { PublicRequestFormValues } from '@/components/do-fr-100/sections'
 import { FIELD_STEP, STEPS, type StepId } from '@/components/do-fr-100/steps'
-import { ApiError, submitPublicRequest } from '@/lib/api'
+import { ApiError, listPublicPrograms, submitPublicRequest } from '@/lib/api'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
+  listPublicPrograms: vi.fn(),
   submitPublicRequest: vi.fn(),
 }))
 
+beforeEach(() => {
+  vi.mocked(listPublicPrograms).mockResolvedValue([
+    { name: 'Programa de Prueba' },
+    { name: 'Ingeniería de Sistemas' },
+    { name: 'Administración de Empresas' },
+  ])
+})
+
 afterEach(() => {
   cleanup()
+  vi.mocked(listPublicPrograms).mockReset()
   vi.mocked(submitPublicRequest).mockReset()
   vi.restoreAllMocks()
 })
@@ -64,6 +75,20 @@ function fillFieldsOfStep(step: 'applicant' | 'academic' | 'reason', values: Pub
   }
 }
 
+/** Espera el catálogo real simulado; nunca habilita el selector ni fabrica opciones en la prueba. */
+async function waitForProgramCatalog(expectedProgram = completeValues.program) {
+  await waitFor(() => {
+    const program = document.getElementById('program') as HTMLSelectElement
+    expect(program.disabled).toBe(false)
+    expect(Array.from(program.options).map((option) => option.value)).toContain(expectedProgram)
+  })
+}
+
+async function fillAcademicFields(values: PublicRequestFormValues, expectedProgram = completeValues.program) {
+  await waitForProgramCatalog(expectedProgram)
+  fillFieldsOfStep('academic', values)
+}
+
 /** Asevera que el paso visible es el que titula `headingName`; excluye ancestros `hidden`. */
 function expectStep(headingName: string) {
   expect(screen.getByRole('heading', { level: 2, name: headingName })).toBeDefined()
@@ -93,10 +118,10 @@ function signCanvas() {
 }
 
 /** Llena y avanza «Sus datos» → «Datos académicos» → «Motivo de la solicitud», y llega a «Firma». */
-function reachSignatureStep(values: PublicRequestFormValues = completeValues) {
+async function reachSignatureStep(values: PublicRequestFormValues = completeValues) {
   fillFieldsOfStep('applicant', values)
   continueTo(HEADING_OF.academic)
-  fillFieldsOfStep('academic', values)
+  await fillAcademicFields(values, values.program)
   continueTo(HEADING_OF.reason)
   fillFieldsOfStep('reason', values)
   continueTo(HEADING_OF.signature)
@@ -104,14 +129,14 @@ function reachSignatureStep(values: PublicRequestFormValues = completeValues) {
 
 // Nivel estudiante: recorre los cinco pasos con navegación real («Continuar» valida cada uno) y
 // llega a la revisión. Reemplaza el helper de una sola página de la Slice 2 (tarea 4.5).
-function fillPublicRequestForm(values: PublicRequestFormValues) {
-  reachSignatureStep(values)
+async function fillPublicRequestForm(values: PublicRequestFormValues) {
+  await reachSignatureStep(values)
   signCanvas()
   continueTo(HEADING_OF.review)
 }
 
-function reachReview(values: PublicRequestFormValues = completeValues) {
-  fillPublicRequestForm(values)
+async function reachReview(values: PublicRequestFormValues = completeValues) {
+  await fillPublicRequestForm(values)
 }
 
 function submitForm() {
@@ -123,7 +148,7 @@ function submitForm() {
  * `completeValues`; deja al estudiante parado en el paso de `field`, sin pulsar «Continuar» ahí
  * todavía, para que la prueba decida qué aserta tras el intento fallido.
  */
-function reachStepWithOverride(field: keyof PublicRequestFormValues, value: string) {
+async function reachStepWithOverride(field: keyof PublicRequestFormValues, value: string) {
   const values: PublicRequestFormValues = { ...completeValues, [field]: value }
   const step = FIELD_STEP[field]
 
@@ -131,7 +156,7 @@ function reachStepWithOverride(field: keyof PublicRequestFormValues, value: stri
   if (step === 'applicant') return
   continueTo(HEADING_OF.academic)
 
-  fillFieldsOfStep('academic', values)
+  await fillAcademicFields(values, field === 'program' && value.trim() ? value : completeValues.program)
   if (step === 'academic') return
   continueTo(HEADING_OF.reason)
 
@@ -163,6 +188,86 @@ describe('PublicAdditionalCreditsPage', () => {
     render(<PublicAdditionalCreditsPage />)
 
     expect(screen.getByRole('heading', { name: /solicitud de matrícula de créditos adicionales/i })).toBeDefined()
+  })
+
+  it('explains loading and keeps the required program selector disabled until the public catalog arrives', () => {
+    vi.mocked(listPublicPrograms).mockImplementationOnce(() => new Promise(() => {}))
+    render(<PublicAdditionalCreditsPage />)
+
+    expect(screen.getByText('Cargando el catálogo de programas.')).toBeDefined()
+    expect((document.getElementById('program') as HTMLSelectElement).disabled).toBe(true)
+  })
+
+  it('renders public catalog options without choosing one from the response order', async () => {
+    vi.mocked(listPublicPrograms).mockResolvedValueOnce([
+      { name: 'Zoología' },
+      { name: 'Administración de Empresas' },
+    ])
+    render(<PublicAdditionalCreditsPage />)
+
+    await waitFor(() => expect(
+      Array.from((document.getElementById('program') as HTMLSelectElement).options).map((option) => option.text),
+    ).toContain('Zoología'))
+    const program = document.getElementById('program') as HTMLSelectElement
+    expect(program.value).toBe('')
+    expect(program.disabled).toBe(false)
+  })
+
+  it('keeps the selected catalog value byte-for-byte through review and submission', async () => {
+    const catalogValue = 'Programa  con espacios'
+    vi.mocked(listPublicPrograms).mockResolvedValueOnce([{ name: catalogValue }])
+    vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
+    const values = { ...completeValues, program: catalogValue }
+    render(<PublicAdditionalCreditsPage />)
+    await reachReview(values)
+    expect((document.getElementById('program') as HTMLSelectElement).value).toBe(catalogValue)
+    expect(Array.from(document.querySelectorAll('dd')).map((value) => value.textContent)).toContain(catalogValue)
+
+    submitForm()
+
+    await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
+      'ADICION_CREDITOS', expect.objectContaining({ program: catalogValue }),
+    ))
+  })
+
+  it('blocks program selection after a catalog failure and retries without losing entered values', async () => {
+    vi.mocked(listPublicPrograms)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce([{ name: 'Ingeniería de Sistemas' }])
+    render(<PublicAdditionalCreditsPage />)
+    fillField('studentName', completeValues.studentName)
+
+    await waitFor(() => expect(document.getElementById('program-catalog-status')?.textContent).toContain('No pudimos cargar el catálogo de programas'))
+    expect((document.getElementById('program') as HTMLSelectElement).disabled).toBe(true)
+    fireEvent.click(Array.from(document.querySelectorAll('button')).find((button) => button.textContent === 'Reintentar')!)
+
+    await waitFor(() => expect(
+      Array.from((document.getElementById('program') as HTMLSelectElement).options).map((option) => option.text),
+    ).toContain('Ingeniería de Sistemas'))
+    expect((document.getElementById('studentName') as HTMLInputElement).value).toBe(completeValues.studentName)
+  })
+
+  it('ignores an older catalog response after StrictMode replays the loading effect', async () => {
+    let resolveOlderCatalog!: (programs: { name: string }[]) => void
+    let resolveNewerCatalog!: (programs: { name: string }[]) => void
+    vi.mocked(listPublicPrograms)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOlderCatalog = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveNewerCatalog = resolve }))
+
+    render(<StrictMode><PublicAdditionalCreditsPage /></StrictMode>)
+    await waitFor(() => expect(listPublicPrograms).toHaveBeenCalledTimes(2))
+    resolveNewerCatalog([{ name: 'Programa vigente' }])
+
+    await waitFor(() => expect(Array.from((document.getElementById('program') as HTMLSelectElement).options).map((option) => option.value)).toContain('Programa vigente'))
+    resolveOlderCatalog([{ name: 'Programa obsoleto' }])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    await waitFor(() => {
+      const options = Array.from((document.getElementById('program') as HTMLSelectElement).options).map((option) => option.value)
+      expect(options).toContain('Programa vigente')
+      expect(options).not.toContain('Programa obsoleto')
+      expect(screen.queryByText('No pudimos cargar el catálogo de programas. Inténtelo de nuevo.')).toBeNull()
+    })
   })
 
   it('shows the brand logo and the official form code in the header', () => {
@@ -220,7 +325,7 @@ describe('PublicAdditionalCreditsPage', () => {
     }
   })
 
-  it('keeps the official blocks and field labels in form order across the wizard steps', () => {
+  it('keeps the official blocks and field labels in form order across the wizard steps', async () => {
     render(<PublicAdditionalCreditsPage />)
 
     const placeAndDate = screen.getByText('Lugar y fecha')
@@ -243,7 +348,7 @@ describe('PublicAdditionalCreditsPage', () => {
     const semester = screen.getByLabelText('Semestre cursado y aprobado')
     const modality = screen.getByLabelText('Modalidad')
     expect(semester.compareDocumentPosition(modality) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    fillFieldsOfStep('academic', completeValues)
+    await fillAcademicFields(completeValues)
 
     continueTo('Motivo de la solicitud')
     expect(screen.getByText('Compromisos adquiridos', { selector: '[data-slot="card-title"]' })).toBeDefined()
@@ -253,12 +358,16 @@ describe('PublicAdditionalCreditsPage', () => {
     continueTo('Firma del solicitante')
   })
 
-  it('guards the request type against checkboxes and selectors in the rendered tree', () => {
+  it('guards the request type against checkboxes and keeps program as the only catalog selector', async () => {
     render(<PublicAdditionalCreditsPage />)
 
     expect(screen.getByText('Matrícula créditos adicionales')).toBeDefined()
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
-    expect(screen.queryAllByRole('combobox')).toHaveLength(0)
+    fillFieldsOfStep('applicant', completeValues)
+    continueTo(HEADING_OF.academic)
+    await waitForProgramCatalog()
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    expect(screen.getByRole('combobox', { name: 'Programa académico en el que se encuentra' }).id).toBe('program')
   })
 
   it('guards the exact contract fields and one extensive textarea, across all mounted steps', () => {
@@ -287,9 +396,9 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(document.querySelector('textarea')?.id).toBe('reason')
   })
 
-  it('integrates the canvas and keyboard-operable image alternative inside an accurately named figure', () => {
+  it('integrates the canvas and keyboard-operable image alternative inside an accurately named figure', async () => {
     render(<PublicAdditionalCreditsPage />)
-    reachSignatureStep()
+    await reachSignatureStep()
 
     const signatureFigure = screen.getByRole('figure', { name: 'Firma del solicitante' })
     expect(screen.queryByRole('figure', { name: 'Espacio para firma' })).toBeNull()
@@ -298,9 +407,9 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' })).toBeDefined()
   })
 
-  it('renders the submit control with the design-system button and a 52 px touch target on review', () => {
+  it('renders the submit control with the design-system button and a 52 px touch target on review', async () => {
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     const submit = screen.getByRole('button', { name: 'Enviar solicitud' })
     // `data-slot` lo pone components/ui/button.tsx: distingue el componente del proyecto
@@ -349,7 +458,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it('walks the following steps with Continuar after Cambiar, keeps the signature, and reaches review again', async () => {
     vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar Datos académicos' }))
     expectStep('Datos académicos')
@@ -368,9 +477,9 @@ describe('PublicAdditionalCreditsPage', () => {
     ))
   })
 
-  it('keeps the drawn signature after Volver and forward again to the signature step', () => {
+  it('keeps the drawn signature after Volver and forward again to the signature step', async () => {
     render(<PublicAdditionalCreditsPage />)
-    reachSignatureStep()
+    await reachSignatureStep()
     signCanvas()
 
     fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
@@ -406,7 +515,7 @@ describe('PublicAdditionalCreditsPage', () => {
 
   it.each(Object.keys(completeValues))('blocks Continuar and marks %s invalid when it is blank after trim', async (field) => {
     render(<PublicAdditionalCreditsPage />)
-    reachStepWithOverride(field as keyof PublicRequestFormValues, '   ')
+    await reachStepWithOverride(field as keyof PublicRequestFormValues, '   ')
 
     clickContinue()
 
@@ -424,9 +533,9 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(document.activeElement).toBe(document.getElementById('studentName'))
   })
 
-  it('keeps the signature step and moves focus to its heading when Continuar is pressed without a signature', () => {
+  it('keeps the signature step and moves focus to its heading when Continuar is pressed without a signature', async () => {
     render(<PublicAdditionalCreditsPage />)
-    reachSignatureStep()
+    await reachSignatureStep()
 
     clickContinue()
 
@@ -467,14 +576,13 @@ describe('PublicAdditionalCreditsPage', () => {
       ...completeValues,
       studentName: '  Estudiante   Sintético  ',
       studentEmail: '  estudiante.sintetico@example.test  ',
-      program: '  Programa   de Prueba  ',
+      program: completeValues.program,
       reason: '  Conserva   todos los espacios\n  y saltos.  ',
     }
     render(<PublicAdditionalCreditsPage />)
-    fillPublicRequestForm(values)
+    await fillPublicRequestForm(values)
 
     expect((document.getElementById('studentName') as HTMLInputElement).value).toBe('Estudiante Sintético')
-    expect((document.getElementById('program') as HTMLInputElement).value).toBe('Programa de Prueba')
     expect((document.getElementById('reason') as HTMLTextAreaElement).value).toBe(values.reason)
 
     submitForm()
@@ -484,7 +592,7 @@ describe('PublicAdditionalCreditsPage', () => {
       expect.objectContaining({
         studentName: 'Estudiante Sintético',
         studentEmail: 'estudiante.sintetico@example.test',
-        program: 'Programa de Prueba',
+        program: completeValues.program,
         reason: values.reason,
       }),
     ))
@@ -493,14 +601,15 @@ describe('PublicAdditionalCreditsPage', () => {
   it.each([
     ['studentName', 121], ['studentDocument', 21], ['studentEmail', 256], ['studentPhone', 11],
     ['program', 121], ['campus', 121], ['faculty', 121], ['modality', 51], ['semester', 51], ['reason', 2001],
-  ])('blocks Continuar for %s over its contract limit', (field, length) => {
-    render(<PublicAdditionalCreditsPage />)
-    // La cédula y el teléfono son numéricos: con dígitos, el caso falla por longitud (lo que
-    // se quiere probar) y no por formato, que el filtro de tecleo ya vuelve inalcanzable.
+  ])('blocks Continuar for %s over its contract limit', async (field, length) => {
     const overLimitValue = field === 'studentDocument' || field === 'studentPhone'
       ? '1'.repeat(length)
       : 'a'.repeat(length)
-    reachStepWithOverride(field as keyof PublicRequestFormValues, overLimitValue)
+    if (field === 'program') vi.mocked(listPublicPrograms).mockResolvedValueOnce([{ name: overLimitValue }])
+    render(<PublicAdditionalCreditsPage />)
+    // La cédula y el teléfono son numéricos: con dígitos, el caso falla por longitud (lo que
+    // se quiere probar) y no por formato, que el filtro de tecleo ya vuelve inalcanzable.
+    await reachStepWithOverride(field as keyof PublicRequestFormValues, overLimitValue)
 
     clickContinue()
 
@@ -511,7 +620,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it('sends the unchanged semester and replaces the form with an in-place receipt on 201', async () => {
     vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
 
@@ -529,7 +638,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it('gives the exact 413 wording pointing to redo the signature, replacing the retired "Límpiela" phrasing', async () => {
     vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(413, 'Payload Too Large'))
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
 
@@ -542,7 +651,7 @@ describe('PublicAdditionalCreditsPage', () => {
   ])('keeps entered data and gives the specified message for %s, without leaving the review step', async (status, message) => {
     vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(status, 'Problema'))
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
 
@@ -558,7 +667,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it('offers Ir a la firma on a 413 and it navigates to the signature step', async () => {
     vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(413, 'Payload Too Large'))
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
 
@@ -581,7 +690,7 @@ describe('PublicAdditionalCreditsPage', () => {
       ))
       .mockRejectedValueOnce(new ApiError(429, 'Demasiados intentos', undefined, 17))
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
     expect(await screen.findAllByText('Este campo es obligatorio.')).toHaveLength(2)
@@ -623,7 +732,7 @@ describe('PublicAdditionalCreditsPage', () => {
       ['unknownInvalid'],
     ))
     render(<PublicAdditionalCreditsPage />)
-    reachReview()
+    await reachReview()
 
     submitForm()
 
@@ -645,9 +754,9 @@ describe('PublicAdditionalCreditsPage', () => {
   it.each([
     ['nine digits, one short', '1'.repeat(9)],
     ['eleven digits, one over', '1'.repeat(11)],
-  ])('blocks Continuar when studentPhone has %s and shows the ten-digit message', (_label, phone) => {
+  ])('blocks Continuar when studentPhone has %s and shows the ten-digit message', async (_label, phone) => {
     render(<PublicAdditionalCreditsPage />)
-    reachStepWithOverride('studentPhone', phone)
+    await reachStepWithOverride('studentPhone', phone)
 
     clickContinue()
 
@@ -681,14 +790,14 @@ describe('PublicAdditionalCreditsPage', () => {
     ['reason', 'reason'],
   ] as [keyof PublicRequestFormValues, 'applicant' | 'academic' | 'reason'][])(
     'links a synthetic example hint to %s via aria-describedby',
-    (field, step) => {
+    async (field, step) => {
       render(<PublicAdditionalCreditsPage />)
       if (step !== 'applicant') {
         fillFieldsOfStep('applicant', completeValues)
         continueTo(HEADING_OF.academic)
       }
       if (step === 'reason') {
-        fillFieldsOfStep('academic', completeValues)
+        await fillAcademicFields(completeValues)
         continueTo(HEADING_OF.reason)
       }
 
@@ -696,7 +805,7 @@ describe('PublicAdditionalCreditsPage', () => {
       const hintId = `${field}-hint`
       expect(input?.getAttribute('aria-describedby')).toContain(hintId)
       const hint = document.getElementById(hintId)
-      expect(hint?.textContent).toMatch(/^Por ejemplo:/)
+      expect(hint?.textContent).toMatch(field === 'program' ? /^Seleccione un programa del catálogo\.$/ : /^Por ejemplo:/)
     },
   )
 
@@ -708,7 +817,7 @@ describe('PublicAdditionalCreditsPage', () => {
     expect((document.getElementById('studentName') as HTMLInputElement).className).toContain('h-13')
   })
 
-  it('renders labels, inputs and the textarea at the 17 px reading size, in rem so the browser font preference still scales it', () => {
+  it('renders labels, inputs and the textarea at the 17 px reading size, in rem so the browser font preference still scales it', async () => {
     // La propuesta pide letra de 17 px; `Input`, `Label` y `Textarea` fijan `text-sm` (14 px), así
     // que el tamaño del `<main>` no les llega. Se aplica en los puntos de uso y en rem
     // (1.0625rem = 17 px con la raíz por omisión de 16 px): un valor en px ignoraría el tamaño
@@ -722,18 +831,18 @@ describe('PublicAdditionalCreditsPage', () => {
 
     fillFieldsOfStep('applicant', completeValues)
     continueTo('Datos académicos')
-    fillFieldsOfStep('academic', completeValues)
+    await fillAcademicFields(completeValues)
     continueTo('Motivo de la solicitud')
 
     expect(document.getElementById('reason')?.className).toContain('text-[1.0625rem]')
     expect(document.querySelector('label[for="reason"]')?.className).toContain('text-[1.0625rem]')
   })
 
-  it('shows a character counter for Compromisos adquiridos that reflects what was typed, not a fixed count', () => {
+  it('shows a character counter for Compromisos adquiridos that reflects what was typed, not a fixed count', async () => {
     render(<PublicAdditionalCreditsPage />)
     fillFieldsOfStep('applicant', completeValues)
     continueTo('Datos académicos')
-    fillFieldsOfStep('academic', completeValues)
+    await fillAcademicFields(completeValues)
     continueTo('Motivo de la solicitud')
 
     expect(screen.getByText('0 de 2000 caracteres')).toBeDefined()
@@ -757,7 +866,7 @@ describe('PublicAdditionalCreditsPage', () => {
   it('sends studentDocument and studentPhone as digit-only strings in the request body', async () => {
     vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
     render(<PublicAdditionalCreditsPage />)
-    fillPublicRequestForm({ ...completeValues, studentDocument: '00.000.010-0', studentPhone: '000 000-0100' })
+    await fillPublicRequestForm({ ...completeValues, studentDocument: '00.000.010-0', studentPhone: '000 000-0100' })
 
     submitForm()
 

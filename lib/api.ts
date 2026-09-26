@@ -235,6 +235,17 @@ export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   return (await res.json()) as WorkflowDefinition[]
 }
 
+/** Programa disponible para el formulario público; el catálogo no requiere sesión. */
+export interface PublicProgram {
+  name: string
+}
+
+export async function listPublicPrograms(): Promise<PublicProgram[]> {
+  const res = await apiFetch('/public/programs')
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicProgram[]
+}
+
 /**
  * Bandeja de trabajo de un responsable (007, contrato :35-119): las solicitudes que
  * esperan su acción, en el orden que decide el servidor (de la que más espera a la que

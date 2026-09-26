@@ -40,8 +40,9 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
 
 - Strategy: `ask-on-risk`.
 - Forecast: approximately 250–350 authored changed lines, excluding generated files.
-- Expected delivery: one pull request; push and PR creation require a separate user decision.
-- Branch: `feat/validaciones-basicas-creditos`.
+- Measured (2026-09-26, excluding `odd/`): VAL-1 130 lines, VAL-2 365 lines, 495 combined — above the 400-line policy.
+- Decision (maintainer, 2026-09-26): two stacked pull requests, `stacked-to-main`. #75 carries VAL-1 (`90175e1`) against `main`; #76 carries VAL-2 (`8c9389e`) on top of #75's branch and is retargeted to `main` once #75 merges. Both were pushed and opened on 2026-09-26 after the maintainer's explicit approval.
+- Branches: `feat/validaciones-basicas-creditos-1` (#75, cut at `90175e1`) and `feat/validaciones-basicas-creditos` (#76).
 
 ## Tasks
 
@@ -64,12 +65,12 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
     - TypeScript: `pnpm exec tsc --noEmit` — passed with no diagnostics.
     - Independent verification: PASS after one scoped correction; no remaining findings.
     - Parent spot check: focused test command passed with 27 files and 328 tests.
-    - RDD: clone-local mode is off. Native assessment was unassessable because this task document was untracked, so it was treated as high risk and independently verified.
+    - RDD: clone-local mode is off; delivery is `disabled/unmanaged`. The pre-commit assessment was unassessable because this task document was untracked, so it was treated as high risk and independently verified.
     - Runtime boundary: N/A; the behavior is local form normalization and validation covered through the page integration tests.
     - Rollback boundary: revert the VAL-1 commit to remove normalization, stricter email validation, their tests, and the matching specification scenarios without affecting the program-catalog task.
-    - Commit: pending.
+    - Commit: `90175e1` (`feat(formulario): normalizar datos y validar correo`).
 
-- [ ] **VAL-2 — Replace free-text program with the public catalog**
+- [x] **VAL-2 — Replace free-text program with the public catalog**
   - Route: delegated.
   - Trigger: API, types, form components, page state, tests, and specification require coordinated edits.
   - Acceptance criteria:
@@ -77,12 +78,23 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
     - Render a required accessible select whose value comes only from the loaded catalog.
     - Do not hardcode values or rely on response order.
     - Explain loading and failure states; prevent invalid submission without discarding other fields.
+    - On catalog failure, block program selection and offer a Retry action; never fall back to free text.
     - Preserve backend `422` field mapping and review-summary behavior.
     - Add focused RED → GREEN → REFACTOR coverage and update the active specification.
   - Checks:
     - `pnpm test -- app/solicitud/creditos-adicionales/page.test.tsx lib/api.test.ts components/do-fr-100/review-summary.test.tsx`
     - `pnpm exec tsc --noEmit`
-  - Evidence: pending.
+  - Evidence:
+    - Handoff: Codex implemented VAL-2 and stopped before recording evidence (token limit). The orchestrator session (Claude) reviewed the diff, gathered the evidence below and committed after the maintainer's explicit approval on 2026-09-26.
+    - Strict TDD RED: with the VAL-2 test files applied on top of `90175e1` in a separate worktree, `pnpm test -- app/solicitud/creditos-adicionales/page.test.tsx lib/api.test.ts` failed 38 tests, including the six new catalog tests (loading, options without preselection, byte-for-byte value, failure + Retry, StrictMode replay, `listPublicPrograms`).
+    - GREEN: `pnpm test` — 27 files, 334 tests passed (2026-09-26 16:30, on the committed tree).
+    - TypeScript: `pnpm exec tsc --noEmit` — exit 0. Lint: `pnpm lint` — no findings.
+    - Live check in Chrome against the local backend with feature 009: the select lists the 13 real programs in backend order with no preselection; «Continuar» with no program blocks the step, marks the select invalid and focuses it; a selected program passes validation and appears in the review summary. Not exercised live: catalog failure and Retry (covered by tests).
+    - Independent verification: the orchestrator review found no behavioral defect; non-blocking follow-ups are listed under Progress.
+    - RDD: clone-local mode is off; delivery is `disabled/unmanaged`.
+    - Runtime boundary: `GET /api/public/programs` verified live (200, 13 programs, no session).
+    - Rollback boundary: reverting the VAL-2 commit restores the free-text field, which backend `main` already rejects with 422; fixing forward is preferred.
+    - Commit: `8c9389e` (`feat(formulario): elegir el programa del catálogo público`).
 
 ## Progress
 
@@ -90,7 +102,11 @@ Prevent malformed or ambiguous data from reaching Coordination and reduce avoida
 - The maintainer confirmed that normalization applies only to single-line fields; `reason` remains untouched.
 - The maintainer confirmed that any well-formed email domain is accepted; institutional domains are not required.
 - VAL-1 is implemented and independently verified after correcting a controlled-input whitespace regression.
+- The maintainer approved block-and-retry when the program catalog is unavailable, with no free-text fallback.
+- VAL-2 is implemented (Codex) and verified by the orchestrator session: RED observed against `90175e1`, GREEN 334/334, live check against the backend with feature 009.
+- Review follow-ups, not blocking: an empty catalog (`[]` with status `ready`) blocks only through the generic required-field message, with no test or scenario; the byte-for-byte test uses double spaces rather than an accented name; the Retry control is a plain `<button>` while the wizard uses the project `Button`.
+- Authored size vs `main` (excluding `odd/`): VAL-1 130 lines, VAL-2 365 lines, 495 combined — above the 400-line review policy for a single pull request.
 
 ## Next Step
 
-Commit VAL-1 as a reviewable work unit, then begin VAL-2 with an observed failing test.
+Review and merge #75, then retarget #76 to `main` and merge it; confirm each merge with `gh pr view <N> --json state`. The non-blocking follow-ups listed under Progress stay open.
