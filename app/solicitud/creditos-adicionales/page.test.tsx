@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import PublicAdditionalCreditsPage from './page'
+import type { PublicRequestFormValues } from '@/components/do-fr-100/sections'
 import { ApiError, submitPublicRequest } from '@/lib/api'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -29,8 +30,12 @@ const completeValues = {
   reason: 'Solicitud sintética de prueba.',
 }
 
-function completeForm() {
-  for (const [field, value] of Object.entries(completeValues)) {
+// Nivel estudiante: llena los diez campos del papel y traza la firma; `submitForm()` envía.
+// Reemplaza el antiguo `completeForm()` fijo; `values` permite expresar un campo en blanco o
+// fuera de límite como una sobreescritura de `completeValues` en vez de rellenar y luego pisar
+// el campo. Tipado con el contrato para que un campo mal escrito no compile.
+function fillPublicRequestForm(values: PublicRequestFormValues) {
+  for (const [field, value] of Object.entries(values)) {
     fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value } })
   }
   const canvas = screen.getByLabelText('Área para dibujar la firma')
@@ -43,6 +48,10 @@ function completeForm() {
   fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 0, clientY: 0 })
   fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 8, clientY: 0 })
   fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 8, clientY: 0 })
+}
+
+function submitForm() {
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
 }
 
 function publicRequestSourceFiles(directory: string): string[] {
@@ -174,10 +183,9 @@ describe('PublicAdditionalCreditsPage', () => {
 
   it.each(Object.keys(completeValues))('blocks submission and marks %s invalid when it is blank after trim', async (field) => {
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
-    fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value: '   ' } })
+    fillPublicRequestForm({ ...completeValues, [field]: '   ' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect(document.getElementById(field)?.getAttribute('aria-invalid')).toBe('true')
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
@@ -185,11 +193,13 @@ describe('PublicAdditionalCreditsPage', () => {
 
   it('blocks submission when the signature has not been captured', () => {
     render(<PublicAdditionalCreditsPage />)
+    // No usa fillPublicRequestForm: este caso depende de que la firma quede sin capturar, y el
+    // helper siempre la dibuja junto con los campos.
     for (const [field, value] of Object.entries(completeValues)) {
       fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value } })
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect(screen.getByText('La firma es obligatoria.')).toBeDefined()
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
@@ -200,15 +210,14 @@ describe('PublicAdditionalCreditsPage', () => {
     ['program', 121], ['campus', 121], ['faculty', 121], ['modality', 51], ['semester', 51], ['reason', 2001],
   ])('blocks %s over its contract limit', (field, length) => {
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
     // La cédula y el teléfono son numéricos: con dígitos, el caso falla por longitud (lo que
     // se quiere probar) y no por formato, que el filtro de tecleo ya vuelve inalcanzable.
     const overLimitValue = field === 'studentDocument' || field === 'studentPhone'
       ? '1'.repeat(length)
       : 'a'.repeat(length)
-    fireEvent.change(document.getElementById(field) as HTMLInputElement, { target: { value: overLimitValue } })
+    fillPublicRequestForm({ ...completeValues, [field]: overLimitValue })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect(document.getElementById(field)?.getAttribute('aria-invalid')).toBe('true')
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
@@ -217,9 +226,9 @@ describe('PublicAdditionalCreditsPage', () => {
   it('sends the unchanged semester and replaces the form with an in-place receipt on 201', async () => {
     vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
+    fillPublicRequestForm(completeValues)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
       'ADICION_CREDITOS', expect.objectContaining({ semester: '8' }),
@@ -235,9 +244,9 @@ describe('PublicAdditionalCreditsPage', () => {
   ])('keeps entered data and gives the specified message for %s', async (status, message) => {
     vi.mocked(submitPublicRequest).mockRejectedValue(new ApiError(status, 'Problema'))
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
+    fillPublicRequestForm(completeValues)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect(await screen.findByText(message, { exact: false })).toBeDefined()
     expect((document.getElementById('studentName') as HTMLInputElement).value).toBe(completeValues.studentName)
@@ -256,9 +265,9 @@ describe('PublicAdditionalCreditsPage', () => {
       ))
       .mockRejectedValueOnce(new ApiError(429, 'Demasiados intentos', undefined, 17))
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
+    fillPublicRequestForm(completeValues)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
     expect(await screen.findAllByText('Este campo es obligatorio.')).toHaveLength(2)
     expect(screen.getAllByText('Revise este campo.')).toHaveLength(1)
     expect(document.getElementById('studentName')?.getAttribute('aria-invalid')).toBe('true')
@@ -266,7 +275,7 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(document.getElementById('semester')?.getAttribute('aria-invalid')).toBe('true')
     expect(document.getElementById('unknownField')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
     expect(await screen.findByText('Demasiados intentos. Reintente en 17 segundos.')).toBeDefined()
   })
 
@@ -281,9 +290,9 @@ describe('PublicAdditionalCreditsPage', () => {
       ['unknownInvalid'],
     ))
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
+    fillPublicRequestForm(completeValues)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/no pudimos identificar los campos/i)
     expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(0)
@@ -304,10 +313,9 @@ describe('PublicAdditionalCreditsPage', () => {
     ['eleven digits, one over', '1'.repeat(11)],
   ])('blocks submission when studentPhone has %s and shows the ten-digit message', (_label, phone) => {
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
-    fireEvent.change(document.getElementById('studentPhone') as HTMLInputElement, { target: { value: phone } })
+    fillPublicRequestForm({ ...completeValues, studentPhone: phone })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     expect(document.getElementById('studentPhone')?.getAttribute('aria-invalid')).toBe('true')
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
@@ -341,11 +349,9 @@ describe('PublicAdditionalCreditsPage', () => {
   it('sends studentDocument and studentPhone as digit-only strings in the request body', async () => {
     vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
     render(<PublicAdditionalCreditsPage />)
-    completeForm()
-    fireEvent.change(document.getElementById('studentDocument') as HTMLInputElement, { target: { value: '00.000.010-0' } })
-    fireEvent.change(document.getElementById('studentPhone') as HTMLInputElement, { target: { value: '000 000-0100' } })
+    fillPublicRequestForm({ ...completeValues, studentDocument: '00.000.010-0', studentPhone: '000 000-0100' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+    submitForm()
 
     await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
       'ADICION_CREDITOS',

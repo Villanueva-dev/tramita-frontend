@@ -5,13 +5,16 @@
 > el diff antes de cada commit). Rama `feat/formulario-publico-3a-steps`, creada desde `main` en
 > `5a5f848`; no se hizo push ni se abrió PR.
 
-## Estado global de esta ejecución
+## Estado global (acumulado, Slices 1–2)
 
 | Tarea | Estado | Nota |
 |---|---|---|
 | 1.1 — `steps.ts` + `steps.test.ts` | **Completa** | RED→GREEN observado, 18/18 tests |
 | 1.2 — Verify (3 comandos) | **Completa** | 3/3 en verde tras la corrección del guardián (ver hallazgo y resolución abajo) |
-| 1.3 — Commit | **Sin hacer, a propósito** | Prohibido en el alcance de esta ejecución |
+| 1.3 — Commit | **Completa** | `c6e3bf2` tras el «Aprobado» del diff; PR #65 mergeado en `main` (`6693811`) |
+| 2.1 — Helpers `fillPublicRequestForm`/`submitForm` | **Completa** | Refactor puro, mismas aserciones; ver sección Slice 2 abajo |
+| 2.2 — Verify (3 comandos + lint extra) | **Completa** | 5/5 en verde (incluye `pnpm lint`, fuera del alcance formal de 2.2) |
+| 2.3 — Commit | **Sin hacer, a propósito** | Prohibido en el alcance de esta ejecución |
 
 Modo: **Strict TDD** (`openspec/config.yaml: strict_tdd: true`, runner `pnpm test` / vitest 4.1.11).
 
@@ -177,3 +180,121 @@ Ningún otro archivo fue leído para escritura ni modificado. No se hizo `git ad
 1. El responsable del proyecto revisa el diff (`steps.ts`, `steps.test.ts`, la línea de
    `page.test.tsx`, `tasks.md`) y decide si commitea (1.3).
 2. Slice 2 (PR-3b, helpers de test sobre la página actual, sin cambio de comportamiento).
+
+---
+
+# Slice 2 — PR-3b: helpers de test nivel-estudiante
+
+> PR boundary de esta ejecución: **Slice 2 = PR-3b (helpers de test, sin cambio de
+> comportamiento)**, tareas 2.1 y 2.2 de `tasks.md`. Sin commit (2.3 queda sin marcar a
+> propósito: el responsable del proyecto revisa el diff antes de cada commit). Rama
+> `feat/formulario-publico-3b-test-helpers`, creada desde `main` en `6693811` (merge de PR #65 =
+> Slice 1); no se hizo push ni se abrió PR. Único archivo de producción/test tocado:
+> `app/solicitud/creditos-adicionales/page.test.tsx`. `page.tsx`, `sections.tsx`, `steps.ts` y
+> `canvas-firma.tsx` no se tocaron.
+
+Modo: **Strict TDD**, régimen de *Approval Testing para refactor* (`strict-tdd.md`, sección
+«Approval Testing»): la suite existente son las pruebas de aprobación; el criterio no es
+RED→GREEN de comportamiento nuevo, sino verde idéntico antes y después de mover código.
+
+## Tarea 2.1 — Helpers `fillPublicRequestForm(values)` / `submitForm()`
+
+`completeForm()` (sin parámetros, fijo a `completeValues`) se reemplazó por
+`fillPublicRequestForm(values: PublicRequestFormValues)`, que itera sobre `values` en vez de la
+constante (el tipo viene del contrato en `sections.tsx`, así que un campo mal escrito no compila) y conserva exactamente la misma lógica de firma (mock de `getContext`/`toDataURL` y los
+tres eventos de puntero). Se agregó `submitForm()`, que envuelve el único
+`fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }))` repetido en el
+archivo. Ningún cambio en `page.tsx`, `sections.tsx` ni `canvas-firma.tsx`.
+
+### Mapeo de las 12 «Reescritas» de `design.md` (línea diseño → línea actual → `it(` → resultado)
+
+Líneas de diseño medidas en `9c40acc`; +1 por la línea que Slice 1 sumó en `:81` del arreglo
+cerrado del guardián (confirmado leyendo el archivo, no solo por aritmética: las 12
+correspondencias de contenido calzan exactas con el +1 uniforme).
+
+| Diseño | Actual | `it(`/`it.each(` | Resultado en esta tarea |
+|---|---|---|---|
+| `:89` | `:90` | `keeps the official blocks and field labels in form order` | **Sin cambio en esta tarea** — no llama `completeForm()` ni envía; solo renderiza y lee `label`s. Su reescritura real (navegar los 5 pasos para ver todos los bloques) le corresponde a la 4.5, junto con `expectStep`/`continueTo` |
+| `:153` | `:154` | `integrates the canvas and keyboard-operable image alternative...` | **Sin cambio en esta tarea** — mismo motivo: solo renderiza, sin fill/submit |
+| `:163` | `:164` | `renders the submit control with the design-system button and a 44 px touch target` | **Sin cambio en esta tarea** — solo lee atributos del botón, no lo pulsa |
+| `:174` | `:175` | `it.each(...)('blocks submission and marks %s invalid when it is blank after trim'` | Migrada a ambos: `fillPublicRequestForm({ ...completeValues, [field]: '   ' })` + `submitForm()` |
+| `:185` | `:186` | `blocks submission when the signature has not been captured` | Migrada **solo a `submitForm()`**; el bucle de relleno se deja igual porque depende de no firmar, y el helper siempre firma — se documentó con un comentario en el test |
+| `:197` | `:198` | `it.each(...)('blocks %s over its contract limit'` | Migrada a ambos: `fillPublicRequestForm({ ...completeValues, [field]: overLimitValue })` + `submitForm()` |
+| `:216` | `:217` | `sends the unchanged semester and replaces the form with an in-place receipt on 201` | Migrada a ambos |
+| `:231` | `:232` | `it.each(...)('keeps entered data and gives the specified message for %s'` | Migrada a ambos |
+| `:245` | `:246` | `maps missing and invalid 422 fields separately...` | Migrada a ambos (dos llamadas a `submitForm()`, una por envío) |
+| `:272` | `:273` | `shows a form-level error when a 422 names only unknown fields` | Migrada a ambos |
+| `:301` | `:302` | `it.each(...)('blocks submission when studentPhone has %s...'` | Migrada a ambos: `fillPublicRequestForm({ ...completeValues, studentPhone: phone })` + `submitForm()` |
+| `:340` | `:341` | `sends studentDocument and studentPhone as digit-only strings in the request body` | Migrada a ambos: `fillPublicRequestForm({ ...completeValues, studentDocument: '00.000.010-0', studentPhone: '000 000-0100' })` + `submitForm()` |
+
+**Discrepancia encontrada y cómo se resolvió** (no se adivinó, se reporta): de las 12 líneas que
+`design.md` marca como «Reescritas», solo 9 llaman hoy a `completeForm()` y/o al botón de envío
+(8 a ambos, 1 solo al envío). Las otras 3 (`:90`, `:154`, `:164` actuales) únicamente renderizan
+y leen el DOM — no hay ningún fill/submit que migrar a los dos helpers de esta tarea. Se dejaron
+intactas en vez de forzarles una llamada a un helper que no necesitan: `design.md` clasifica «qué
+test cambia de texto en algún punto de todo PR-3», no «qué test usa los dos helpers de la
+tarea 2.1» — su reescritura (con navegación real entre pasos) llega en la 4.5, junto con
+`expectStep`/`continueTo`, que sí requieren que exista el asistente. La tarea 186 tampoco encaja
+del todo: usa `submitForm()` pero no `fillPublicRequestForm`, porque su propósito exacto es que la
+firma quede sin capturar. Las 12 líneas SÍ se localizaron una a una con exactitud (ninguna quedó
+sin mapear); la discrepancia es sobre el TIPO de migración que cada una necesitaba en esta tarea
+concreta, no sobre encontrarlas.
+
+## Tarea 2.2 — Verify
+
+| Comando | Resultado antes (baseline) | Resultado después (refactor) |
+|---|---|---|
+| `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx` | 1 archivo, **39 tests**, todos verdes | 1 archivo, **39 tests**, todos verdes — mismo conteo |
+| `pnpm test` | **25 archivos, 265 tests**, todos verdes | **25 archivos, 265 tests**, todos verdes — mismo conteo |
+| `rm -rf .next && pnpm exec tsc --noEmit` | exit 0 | exit 0 |
+| `pnpm lint` (pedido aparte, no forma parte de 2.2) | `eslint .` → exit 0, sin salida | `eslint .` → exit 0, sin salida |
+
+Mismo número de archivos de test (25), misma cantidad de tests (265/39) y las mismas 39
+definiciones del archivo tocado antes y después: la migración no agregó ni quitó ningún `it`/
+`it.each`, solo cambió cómo cada uno llena y envía el formulario.
+
+### TDD Cycle Evidence (Approval Testing — sin RED, refactor puro)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 2.1 | `app/solicitud/creditos-adicionales/page.test.tsx` | Integration (React Testing Library) | ✅ 39/39 antes de tocar el archivo | ➖ N/A — refactor de test sin comportamiento nuevo, régimen de Approval Testing | ✅ 39/39 tras cada tramo de la migración | ➖ N/A — no hay lógica nueva que triangular, es reordenar llamadas existentes | ✅ 39/39 al final; `completeForm()` eliminado sin dejar referencias sueltas (verificado con `grep`) |
+
+## Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de test focalizado y resultado exacto | `pnpm exec vitest run app/solicitud/creditos-adicionales/page.test.tsx` → **1 archivo, 39 tests, todos verdes** (idéntico al baseline) |
+| Arnés de runtime | N/A — refactor de test, mismo comportamiento de producción; nada en `page.tsx`/`sections.tsx`/`canvas-firma.tsx` cambió |
+| Rollback | `git checkout -- app/solicitud/creditos-adicionales/page.test.tsx` revierte el refactor completo sin afectar Slice 1 (`steps.ts`/`steps.test.ts` no dependen de este archivo); revertir los checkboxes 2.1/2.2 en `tasks.md` |
+
+## Tamaño medido — muy por debajo del pronóstico
+
+`git diff --stat -- app/solicitud/creditos-adicionales/page.test.tsx`:
+
+```
+1 file changed, 31 insertions(+), 25 deletions(-)
+```
+
+**56 líneas cambiadas** (31 + 25; incluye el tipado del helper con `PublicRequestFormValues` y su
+comentario, ajustados por el orquestador en la revisión del diff). Pronóstico de `tasks.md` para 3b: **200–280 líneas, riesgo
+Low–Medium**. 56 queda muy por debajo del rango — el archivo ya tenía la mayor parte de la
+duplicación concentrada en una sola línea por test (`completeForm()` + un `fireEvent.click`), así
+que centralizarla resultó más económico que lo estimado. No aplica `size:exception`; no se
+recortó nada (comentarios, tests y aserciones se conservaron íntegros) para llegar a este número.
+
+## Archivos tocados en esta ejecución (Slice 2)
+
+| Archivo | Acción |
+|---|---|
+| `app/solicitud/creditos-adicionales/page.test.tsx` | Modificado — helpers `fillPublicRequestForm`/`submitForm`, 9 de las 12 «Reescritas» migradas |
+| `openspec/changes/formulario-publico-por-pasos/tasks.md` | Modificado (checkboxes 2.1 y 2.2, con la nota de discrepancia de los 9/12) |
+| `openspec/changes/formulario-publico-por-pasos/apply-progress.md` | Modificado (esta sección agregada; Slice 1 intacto) |
+
+Ningún otro archivo fue leído para escritura ni modificado. No se hizo `git add` ni `git commit`.
+
+## Próximo paso sugerido (tras Slice 2)
+
+1. El responsable del proyecto revisa el diff (`page.test.tsx`, `tasks.md`,
+   `apply-progress.md`) y decide si commitea (2.3).
+2. Slice 3 (PR-3c, módulos presentacionales `wizard.tsx` + `review-summary.tsx` sin cablear, y
+   extracción de `sections.tsx`).
