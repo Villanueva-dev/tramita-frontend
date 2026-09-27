@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import RequestDetailPage from './page'
 import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
@@ -56,6 +56,7 @@ const request: AcademicRequest = {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.useRealTimers()
 })
 
 // Relativo a `Date.now()`, con una hora de margen extra hacia el pasado (design.md, «Trampas
@@ -211,6 +212,157 @@ describe('RequestDetailPage', () => {
 
     expect(screen.getByText('Trámite cerrado')).toBeDefined()
     expect(screen.queryByText(/Lleva/)).toBeNull()
+  })
+
+  it('ofrece correo y WhatsApp para un cierre público con datos de contacto válidos', async () => {
+    const cerradaPublica: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => cerradaPublica })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const message = 'Hola Ana Pérez.\r\nSu trámite «Adición de créditos» quedó en estado: Finalizada.'
+    const emailLink = screen.getByRole('link', { name: 'Enviar correo al estudiante' })
+    const whatsappLink = screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })
+
+    expect(emailLink.getAttribute('href')).toBe(
+      `mailto:ana@example.com?subject=${encodeURIComponent('Su proceso ha sido completado')}&body=${encodeURIComponent(message)}`,
+    )
+    expect(emailLink.getAttribute('href')).toContain('%0D%0A')
+    expect(whatsappLink.getAttribute('href')).toBe(
+      `https://wa.me/573001234567?text=${encodeURIComponent(message)}`,
+    )
+    expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.program))
+    expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.reason))
+  })
+
+  it('ofrece el aviso manual también para un rechazo final', async () => {
+    const rechazadaPublica: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => rechazadaPublica })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined())
+
+    expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' }).getAttribute('href')).toContain(
+      encodeURIComponent('quedó en estado: Rechazada.'),
+    )
+    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+  })
+
+  it('no ofrece el aviso para estados intermedios, coordinación ni origen desconocido', async () => {
+    const cases: AcademicRequest[] = [
+      {
+        ...request,
+        origin: 'PUBLIC_LINK',
+        studentPhone: '3001234567',
+      },
+      {
+        ...request,
+        origin: 'COORDINATION',
+        studentPhone: '3001234567',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      },
+      {
+        ...request,
+        origin: null,
+        studentPhone: '3001234567',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+      },
+    ]
+
+    for (const candidate of cases) {
+      mockTramita({ getRequest: () => candidate })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+      expect(screen.queryByRole('link', { name: 'Enviar correo al estudiante' })).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeNull()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
+
+  it('solo ofrece cada canal cuando su dato de contacto es válido', async () => {
+    const conTelefonoFijo: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '6012345678',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => conTelefonoFijo })
+    const { unmount } = render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined())
+    expect(screen.queryByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeNull()
+    unmount()
+    cleanup()
+    vi.clearAllMocks()
+
+    const sinCorreo: AcademicRequest = { ...conTelefonoFijo, studentEmail: '', studentPhone: '3001234567' }
+    mockTramita({ getRequest: () => sinCorreo })
+    render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.queryByRole('link', { name: 'Enviar correo al estudiante' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+  })
+
+  it('muestra el aviso sin recargar tras una transición a estado final', async () => {
+    let currentRequest: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      availableTransitions: [
+        {
+          targetState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+          responsible: 'REGISTRO',
+          requiresNote: false,
+        },
+      ],
+    }
+    const transition = vi.fn().mockImplementation(async (): Promise<void> => {
+      currentRequest = {
+        ...currentRequest,
+        status: 'finalizado',
+        stateName: 'Finalizada',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+      }
+    })
+    useTramita.mockReturnValue({
+      getRequest: () => currentRequest,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition,
+      registerDocumentApproval: vi.fn(),
+    })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'Finalizada' })
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizada' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Finalizada' }))
+    await vi.advanceTimersByTimeAsync(700)
+
+    expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', '')
+    expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
   })
 
   // «Ahora depende de» es el único punto que responde a quién depende el trámite: la fila

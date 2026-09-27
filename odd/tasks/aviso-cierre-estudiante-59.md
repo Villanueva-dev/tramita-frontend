@@ -37,7 +37,7 @@ backend, añadir información privada al texto o modificar el flujo de transici�
 
 ## Tareas
 
-- [ ] **T1 — Transportar los datos de contacto del contrato.** Primero probar en RED el mapeo de
+- [x] **T1 — Transportar los datos de contacto del contrato.** Primero probar en RED el mapeo de
   `origin` y `studentPhone` (incluidas claves ausentes), luego añadir los tipos y el mapeo sin
   duplicar la enum `InboxOrigin`. Actualizar solo los fixtures afectados. Comprobar pruebas
   enfocadas, suite, TypeScript y lint. Cerrar con un commit convencional de la unidad.
@@ -61,4 +61,13 @@ backend, añadir información privada al texto o modificar el flujo de transici�
 - Estado inicial: `main` limpio en `1be4fa5`; #59 abierta. Rama de trabajo creada.
 - Clasificación de raíz: bug real del flujo de comunicación de cierre (aviso manual ausente y
   afirmación de envío no demostrable). No crear bandera local de «avisado».
-- Siguiente paso: T1 RED, GREEN y REFACTOR.
+- T1 RED: `pnpm test -- lib/store.test.ts` falló porque `origin` recibido era `undefined`.
+  GREEN: el mismo comando y `pnpm test` aprobaron 28 archivos y 348 pruebas; TypeScript y
+  `pnpm lint` terminaron con código 0; `git diff --check` no encontró errores. Lint falló primero
+  por la base de datos de `pnpm` en el sandbox y aprobó al repetirse fuera de él.
+- T1: `d4756c4` — `feat(solicitudes): mapea origen y teléfono del estudiante` (105 líneas
+  autorales, incluido este seguimiento). Riesgo nativo `medium`; RDD permanece desactivado.
+  Prueba de ejecución en vivo: N/A, esta unidad solo transporta los campos y se ejerció en el
+  límite de `baseRequest`. Reversión: retirar `d4756c4` elimina el mapeo y sus fixtures, sin
+  afectar el selector de programas ni el aviso de anexo.
+- Siguiente paso: T2 RED, GREEN y REFACTOR.
