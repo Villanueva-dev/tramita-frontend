@@ -41,7 +41,7 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   `origin` y `studentPhone` (incluidas claves ausentes), luego añadir los tipos y el mapeo sin
   duplicar la enum `InboxOrigin`. Actualizar solo los fixtures afectados. Comprobar pruebas
   enfocadas, suite, TypeScript y lint. Cerrar con un commit convencional de la unidad.
-- [ ] **T2 — Ofrecer el aviso veraz y corregir el documento.** Primero probar en RED estados
+- [x] **T2 — Ofrecer el aviso veraz y corregir el documento.** Primero probar en RED estados
   finales/intermedios, origen público/interno/desconocido, rechazo, teléfono fijo/móvil, privacidad
   de enlaces, CRLF y aparición tras transición modificando `getRequest`; probar también el texto
   falso del documento. Luego implementar la UI y retirar la afirmación. Comprobar pruebas
@@ -70,4 +70,17 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   Prueba de ejecución en vivo: N/A, esta unidad solo transporta los campos y se ejerció en el
   límite de `baseRequest`. Reversión: retirar `d4756c4` elimina el mapeo y sus fixtures, sin
   afectar el selector de programas ni el aviso de anexo.
-- Siguiente paso: T2 RED, GREEN y REFACTOR.
+- T2 RED: cinco aserciones nuevas fallaron antes de implementar los enlaces y corregir la
+  afirmación del documento. GREEN tras reutilizar `isFinalized`: `pnpm test` aprobó 28 archivos
+  y 354 pruebas; `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check`
+  terminaron con código 0. Lint y una ejecución de tests necesitaron repetición fuera del
+  sandbox por un error local de base de datos de `pnpm`.
+- T2: `678ece2` — `feat(solicitudes): ofrece aviso manual al cerrar trámites públicos` (215
+  líneas autorales, incluido el avance anterior de este documento). Riesgo nativo `medium`;
+  RDD permanece desactivado. La prueba de ejecución en vivo es N/A: no se abrió el cliente de
+  correo ni WhatsApp desde un navegador autenticado; las pruebas de componente fijan el `href`
+  exacto y el cambio de estado sin recarga. Reversión: retirar `678ece2` elimina enlaces y la
+  corrección del texto, sin quitar el mapeo de T1.
+- Total inicial de la rama frente a `main`: 320 líneas autorales antes de este cierre documental;
+  sigue por debajo del umbral de planificación de una PR. Entrega remota pendiente de autorización.
+- Siguiente paso: decidir si se publica la rama y se abre una PR para cerrar #59.
