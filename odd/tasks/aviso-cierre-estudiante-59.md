@@ -51,6 +51,13 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   muestran; luego dejar «El estudiante no accede al sistema.» y quitar la promesa junto al correo,
   conservando el campo y su envío al backend. Comprobar pruebas enfocadas, suite, TypeScript,
   lint y build; cerrar con un commit convencional.
+- [x] **T4 — Abrir WhatsApp sin reemplazar el panel.** Hallazgo de la prueba en vivo, incluido
+  en esta rama con autorización del propietario (2026-09-26): el enlace de WhatsApp no declara
+  `target`, así que WhatsApp Web reemplaza la pestaña del detalle. Primero fijar en RED
+  `target="_blank"` y `rel="noopener noreferrer"` en ese enlace (convención ya usada por el enlace
+  de ayuda del formulario público); `mailto:` no cambia porque abre el cliente de correo. Luego
+  añadir los atributos. Comprobar pruebas enfocadas, suite, TypeScript, lint, build y
+  `git diff --check`; cerrar con un commit convencional.
 
 ## Criterios de aceptación
 
@@ -110,4 +117,11 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   autorales, incluido el plan T3). Reversión: retirar este commit restaura únicamente esos
   textos y su test; no afecta los enlaces manuales ni el transporte de correo.
 - Total de la rama antes de este cierre documental: 359 líneas autorales frente a `main`.
-  Siguiente paso: solicitar autorización para publicar la rama y abrir la PR de #59.
+- T4 RED: `pnpm test` falló solo en «ofrece correo y WhatsApp para un cierre público…» con
+  `expected null to be '_blank'`. GREEN: `pnpm test` aprobó 28 archivos y 355 pruebas;
+  `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check` terminaron con código 0.
+  Prueba en vivo: N/A, el cambio es un atributo estático del enlace que el test fija sobre el
+  mismo render que ya se ejerció en vivo. Commit de la unidad: el que acompaña esta entrada
+  (`fix(solicitudes): abre WhatsApp en otra pestaña`), 22 líneas autorales incluido este
+  seguimiento. Reversión: retirar ese commit devuelve el enlace a la misma pestaña.
+- Siguiente paso: redactar la PR de #59 y solicitar autorización para publicar la rama.

@@ -239,6 +239,10 @@ describe('RequestDetailPage', () => {
     expect(whatsappLink.getAttribute('href')).toBe(
       `https://wa.me/573001234567?text=${encodeURIComponent(message)}`,
     )
+    // WhatsApp Web abre en otra pestaña para no reemplazar el detalle; `mailto:` no lo necesita.
+    expect(whatsappLink.getAttribute('target')).toBe('_blank')
+    expect(whatsappLink.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(emailLink.getAttribute('target')).toBeNull()
     expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.program))
     expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.reason))
   })

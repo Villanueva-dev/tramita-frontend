@@ -312,6 +312,8 @@ export default function RequestDetailPage() {
               {whatsappHref && (
                 <a
                   href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
                 >
                   <MessageCircle className="size-4" />
