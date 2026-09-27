@@ -26,7 +26,8 @@ import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { displayNameFromEmail } from '@/lib/identity'
 import { useTramita } from '@/lib/store'
-import { PROGRAMS, REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
+import { useProgramCatalog, type ProgramCatalog } from '@/lib/use-program-catalog'
 import type { RequestType, SubjectInfo } from '@/lib/types'
 
 interface SubjectRow extends SubjectInfo {
@@ -48,6 +49,13 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="text-xs font-medium text-destructive">{msg}</p>
 }
 
+/** Una lista vacía cuenta como no disponible: el selector solo se habilita con nombres que elegir. */
+function programCatalogAvailability(catalog: ProgramCatalog): 'loading' | 'available' | 'unavailable' {
+  if (catalog.status === 'loading') return 'loading'
+  if (catalog.status === 'ready' && catalog.programs.length > 0) return 'available'
+  return 'unavailable'
+}
+
 export default function NewRequestPage() {
   const router = useRouter()
   const { createRequest, coordinatorName } = useTramita()
@@ -58,7 +66,10 @@ export default function NewRequestPage() {
   const [studentCedula, setStudentCedula] = useState('')
   const [studentName, setStudentName] = useState('')
   const [studentEmail, setStudentEmail] = useState('')
-  const [program, setProgram] = useState(PROGRAMS[0])
+  // '' significa «Sin programa»: no se preselecciona ningún nombre del catálogo.
+  const [program, setProgram] = useState('')
+  const programCatalog = useProgramCatalog()
+  const programCatalogView = programCatalogAvailability(programCatalog)
   const [semester, setSemester] = useState('')
   const [subjects, setSubjects] = useState<SubjectRow[]>([emptySubject()])
   const [reason, setReason] = useState('')
@@ -117,7 +128,7 @@ export default function NewRequestPage() {
         studentCedula,
         studentName,
         studentEmail,
-        program,
+        program: program || undefined,
         semester,
         subjects: subjects.map(({ key, ...rest }) => rest),
         reason,
@@ -294,13 +305,33 @@ export default function NewRequestPage() {
                   id="program"
                   value={program}
                   onChange={(e) => setProgram(e.target.value)}
+                  disabled={programCatalogView !== 'available'}
+                  aria-describedby={programCatalogView !== 'available' ? 'program-catalog-status' : undefined}
                 >
-                  {PROGRAMS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
+                  <option value="">Sin programa</option>
+                  {programCatalog.status === 'ready'
+                    ? programCatalog.programs.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))
+                    : null}
                 </Select>
+                {programCatalogView === 'loading' ? (
+                  <p id="program-catalog-status" className="text-xs text-muted-foreground">
+                    Cargando el catálogo de programas.
+                  </p>
+                ) : null}
+                {programCatalogView === 'unavailable' ? (
+                  <div id="program-catalog-status" className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      El catálogo de programas no está disponible. Puede radicar la solicitud sin programa.
+                    </p>
+                    <Button type="button" variant="outline" size="sm" onClick={programCatalog.retry}>
+                      Reintentar
+                    </Button>
+                  </div>
+                ) : null}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="semester">

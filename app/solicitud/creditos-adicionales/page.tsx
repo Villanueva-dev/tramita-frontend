@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import {
   ApplicantFields,
@@ -28,9 +28,10 @@ import { CanvasFirma, type SignatureCapture } from '@/components/firma/canvas-fi
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ApiError, listPublicPrograms, submitPublicRequest } from '@/lib/api'
+import { ApiError, submitPublicRequest } from '@/lib/api'
 import { apiErrorMessages } from '@/lib/api-errors'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
+import { useProgramCatalog } from '@/lib/use-program-catalog'
 import type { PublicRequestBody } from '@/lib/types'
 
 const HELP_WHATSAPP_NUMBER = '+57 315 2966601'
@@ -81,11 +82,6 @@ interface FormError {
   message: string
   offerSignatureStep: boolean
 }
-
-type ProgramCatalog =
-  | { status: 'loading'; programs: string[] }
-  | { status: 'ready'; programs: string[] }
-  | { status: 'error'; programs: string[] }
 
 // Cédula y teléfono son numéricos: descartar todo lo que no sea dígito al tecleo (también al
 // pegar, porque pegar dispara el mismo evento de cambio) evita que el usuario tenga que
@@ -183,34 +179,10 @@ export default function PublicAdditionalCreditsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [step, setStep] = useState<StepId>('applicant')
-  const [programCatalog, setProgramCatalog] = useState<ProgramCatalog>({ status: 'loading', programs: [] })
-  const [programCatalogRequest, setProgramCatalogRequest] = useState(0)
+  const programCatalog = useProgramCatalog()
 
   const activeHeadingRef = useRef<HTMLHeadingElement>(null)
   const activePanelRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    let ignore = false
-
-    async function loadPrograms() {
-      setProgramCatalog({ status: 'loading', programs: [] })
-      try {
-        const programs = await listPublicPrograms()
-        if (!ignore) setProgramCatalog({ status: 'ready', programs: programs.map((program) => program.name) })
-      } catch {
-        if (!ignore) setProgramCatalog({ status: 'error', programs: [] })
-      }
-    }
-
-    void loadPrograms()
-    return () => {
-      ignore = true
-    }
-  }, [programCatalogRequest])
-
-  function retryProgramCatalog() {
-    setProgramCatalogRequest((request) => request + 1)
-  }
 
   function handleChange(field: keyof PublicRequestFormValues, value: string) {
     const nextValue = DIGITS_ONLY_FIELDS.has(field) ? stripNonDigits(value) : value
@@ -375,7 +347,7 @@ export default function PublicAdditionalCreditsPage() {
                   values={values}
                   onChange={handleChange}
                   errors={errors}
-                  programCatalog={{ ...programCatalog, retry: retryProgramCatalog }}
+                  programCatalog={programCatalog}
                 />
               </CardContent>
             </Card>

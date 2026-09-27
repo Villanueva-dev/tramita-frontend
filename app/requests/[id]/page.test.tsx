@@ -266,4 +266,50 @@ describe('RequestDetailPage', () => {
     expect(screen.getByText('REGISTRO')).toBeDefined()
     expect(screen.queryByText('En facultad')).toBeNull()
   })
+
+  // El sistema nunca sabe si el anexo se adjuntó (FR-012): el aviso solo recuerda qué llevar
+  // y de dónde sale, entre las acciones de transición (donde se decide reenviar) y el bloque
+  // de estado, sin convertirse en una región viva que interrumpa cada carga o transición.
+  it('muestra el requisito de anexo entre las acciones y el estado, sin afirmar que se adjuntó', async () => {
+    const conAnexo: AcademicRequest = {
+      ...request,
+      annexRequirement: {
+        documentName: 'Documento de prueba',
+        sourceHint: 'Lo entrega el estudiante',
+      },
+    }
+    mockTramita({ getRequest: () => conAnexo })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const documentLink = screen.getByRole('link', { name: 'Ver documento PDF' })
+    const annexNotice = screen.getByRole('region', { name: 'Anexo requerido' })
+    const currentStateBlock = screen.getByRole('region', { name: 'Estado actual' })
+
+    expect(annexNotice.textContent).toContain('Documento de prueba')
+    expect(annexNotice.textContent).toContain('Lo entrega el estudiante')
+    expect(annexNotice.textContent).not.toMatch(/adjuntad[oa]|se adjuntó|recibid[oa]/i)
+
+    expect(
+      documentLink.compareDocumentPosition(annexNotice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      annexNotice.compareDocumentPosition(currentStateBlock) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    expect(annexNotice.matches('[role="alert"]')).toBe(false)
+    expect(annexNotice.hasAttribute('aria-live')).toBe(false)
+    expect(annexNotice.querySelector('[role="alert"], [aria-live]')).toBeNull()
+  })
+
+  // El backend omite la clave cuando el trámite no exige anexo.
+  it('sin la clave annexRequirement, no hay aviso ni contenedor vacío', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('region', { name: 'Anexo requerido' })).toBeNull()
+  })
 })

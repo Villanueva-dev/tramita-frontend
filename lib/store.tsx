@@ -16,6 +16,7 @@ import { isClosed, isInitialState, isReturnedForCorrection } from './request-sta
 import { useAuth } from './auth-store'
 import type {
   AcademicRequest,
+  AnnexRequirement,
   Attachment,
   AttachmentApproval,
   DocumentApprovalInput,
@@ -34,7 +35,8 @@ export interface NewRequestInput {
   studentCedula: string
   studentName: string
   studentEmail: string
-  program: string
+  /** Se omite si no se eligió programa: el backend rechaza `""`. */
+  program?: string
   semester: string
   subjects: SubjectInfo[]
   reason: string
@@ -59,6 +61,7 @@ interface ApiRequest {
   studentCode?: string | null
   studentEmail?: string | null
   program?: string | null
+  annexRequirement?: AnnexRequirement | null
   semester?: string | null
   reason?: string | null
   priority?: 'normal' | 'urgente' | null
@@ -201,6 +204,8 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     studentCode: apiRequest.studentCode ?? '',
     studentEmail: apiRequest.studentEmail ?? '',
     program: apiRequest.program ?? '',
+    // El backend omite la clave cuando no aplica; un `null` se trata igual que la ausencia.
+    annexRequirement: apiRequest.annexRequirement ?? undefined,
     semester: apiRequest.semester ?? '',
     priority,
     availableTransitions: apiRequest.availableTransitions,
