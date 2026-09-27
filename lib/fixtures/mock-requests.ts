@@ -18,6 +18,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-1',
     studentName: 'Estudiante de prueba 1',
     studentEmail: 'student1@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Ingeniería de Sistemas',
     semester: 'Semestre 7',
     subjects: [
@@ -57,6 +59,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-2',
     studentName: 'Estudiante de prueba 2',
     studentEmail: 'student2@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Administración de Empresas',
     semester: 'Semestre 4',
     subjects: [
@@ -109,6 +113,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-3',
     studentName: 'Estudiante de prueba 3',
     studentEmail: 'student3@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Contaduría Pública',
     semester: 'Semestre 6',
     subjects: [
@@ -152,6 +158,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-4',
     studentName: 'Estudiante de prueba 4',
     studentEmail: 'student4@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Derecho',
     semester: 'Semestre 8',
     subjects: [
@@ -192,6 +200,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-5',
     studentName: 'Estudiante de prueba 5',
     studentEmail: 'student5@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Psicología',
     semester: 'Semestre 5',
     subjects: [
@@ -224,6 +234,8 @@ export const mockRequests: AcademicRequest[] = [
     studentCedula: 'TEST-DOCUMENT-6',
     studentName: 'Estudiante de prueba 6',
     studentEmail: 'student6@example.com',
+    origin: null,
+    studentPhone: null,
     program: 'Ingeniería de Sistemas',
     semester: 'Semestre 9',
     subjects: [

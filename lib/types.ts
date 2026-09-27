@@ -176,6 +176,10 @@ export interface AcademicRequest {
   studentCedula: string
   studentName: string
   studentEmail: string
+  /** Origen del trámite; la ausencia en el contrato se normaliza a `null`. */
+  origin: InboxOrigin | null
+  /** Teléfono del estudiante; la ausencia en el contrato se normaliza a `null`. */
+  studentPhone: string | null
   program: string
   /** Ausente cuando el trámite no exige anexo. */
   annexRequirement?: AnnexRequirement

@@ -1,0 +1,64 @@
+# Issue #59 — Aviso manual de cierre al estudiante
+
+## Objetivo y problema
+
+Ofrecer desde el detalle de una solicitud pública finalizada enlaces de correo y, cuando aplique,
+WhatsApp con un texto mínimo y veraz. Hoy el backend entrega origen y datos de contacto, pero el
+frontend no los mapea ni ofrece los enlaces; además, el documento afirma sin evidencia que el
+estudiante fue notificado.
+
+## Alcance autorizado
+
+- Mapear `origin` y `studentPhone` del detalle; ausencia de origen significa `null`.
+- Ofrecer correo y, solo para un móvil colombiano `^3\d{9}$`, WhatsApp cuando
+  `origin === 'PUBLIC_LINK' && currentState.isFinal` (incluido rechazo).
+- Usar en ambos enlaces el mismo mensaje compuesto únicamente por nombre del estudiante,
+  nombre del trámite y nombre del estado. Codificar UTF-8 y CRLF (`%0D%0A`) en `mailto:`.
+- Actualizar el aviso inmediatamente tras una transición final sin recargar y retirar del
+  documento la afirmación no comprobada de notificación.
+- Fijar con pruebas que solicitudes de Coordinación, de origen desconocido y en estados
+  intermedios no ofrecen enlaces; novedad de notas es un caso de Coordinación.
+
+Fuera de alcance: enviar mensajes automáticamente, registrar un estado «avisado», cambiar el
+backend, añadir información privada al texto o modificar el flujo de transición existente.
+
+## Restricciones y ruta
+
+- Rama: `feat/aviso-cierre-estudiante-59`, desde `main` `1be4fa5`.
+- TDD estricto activado por las instrucciones del proyecto: RED → GREEN → REFACTOR; runner
+  `pnpm test` (`vitest run` en `package.json`).
+- Ruta: implementación directa delegada. Evidencia: mapear y presentar los datos exige varios
+  archivos de lógica y pruebas; la exploración de 4+ archivos se delegó antes del primer cambio.
+- RDD efectivo: `off` por `clone_local` (`gentle-ai review mode status`); no activarlo.
+- Estrategia de entrega: `ask-on-risk`. Pronóstico inicial: 300–400 líneas autorales para código,
+  pruebas y este seguimiento; revisar el conteo real antes de cada commit. El umbral de 400 es
+  orientativo por tarea y de planificación de entrega, no una razón para recortar pruebas.
+- No hacer push, abrir PR ni cerrar la issue sin una autorización separada para la operación remota.
+
+## Tareas
+
+- [ ] **T1 — Transportar los datos de contacto del contrato.** Primero probar en RED el mapeo de
+  `origin` y `studentPhone` (incluidas claves ausentes), luego añadir los tipos y el mapeo sin
+  duplicar la enum `InboxOrigin`. Actualizar solo los fixtures afectados. Comprobar pruebas
+  enfocadas, suite, TypeScript y lint. Cerrar con un commit convencional de la unidad.
+- [ ] **T2 — Ofrecer el aviso veraz y corregir el documento.** Primero probar en RED estados
+  finales/intermedios, origen público/interno/desconocido, rechazo, teléfono fijo/móvil, privacidad
+  de enlaces, CRLF y aparición tras transición modificando `getRequest`; probar también el texto
+  falso del documento. Luego implementar la UI y retirar la afirmación. Comprobar pruebas
+  enfocadas, suite, TypeScript, lint y build. Cerrar con un commit convencional de la unidad.
+
+## Criterios de aceptación
+
+1. Los enlaces solo aparecen para origen público y estado final; el rechazo cuenta.
+2. El correo requiere `studentEmail`; WhatsApp requiere `studentPhone` móvil válido.
+3. Los enlaces contienen únicamente nombre, trámite y estado, y `mailto:` usa `%0D%0A`.
+4. Tras transicionar a un estado final, aparecen sin recargar la página.
+5. Ninguna pantalla afirma que el estudiante ya fue notificado.
+6. Las comprobaciones aplicables quedan registradas con resultados observados.
+
+## Progreso y evidencia
+
+- Estado inicial: `main` limpio en `1be4fa5`; #59 abierta. Rama de trabajo creada.
+- Clasificación de raíz: bug real del flujo de comunicación de cierre (aviso manual ausente y
+  afirmación de envío no demostrable). No crear bandera local de «avisado».
+- Siguiente paso: T1 RED, GREEN y REFACTOR.

@@ -20,6 +20,7 @@ import type {
   Attachment,
   AttachmentApproval,
   DocumentApprovalInput,
+  InboxOrigin,
   RequestStatus,
   RequestMetrics,
   RequestType,
@@ -60,6 +61,8 @@ interface ApiRequest {
   studentDocument: string
   studentCode?: string | null
   studentEmail?: string | null
+  origin?: InboxOrigin | null
+  studentPhone?: string | null
   program?: string | null
   annexRequirement?: AnnexRequirement | null
   semester?: string | null
@@ -203,6 +206,8 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     // Estos valores ya vienen persistidos desde V2.3.0.
     studentCode: apiRequest.studentCode ?? '',
     studentEmail: apiRequest.studentEmail ?? '',
+    origin: apiRequest.origin ?? null,
+    studentPhone: apiRequest.studentPhone ?? null,
     program: apiRequest.program ?? '',
     // El backend omite la clave cuando no aplica; un `null` se trata igual que la ausencia.
     annexRequirement: apiRequest.annexRequirement ?? undefined,

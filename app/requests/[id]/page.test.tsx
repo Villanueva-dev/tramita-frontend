@@ -34,6 +34,8 @@ const request: AcademicRequest = {
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',
   studentEmail: 'ana@example.com',
+  origin: null,
+  studentPhone: null,
   program: 'Ingeniería de Sistemas',
   semester: '7',
   subjects: [],
