@@ -36,19 +36,23 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
 
 ## Tareas
 
-- [ ] **T1 — Cliente del sello público.** RED en `lib/api.test.ts` (404 → `null`; 200 → cuerpo
+- [x] **T1 — Cliente del sello público.** RED en `lib/api.test.ts` (404 → `null`; 200 → cuerpo
   y ruta codificada); luego `PublicSeal` y `getPublicSeal`. Commit convencional.
-- [ ] **T2 — Página `/verificar`.** RED en `app/verificar/page.test.tsx`: normaliza espacios y
+- [x] **T2 — Página `/verificar`.** RED en `app/verificar/page.test.tsx`: normaliza espacios y
   minúsculas; código inválido no llama al backend; 200 con `TZ=UTC` muestra `17/09/2026`,
   estado y revisión sin «íntegro/auténtico/válido/alterado»; 404 sin «falso/alterado/inválido».
   Mutante único y temporal: formateador sin `timeZone` debe hacer fallar el test de fecha.
   Commit convencional.
-- [ ] **T3 — Entradas desde el menú y el login.** Entrada «Verificar documento» en `NAV` y
+- [x] **T3 — Entradas desde el menú y el login.** Entrada «Verificar documento» en `NAV` y
   enlace bajo el formulario del login. Commit convencional.
 - [ ] **T4 — Prueba en vivo** contra el backend local (registra un sello): `/verificar` sin
   sesión no redirige; el código de un PDF descargado coincide en fecha, estado y revisión;
   `ZZZZZZZZZZZZZ` no da resultado.
-- [ ] **T5 — Revisión con agente limpio y PR** con `Closes #82`.
+- [ ] **T5 — Revisión con agente limpio y PR** con `Closes #82`. Revisión hecha; falta la PR.
+- [x] **T6 — Hallazgos confirmados de la revisión limpia** (alcance aprobado por el propietario
+  el 2026-09-27): campo de solo lectura durante la consulta (M1), tests de «otro error» en la
+  API y en la página (M2), región `role="status"` montada desde el inicio (M3), envío vacío y
+  `aria-describedby` (B1 parcial), y este documento al día (B2).
 
 ## Criterios de aceptación (de #82)
 
@@ -71,7 +75,27 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
   cruzado al PR del backend); leído de vuelta, idéntico al borrador.
 - Medido antes de implementar: `vi.stubEnv('TZ', 'UTC')` cambia la zona dentro de Vitest 4.1.11
   (node y jsdom): sin `timeZone` el instante da `18/09/2026`; con `America/Bogota`, `17/09/2026`.
+- T1 (ruta delegada: un escritor para T1–T3): RED `getPublicSeal is not a function`; GREEN 357
+  en verde. Commit `20fce44`.
+- T2: RED «no resuelve ./page»; GREEN 361 en verde. Mutantes: `formatDate` y formateador sin
+  `timeZone` hacen fallar el test de fecha (el segundo, repetido por el padre: `18/09/2026`).
+  Commit `352c25a`.
+- T3: `tsc`, lint y build limpios; `/verificar` como ruta estática. Commit `d6b1d16`. Los tres
+  commits se rehicieron antes de publicar para agregar `Refs:` y `Verificado:` (`.gitmessage`);
+  `git diff` contra el respaldo, vacío.
+- T4 parcial (sin sesión, vía curl): `GET /verificar` → 200 sin redirección, con el formulario;
+  `GET /api/public/seals/ZZZZZZZZZZZZZ` por el proxy de `:3000` → 404 `application/problem+json`.
+  Pendiente con navegador: PDF real, fecha/estado/revisión en pantalla y los dos enlaces.
+- Revisión limpia (opus, sin contexto): sin CRÍTICO ni ALTO; tres MEDIO confirmados por el padre
+  con comandos propios. No aplicados, con razón: día < 10 (el issue fija el dato de prueba),
+  tests de los dos enlaces (archivos nuevos para dos `Link`; los cubre la prueba en vivo),
+  reescribir otra vez los `Verificado:` (lo que afirman se re-verificó cierto). Anotado aparte:
+  el checklist `revisar-frontend-next` dice que `pnpm lint` está roto y ya no lo está.
+- T6: RED 2 fallidos (sin `role="status"`; `readOnly` falso); GREEN 47 en verde. Nueve mutantes
+  mueren, cinco de ellos sobrevivían en la revisión. Suite 364 en verde; `tsc`, lint, build y
+  `git diff --check` limpios. Commits `0aa2a8d` y `be636e0`.
+- Revisión nativa (RDD): `off` por `clone_local`; no aplica.
 
 ## Próximo paso
 
-T1.
+T4: terminar la prueba en vivo con navegador (extensión de Chrome sin conectar), y después T5 (PR).
