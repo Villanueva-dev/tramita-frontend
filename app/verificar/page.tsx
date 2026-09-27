@@ -102,6 +102,8 @@ export default function VerifySealPage() {
               type="text"
               value={value}
               onChange={(event) => handleChange(event.target.value)}
+              // Sin esto, la respuesta de la consulta en curso llegaría junto a un código ya editado.
+              readOnly={loading}
               autoComplete="off"
               spellCheck={false}
               aria-invalid={fieldError ? true : undefined}
@@ -118,18 +120,22 @@ export default function VerifySealPage() {
           </Button>
         </form>
 
-        {outcome?.kind === 'found' ? (
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-sm">
-            <p className="font-medium">Trámita emitió un documento con este código.</p>
-            <p>Emitido: {formatIssuedAt(outcome.seal.issuedAt)}</p>
-            <p>Estado al emitir: {outcome.seal.stateName}</p>
-            <p>Revisión: {outcome.seal.revision}</p>
-            <p className="text-muted-foreground">
-              Compare estos datos con el pie del documento. Esta consulta confirma que el documento
-              lo emitió Trámita; no detecta si su contenido se modificó después.
-            </p>
-          </div>
-        ) : null}
+        {/* Montada desde el inicio: un lector de pantalla solo anuncia los cambios de una región
+            viva que ya existía (el 404 y el error llevan `role="alert"`, que se anuncia al montarse). */}
+        <div role="status" aria-live="polite">
+          {outcome?.kind === 'found' ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-sm">
+              <p className="font-medium">Trámita emitió un documento con este código.</p>
+              <p>Emitido: {formatIssuedAt(outcome.seal.issuedAt)}</p>
+              <p>Estado al emitir: {outcome.seal.stateName}</p>
+              <p>Revisión: {outcome.seal.revision}</p>
+              <p className="text-muted-foreground">
+                Compare estos datos con el pie del documento. Esta consulta confirma que el
+                documento lo emitió Trámita; no detecta si su contenido se modificó después.
+              </p>
+            </div>
+          ) : null}
+        </div>
 
         {outcome?.kind === 'not-found' ? (
           <p role="alert" className="text-sm text-destructive">
