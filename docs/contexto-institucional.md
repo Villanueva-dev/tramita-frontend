@@ -42,4 +42,8 @@ ya está integrado en el frontend, y el DO-FR-100 público de créditos adiciona
 una ruta pública sin autenticación como asistente de cinco pasos con su pulido visual (PRs #70 y
 #72, en `main` el 2026-09-26; eso no acredita un despliegue en producción). El cambio OpenSpec
 [`formulario-publico-por-pasos`](../openspec/changes/archive/2026-09-26-formulario-publico-por-pasos/tasks.md) quedó
-archivado; queda por confirmar la firma con el dedo en un celular.
+archivado; queda por confirmar la firma con el dedo en un celular. Después, el formulario interno
+pasó a elegir el programa del catálogo público y el detalle anuncia el requisito de anexo por
+programa (PR #79, contraparte de la feature 009 del backend); su cambio OpenSpec
+[`catalogo-programas-y-anexo`](../openspec/changes/archive/2026-09-26-catalogo-programas-y-anexo/tasks.md)
+también quedó archivado.

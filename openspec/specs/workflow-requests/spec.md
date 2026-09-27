@@ -127,6 +127,37 @@ cliente que `studentName` y `studentDocument` no queden vacíos tras `trim()` y 
 los valores ya recortados; un `422` **MUST** renderizarse como error del campo del selector, no
 como fallo genérico (`Problem`, RFC 9457).
 
+**Advertencia de camino de código.** El allowlist explícito de arriba describe el `createRequest`
+de `lib/api.ts` (`:295-307`). La pantalla `app/requests/new` **no** ejecuta esa función: ejecuta
+el `createRequest` de `lib/store.tsx` (`:370-393`), que construye el cuerpo con más campos que los
+seis declarados aquí (`lib/store.tsx:377-378,382-383`; issue #10, deuda previa no resuelta por
+este cambio). Las cláusulas siguientes sobre `program` en el formulario interno describen el
+comportamiento exigido en el camino que la pantalla ejecuta — `lib/store.tsx` —, y este requisito
+**MUST NOT** interpretarse como una afirmación de que ese camino cumple el allowlist de seis
+campos descrito arriba.
+
+**Origen y omisión de `program` en el formulario interno.** El sistema **MUST** poblar el
+selector de `program` del formulario interno (`app/requests/new`) exclusivamente con los nombres
+publicados por `GET /api/public/programs` (comparación byte a byte con el nombre recibido, sin
+recortar ni normalizar mayúsculas, tildes ni espacios — FR-004,
+`Tramita/specs/009-program-catalog-annex/spec.md:75`). La opción inicial, seleccionada por
+defecto, **MUST** ser «Sin programa»: el sistema **MUST NOT** preseleccionar silenciosamente
+ningún nombre del catálogo. Cuando se elige un nombre, el sistema **MUST** enviarlo idéntico,
+byte a byte, al recibido del catálogo. Cuando no se elige ninguno, el sistema **MUST** omitir la
+clave `program` del cuerpo de la petición y **MUST NOT** enviar una cadena vacía — el backend
+responde 400 con `invalidFields: ["program"]` ante `program: ""`
+(`Tramita/specs/009-program-catalog-annex/contracts/openapi.yaml:118-132`; FR-003,
+`Tramita/specs/009-program-catalog-annex/spec.md:74`). Cuando el catálogo está cargando, falla o
+llega vacío, el sistema **MUST** explicar la situación con un texto visible y **MUST** permitir
+completar el registro sin programa. Un `400` con `invalidFields: ["program"]` **MUST** mostrarse
+como error general del formulario, con el `detail` del backend, y **MUST NOT** atribuirse a
+ningún campo del formulario.
+
+(Previously: no distinguía qué camino de código construye el cuerpo del formulario interno, y
+`program` salía de una lista fija en el cliente con preselección del primer valor; ahora los
+valores de `program` para el formulario interno proceden del catálogo público, sin
+preselección, y la clave se omite cuando no se elige ninguno.)
+
 #### Scenario: El cuerpo enviado transporta los seis campos
 
 - GIVEN un cuerpo con `definitionCode`, `studentName`, `studentDocument`, `program`, `semester` y `reason`
@@ -178,6 +209,40 @@ como fallo genérico (`Problem`, RFC 9457).
 - WHEN se envía el formulario
 - THEN el cuerpo lleva el valor sin esos espacios
 
+#### Scenario: El selector del formulario interno ofrece «Sin programa» primero y seleccionado
+
+- GIVEN el catálogo cargado con los nombres publicados por `GET /api/public/programs`
+- WHEN se abre el formulario interno de registro
+- THEN el selector de programa muestra «Sin programa» como primera opción y como opción seleccionada
+- AND las demás opciones son los nombres del catálogo, en el orden recibido
+
+#### Scenario: Registrar sin programa omite la clave del cuerpo
+
+- GIVEN el formulario interno con «Sin programa» seleccionado
+- WHEN se registra la solicitud
+- THEN el cuerpo de la petición no contiene la clave `program`
+- AND en ningún caso contiene una cadena vacía
+
+#### Scenario: Registrar con un programa elegido lo envía idéntico
+
+- GIVEN el formulario interno con un nombre del catálogo elegido, con tilde
+- WHEN se registra la solicitud
+- THEN el cuerpo de la petición contiene `program` con ese nombre, idéntico byte a byte al recibido del catálogo
+
+#### Scenario: El catálogo no disponible no bloquea el registro sin programa
+
+- GIVEN el catálogo del formulario interno en error, o cargado como una lista vacía
+- WHEN se abre el formulario interno
+- THEN un texto visible explica que la lista de programas no está disponible
+- AND el registro se completa sin la clave `program`
+
+#### Scenario: Un programa fuera del catálogo se rechaza como error general, no de campo
+
+- GIVEN el backend responde 400 con `invalidFields: ["program"]` al registrar desde el formulario interno
+- WHEN se procesa la respuesta
+- THEN el sistema muestra el `detail` del backend como error general del formulario
+- AND no lo asocia a ningún campo
+
 ### Requirement: Localización de solicitudes por nombre o cédula (US3, FR-011)
 
 El sistema **MUST** consultar `GET /requests?search=` (:57-76) con igualdad exacta
@@ -224,9 +289,28 @@ declara explícitamente que el conjunto de estados de una definición **no tiene
 significativo** (FR-011b, contrato 007 :133-136), así que un recorrido lineal afirmaría
 un dato que el motor no modela.
 
-(Previously: no fijaba la forma de `State` con `isInitial` ni prohibía representar el
-estado como un paso de un recorrido lineal; esa prohibición es nueva y reemplaza el
-stepper retirado.)
+**Requisito de anexo.** El sistema **MUST** mostrar, cerca de las acciones de transición, un
+aviso del requisito de anexo cuando la respuesta trae `annexRequirement` (`documentName`,
+`sourceHint`), en cualquier estado — incluido un estado final —, porque el contrato lo declara
+presente «desde el registro y en cualquier estado» (FR-009,
+`Tramita/specs/009-program-catalog-annex/spec.md:80`;
+`Tramita/specs/009-program-catalog-annex/contracts/openapi.yaml:316-322`). El texto del aviso
+**MUST NOT** afirmar que el anexo se adjuntó, se recibió ni se pidió (FR-012,
+`Tramita/specs/009-program-catalog-annex/spec.md:83`): solo recuerda qué documento llevar y de
+dónde sale. El sistema **MUST NOT** mostrar ningún aviso ni contenedor vacío cuando la clave
+`annexRequirement` está **ausente** de la respuesta — que es cómo el backend representa «no
+aplica» (`RequestResponse.java:45`, `@JsonInclude(NON_NULL)` a nivel de clase;
+`Tramita/specs/009-program-catalog-annex/contracts/openapi.yaml:324-327`), nunca con un valor
+`null`. El aviso **MUST** seguir visible después de que una transición actualice el detalle, sin
+que la Coordinación necesite recargar la pantalla. Un programa heredado, radicado antes de esta
+feature y fuera del catálogo vigente, **MUST** seguir mostrándose tal como quedó registrado en la
+fila «Programa» (FR-005, `Tramita/specs/009-program-catalog-annex/spec.md:76`), y la ausencia de
+`annexRequirement` para ese programa **MUST** comportarse igual que cualquier otra ausencia de la
+clave.
+
+(Previously: no distinguía la ausencia de la clave `annexRequirement` de un valor `null`, ni
+mostraba ningún aviso relacionado con el anexo que la facultad exige al reenviar una solicitud a
+su programa.)
 
 #### Scenario: Detalle con transiciones disponibles
 
@@ -268,6 +352,32 @@ stepper retirado.)
 - THEN no aparece ningún stepper, «paso N de M» ni indicador de posición dentro de una
   secuencia de estados
 
+#### Scenario: El aviso de anexo se muestra junto a las acciones de transición
+
+- GIVEN el detalle de una solicitud cuya respuesta trae `annexRequirement` con `documentName` y `sourceHint`
+- WHEN se abre su detalle
+- THEN se muestra un aviso, cerca de las acciones de transición, con ambos textos
+- AND el aviso no afirma que el anexo se adjuntó, se recibió ni se pidió
+
+#### Scenario: Sin la clave, no hay aviso ni contenedor vacío
+
+- GIVEN el detalle de una solicitud cuya respuesta no trae la clave `annexRequirement`
+- WHEN termina de cargar su detalle
+- THEN no se muestra ningún aviso de anexo
+- AND no queda ningún contenedor vacío en su lugar
+
+#### Scenario: El aviso sigue visible después de una transición
+
+- GIVEN una solicitud cuyo detalle trae `annexRequirement`
+- WHEN se registra una transición y el detalle se actualiza con la respuesta
+- THEN el aviso de anexo sigue visible tras la actualización
+
+#### Scenario: Un programa heredado fuera del catálogo se muestra tal cual
+
+- GIVEN una solicitud radicada antes de esta feature, con un programa que no está en el catálogo vigente (por ejemplo «Ing»)
+- WHEN se abre su detalle
+- THEN el programa se muestra tal como quedó registrado, sin corregirlo ni ocultarlo
+- AND si esa solicitud no trae `annexRequirement`, se comporta igual que cualquier otra ausencia de la clave
 ### Requirement: Responsable del estado actual
 
 `project.md:98-99` fija que el dato operativo central es «ahora de quién depende». Ese

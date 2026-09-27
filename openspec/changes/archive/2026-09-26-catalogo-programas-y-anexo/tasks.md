@@ -394,13 +394,19 @@ Decisión 3 de `design.md`; texto acordado en P1 de `proposal.md`.
 
 ## Fase 5 — Cierre
 
-- [ ] 5.1 Tras el merge de la PR en `main`: `gh issue view 74 --json state` — confirma
+- [x] 5.1 Tras el merge de la PR en `main`: `gh issue view 74 --json state` — confirma
       `CLOSED`. Si sigue `OPEN`, revisar la redacción de `Closes #74` en el cuerpo de la PR y
       cerrarlo manualmente con referencia a los commits de merge.
-- [ ] 5.2 Archivar el cambio (`sdd-archive`): fusionar el delta de
+      **Evidencia**: PR #79 mergeada en `bf096f8` el 2026-09-27T02:44:46Z UTC; issue #74 CLOSED automáticamente el 2026-09-27T02:44:47Z (orquestador verificado con `gh`).
+- [x] 5.2 Archivar el cambio (`sdd-archive`): fusionar el delta de
       `specs/workflow-requests/spec.md` en `openspec/specs/workflow-requests/spec.md`, y mover
       `openspec/changes/catalogo-programas-y-anexo/` a
       `openspec/changes/archive/YYYY-MM-DD-catalogo-programas-y-anexo/` (fecha real del archivo).
-- [ ] 5.3 Confirmar que ningún seguimiento nuevo hace falta más allá de los ya abiertos y citados
+      **Evidencia**: Composición completada con `gentle-ai sdd-archive-compose` (exit 0); 2 requisitos modificados, 23 escenarios integrados; carpeta movida con `git mv` a `openspec/changes/archive/2026-09-26-catalogo-programas-y-anexo/`; `diff -r` verificado (vacío).
+- [x] 5.3 Confirmar que ningún seguimiento nuevo hace falta más allá de los ya abiertos y citados
       (#10, #50, #52) — este cambio no introduce deuda adicional no declarada en
       `proposal.md`/`design.md`.
+      **Confirmación**: no hace falta deuda nueva. Siguen abiertos #10, #50 y #52, el veto sobre el
+      texto «Para reenviar a la facultad» (reforzado por la prueba en vivo, donde tampoco encaja con
+      la solicitud «En facultad») y los tres seguimientos no bloqueantes de #76: catálogo vacío sin
+      explicación, prueba de identidad sin tilde y «Reintentar» como `<button>` crudo.
