@@ -46,6 +46,11 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   de enlaces, CRLF y aparición tras transición modificando `getRequest`; probar también el texto
   falso del documento. Luego implementar la UI y retirar la afirmación. Comprobar pruebas
   enfocadas, suite, TypeScript, lint y build. Cerrar con un commit convencional de la unidad.
+- [ ] **T3 — Retirar promesas falsas del formulario interno.** El comentario nuevo del propietario
+  en #59 detectó dos frases que prometen un envío inexistente. Primero fijar en RED que no se
+  muestran; luego dejar «El estudiante no accede al sistema.» y quitar la promesa junto al correo,
+  conservando el campo y su envío al backend. Comprobar pruebas enfocadas, suite, TypeScript,
+  lint y build; cerrar con un commit convencional.
 
 ## Criterios de aceptación
 
@@ -83,4 +88,7 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   corrección del texto, sin quitar el mapeo de T1.
 - Total inicial de la rama frente a `main`: 320 líneas autorales antes de este cierre documental;
   sigue por debajo del umbral de planificación de una PR. Entrega remota pendiente de autorización.
-- Siguiente paso: decidir si se publica la rama y se abre una PR para cerrar #59.
+- Seguimiento nuevo: comentario del propietario en #59 del 2026-09-27 03:35 UTC añade dos
+  promesas falsas en `app/requests/new/page.tsx`. Se conserva el correo; T3 debe corregir solo
+  el texto. Se abre T3 antes de proponer la entrega de la rama.
+- Siguiente paso: T3 RED, GREEN y REFACTOR; después decidir si se publica la rama y se abre PR.

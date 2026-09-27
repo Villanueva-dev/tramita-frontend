@@ -236,10 +236,7 @@ export default function NewRequestPage() {
                 <User className="size-4 text-primary" />
                 Datos del estudiante
               </CardTitle>
-              <CardDescription>
-                El estudiante no accede al sistema; será notificado al finalizar
-                el trámite.
-              </CardDescription>
+              <CardDescription>El estudiante no accede al sistema.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -295,9 +292,6 @@ export default function NewRequestPage() {
                   aria-invalid={!!errors.studentEmail}
                 />
                 <FieldError msg={errors.studentEmail} />
-                <p className="text-xs text-muted-foreground">
-                  A este correo se enviará la notificación de cierre.
-                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="program">Programa académico</Label>

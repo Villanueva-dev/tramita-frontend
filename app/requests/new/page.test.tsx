@@ -88,6 +88,17 @@ describe('NewRequestPage', () => {
     expect(screen.getByRole('button', { name: /radicar solicitud/i })).toBeDefined()
   })
 
+  it('no promete una notificación de cierre inexistente', () => {
+    useTramita.mockReturnValue({ createRequest: vi.fn() })
+
+    render(<NewRequestPage />)
+
+    expect(screen.getByText('El estudiante no accede al sistema.')).toBeDefined()
+    expect(screen.queryByText(/será notificado al finalizar el trámite/i)).toBeNull()
+    expect(screen.queryByText(/se enviará la notificación de cierre/i)).toBeNull()
+    expect(screen.getByLabelText(/correo institucional/i)).toBeDefined()
+  })
+
   // Issue #12: el backend no recibe archivos adjuntos (Request.java, 006 FR-010). El campo
   // se retira, no se deshabilita: un aviso de «no disponible todavía» prometería algo que
   // el backend ya descartó.
@@ -127,6 +138,7 @@ describe('NewRequestPage', () => {
 
     await waitFor(() => expect(createRequest).toHaveBeenCalled())
     expect(createRequest.mock.calls[0][0].program).toBeUndefined()
+    expect(createRequest.mock.calls[0][0].studentEmail).toBe('estudiante.sintetico@example.test')
   })
 
   it('un nombre del catálogo con tilde descompuesta y doble espacio llega idéntico al store', async () => {
