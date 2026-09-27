@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
 import { CurrentStateBlock } from '@/components/current-state-block'
+import { AnnexRequirementNotice } from '@/components/annex-requirement-notice'
 import { ActionDialog, type ActionConfig } from '@/components/action-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -292,6 +293,15 @@ export default function RequestDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Va junto a las acciones porque ahí se decide reenviar a la facultad; el texto nunca
+            afirma que el anexo ya se adjuntó, se recibió ni se pidió (el sistema no lo sabe). */}
+        {req.annexRequirement ? (
+          <AnnexRequirementNotice
+            documentName={req.annexRequirement.documentName}
+            sourceHint={req.annexRequirement.sourceHint}
+          />
+        ) : null}
 
         <CurrentStateBlock
           state={req.currentState}
