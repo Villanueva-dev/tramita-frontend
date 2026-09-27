@@ -12,6 +12,7 @@ import {
   Bell,
   Search,
   MessageCircleQuestion,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
@@ -24,6 +25,7 @@ const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
   { href: '/requests/new', label: 'Nueva solicitud', icon: FilePlus2 },
   { href: '/assistant', label: 'Asistente académico', icon: MessageCircleQuestion },
+  { href: '/verificar', label: 'Verificar documento', icon: ShieldCheck },
 ]
 
 export function AppShell({
