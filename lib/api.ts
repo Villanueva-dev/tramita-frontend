@@ -11,6 +11,7 @@ import type {
   InboxEntry,
   PublicReceipt,
   PublicRequestBody,
+  PublicSeal,
   Request,
   RequestSummary,
   TimelineEntry,
@@ -244,6 +245,18 @@ export async function listPublicPrograms(): Promise<PublicProgram[]> {
   const res = await apiFetch('/public/programs')
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as PublicProgram[]
+}
+
+/**
+ * Consulta pública del sello de un documento emitido (006). `404` es una respuesta, no
+ * una falla — mismo criterio con que `getMe` trata el 401: «no hay sello» se representa
+ * como `null`, no se lanza como error.
+ */
+export async function getPublicSeal(code: string): Promise<PublicSeal | null> {
+  const res = await apiFetch(`/public/seals/${encodeURIComponent(code)}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicSeal
 }
 
 /**

@@ -78,6 +78,14 @@ export interface PublicReceipt {
   message: string
 }
 
+/** openapi.yaml PublicSealResponse (contrato 006, :243-274): datos de emisión, nunca datos personales. */
+export interface PublicSeal {
+  status: 'ISSUED'
+  issuedAt: string
+  stateName: string
+  revision: number
+}
+
 export type RequestType = 'adicion_creditos' | 'novedad_notas'
 export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
 export type SignatureType = 'DIGITAL' | 'ESCANEADA'

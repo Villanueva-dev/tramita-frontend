@@ -15,10 +15,11 @@ import {
   submitPublicRequest,
   getInbox,
   listPublicPrograms,
+  getPublicSeal,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition, InboxEntry } from './types'
 import type { CreateRequestBody } from './api'
-import type { PublicRequestBody, PublicReceipt } from './types'
+import type { PublicRequestBody, PublicReceipt, PublicSeal } from './types'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -153,6 +154,31 @@ describe('listPublicPrograms', () => {
       '/api/public/programs',
       expect.objectContaining({ method: 'GET' }),
     )
+  })
+})
+
+describe('getPublicSeal', () => {
+  it('pide el sello con el código codificado en la ruta y devuelve el cuerpo con 200', async () => {
+    const seal: PublicSeal = {
+      status: 'ISSUED',
+      issuedAt: '2026-09-17T10:30:00-05:00',
+      stateName: 'En revisión de Coordinación',
+      revision: 2,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, seal))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getPublicSeal('A B/C')).resolves.toEqual(seal)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/public/seals/A%20B%2FC',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('resuelve null con 404 (mismo criterio que getMe con 401: no es una falla)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(404, 'Not Found')))
+
+    await expect(getPublicSeal('ZZZZZZZZZZZZZ')).resolves.toBeNull()
   })
 })
 
