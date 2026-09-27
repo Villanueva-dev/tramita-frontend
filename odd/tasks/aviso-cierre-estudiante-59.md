@@ -46,7 +46,7 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   de enlaces, CRLF y aparición tras transición modificando `getRequest`; probar también el texto
   falso del documento. Luego implementar la UI y retirar la afirmación. Comprobar pruebas
   enfocadas, suite, TypeScript, lint y build. Cerrar con un commit convencional de la unidad.
-- [ ] **T3 — Retirar promesas falsas del formulario interno.** El comentario nuevo del propietario
+- [x] **T3 — Retirar promesas falsas del formulario interno.** El comentario nuevo del propietario
   en #59 detectó dos frases que prometen un envío inexistente. Primero fijar en RED que no se
   muestran; luego dejar «El estudiante no accede al sistema.» y quitar la promesa junto al correo,
   conservando el campo y su envío al backend. Comprobar pruebas enfocadas, suite, TypeScript,
@@ -91,4 +91,13 @@ backend, añadir información privada al texto o modificar el flujo de transici�
 - Seguimiento nuevo: comentario del propietario en #59 del 2026-09-27 03:35 UTC añade dos
   promesas falsas en `app/requests/new/page.tsx`. Se conserva el correo; T3 debe corregir solo
   el texto. Se abre T3 antes de proponer la entrega de la rama.
-- Siguiente paso: T3 RED, GREEN y REFACTOR; después decidir si se publica la rama y se abre PR.
+- T3 RED: el test nuevo falló porque no existía la frase exacta «El estudiante no accede al
+  sistema.». GREEN: `pnpm test` aprobó 28 archivos y 355 pruebas; TypeScript, lint, build y
+  `git diff --check` aprobaron. El test comprueba que el correo sigue en el formulario y en el
+  objeto enviado al store. Prueba en vivo: N/A, esta unidad solo retira copy; el DOM se verificó
+  con la prueba de componente. Riesgo nativo `medium`; RDD sigue desactivado.
+- T3: `79816a5` — `fix(solicitudes): elimina promesas falsas de notificación` (30 líneas
+  autorales, incluido el plan T3). Reversión: retirar este commit restaura únicamente esos
+  textos y su test; no afecta los enlaces manuales ni el transporte de correo.
+- Total de la rama antes de este cierre documental: 359 líneas autorales frente a `main`.
+  Siguiente paso: solicitar autorización para publicar la rama y abrir la PR de #59.
