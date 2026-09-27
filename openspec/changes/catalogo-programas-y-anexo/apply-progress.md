@@ -305,3 +305,131 @@ lib/store.test.ts lib/ui-constants.ts` para la unidad 2), push y apertura de PR-
   evidencia de esta ejecución.
 - **Entrega**: una sola PR con los cuatro commits y `Closes #74`; ver el replanteo al inicio de
   `tasks.md`.
+
+## Fase 3 — commit 3: tipos y mapeo de `annexRequirement` (orquestador)
+
+Commit `07a4c13`. `AnnexRequirement` y `AcademicRequest.annexRequirement?` en `lib/types.ts`;
+`ApiRequest.annexRequirement?: AnnexRequirement | null` y su mapeo `?? undefined` en
+`baseRequest` (`lib/store.tsx`). RED observado: S3 (mapeo directo en `baseRequest`) y S5 (tras
+`transition()`, el valor sale del detalle que se vuelve a consultar; el primer detalle llega sin
+la clave y el segundo con ella) fallaban con `expected undefined to deeply equal {…}`. GREEN:
+`lib/store.test.ts` 16/16; repo 345/345, `tsc` en frío y lint limpios. S4 retirada en el
+replanteo.
+
+## Fase 4 — commit 4: aviso de anexo en el detalle
+
+**Alcance de esta ejecución**: únicamente 4.1-4.4, con TDD estricto. Rama
+`feat/catalogo-programas-formulario-interno`, worktree
+`tramita-frontend-worktrees/catalogo-programas-y-anexo`, HEAD de partida `07a4c13`. Sin commit:
+lo indica el alcance de esta ejecución (4.7, 4.8 y 4.9 no se tocaron).
+
+### Tarea 4.1 — RED (D1 y D2 juntas)
+
+En `app/requests/[id]/page.test.tsx`, dos pruebas nuevas al final del `describe`:
+
+- `muestra el requisito de anexo entre las acciones y el estado, sin afirmar que se adjuntó`
+  (D1): construye `conAnexo = { ...request, annexRequirement: { documentName: 'Documento de
+  prueba', sourceHint: 'Lo entrega el estudiante' } }` (datos sintéticos), espera "Ana Pérez",
+  y afirma `getByRole('region', { name: 'Anexo requerido' })`, que su texto contiene los dos
+  campos y no coincide con `/adjuntad[oa]|se adjuntó|recibid[oa]/i`, su posición con
+  `compareDocumentPosition` frente al enlace "Ver documento PDF" y frente a
+  `getByRole('region', { name: 'Estado actual' })` (nombre accesible de `CurrentStateBlock`, que
+  ya usa `aria-labelledby` con el `h3` "Estado actual"), y la ausencia de `role="alert"` o
+  `aria-live` dentro del aviso.
+- `sin la clave annexRequirement, no hay aviso ni contenedor vacío` (D2): reutiliza `setup()`
+  (el fixture `request` base, que no trae `annexRequirement`) y afirma que la región no existe. El orquestador quitó después una
+  aserción muerta sobre el texto (el fixture nunca lo trae).
+
+RED observado:
+
+```
+FAIL  app/requests/[id]/page.test.tsx > RequestDetailPage > muestra el requisito de anexo entre
+las acciones y el estado, sin afirmar que se adjuntó
+TestingLibraryElementError: Unable to find an accessible element with the role "region" and
+name "Anexo requerido"
+Test Files  1 failed (1)
+     Tests  1 failed | 10 passed (11)
+```
+
+D2 ya pasaba en este punto (trivial: el componente no existe todavía), como anticipaba
+`tasks.md` 4.4.
+
+### Tarea 4.2 — GREEN, componente
+
+`components/annex-requirement-notice.tsx` (22 líneas, archivo nuevo), sin `'use client'` (sin
+hooks, igual que `current-state-block.tsx`): `export function AnnexRequirementNotice({
+documentName, sourceHint }: AnnexRequirement)`, un `<section
+aria-labelledby="annex-requirement-heading">` con `h3` "Anexo requerido" y el párrafo literal
+`Para reenviar a la facultad, adjunte: {documentName}. {sourceHint}.`; clases `rounded-xl border
+p-5 shadow-sm border-primary/30 bg-primary/5`; sin `role` ni `aria-live` explícitos.
+
+### Tarea 4.3 — GREEN, contenedor
+
+En `app/requests/[id]/page.tsx`: import de `AnnexRequirementNotice`, y el render condicional
+entre el cierre de la tarjeta de cabecera (después del enlace "Ver documento PDF") y
+`<CurrentStateBlock`, con un comentario breve sobre el porqué de la posición y de que el texto
+nunca afirma que el anexo se adjuntó.
+
+GREEN observado: `pnpm exec vitest run 'app/requests/[id]/page.test.tsx'` → **11/11 verde**.
+
+### Tarea 4.4 — Caracterización D2
+
+Escrita junto con D1 en 4.1 (ver arriba); queda confirmada en el mismo GREEN de 4.3 (11/11),
+sin ningún cambio de producción adicional.
+
+### Verificación de la unidad (comandos y resultado observado)
+
+| Comando | Resultado observado |
+|---|---|
+| `pnpm exec vitest run 'app/requests/[id]/page.test.tsx'` | **11/11 verde** (9 de la línea base + D1 + D2) |
+| `pnpm test` | **347/347 verde** (28 archivos; base 345 + 2 pruebas nuevas) |
+| `rm -rf .next && pnpm exec tsc --noEmit` | Limpio, sin salida, exit 0 |
+| `pnpm lint` | `eslint .` → exit 0, sin salida |
+
+**Sin mutantes**: por el replanteo del 2026-09-26, el RED observado de D1 es la evidencia; no se
+aplicó ningún mutante en esta unidad.
+
+### Archivos tocados en esta ejecución
+
+| Archivo | Acción | Líneas |
+|---|---|---|
+| `components/annex-requirement-notice.tsx` | Nuevo | 22 |
+| `app/requests/[id]/page.tsx` | Modificado | +10 |
+| `app/requests/[id]/page.test.tsx` | Modificado | +49 |
+| `openspec/changes/catalogo-programas-y-anexo/tasks.md` | Modificado (checkboxes 4.1-4.4) | — |
+| `openspec/changes/catalogo-programas-y-anexo/apply-progress.md` | Modificado (esta sección) | — |
+
+### Work Unit Evidence
+
+| Evidencia | Valor |
+|---|---|
+| Comando de prueba enfocado y resultado exacto | `pnpm exec vitest run 'app/requests/[id]/page.test.tsx'` → 11/11 verde |
+| Comando/escenario de arnés en tiempo de ejecución | N/A en esta ejecución — la puerta en vivo (4.8) queda para el orquestador, con permiso del usuario, contra el backend local |
+| Frontera de rollback | Revertir `components/annex-requirement-notice.tsx` y el bloque condicional en `app/requests/[id]/page.tsx` (import + render) restaura el detalle sin aviso; el campo `annexRequirement` sigue llegando del backend (Fase 3) pero el cliente vuelve a ignorarlo. Las pruebas D1/D2 se revierten junto con el bloque |
+
+### Pendiente (fuera del alcance de esta ejecución)
+
+4.5-4.6 (retiradas en el replanteo del 26/09), 4.7 (compuerta de PR), 4.8 (puerta en vivo) y 4.9
+(commit + push + PR única) quedan para el orquestador, según el alcance explícito de esta
+ejecución.
+
+## Puerta en vivo (4.8, orquestador, 2026-09-26)
+
+Chrome, sesión de Coordinación iniciada por el responsable, `next dev` del worktree en el puerto
+3000 contra el backend local con la 009 (esquema al día). En el puerto 3001 el backend responde 403
+«Invalid CORS request»: solo admite el origen `http://localhost:3000`. Cuerpos capturados con un
+interceptor de `fetch` en la página; datos del estudiante sintéticos.
+
+| Paso | Observado |
+|---|---|
+| `/requests/new` al cargar | Selector habilitado, valor `""` («Sin programa» primero) y los 13 programas del catálogo real en el orden recibido |
+| Radicar sin programa (clic real) | El cuerpo de `POST /api/requests` no lleva la clave `program`; el backend lo acepta y la app navega al detalle |
+| Detalle de esa solicitud | `GET /api/requests/{id}` sin `program` ni `annexRequirement`; no hay aviso |
+| Radicar con «Ingeniería de Sistemas» (`requestSubmit`, porque la captura de pantalla dejó de responder) | `program` viaja idéntico al valor del catálogo |
+| Detalle de esa solicitud | Aviso «Anexo requerido. Para reenviar a la facultad, adjunte: Hoja de vida académica. La descarga el estudiante desde CLASS.», después de «Ver documento PDF» y antes de «Estado actual», sin `role="alert"` ni `aria-live` |
+| Transición a «En facultad» | Estado «En facultad», sin recargar la página (una marca en `window` sobrevive) y el aviso sigue visible en su lugar |
+
+**Observación**: con la solicitud ya «En facultad», el texto «Para reenviar a la facultad…» deja
+de encajar. Es el mismo punto abierto a veto que el de los trámites cerrados (`proposal.md`,
+preguntas abiertas), visto ahora también en un estado intermedio.
+

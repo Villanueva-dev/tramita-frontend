@@ -284,14 +284,14 @@ degrada explicando la falla y nunca envía `program: ""`. Decisión 2 de `design
 **Objetivo**: el store mapea `annexRequirement` cuando el backend lo envía, lo conserva tras una
 transición, y nunca lo inventa cuando la clave falta. Decisión 4 de `design.md`.
 
-- [ ] 3.1 Agregar a `lib/types.ts`, antes de `AcademicRequest` (`:133-178`): la interfaz
+- [x] 3.1 (`07a4c13`) Agregar a `lib/types.ts`, antes de `AcademicRequest` (`:133-178`): la interfaz
       `AnnexRequirement { documentName: string; sourceHint: string }` con el comentario JSDoc
       `/** Hecho derivado de la configuración del trámite (009); no afirma que el anexo se adjuntó (FR-012). */`
       (tarea de documentación de este commit); y `annexRequirement?: AnnexRequirement` en
       `AcademicRequest`, junto a `program` (`:170`). Sin comportamiento observable todavía —
       habilita 3.2.
       Líneas estimadas: ~10-14.
-- [ ] 3.2 RED — S3 y S5 juntas (comparten el mismo fallo de raíz; conviene escribirlas y
+- [x] 3.2 (RED observado: las dos fallan con `expected undefined to deeply equal {…}`) RED — S3 y S5 juntas (comparten el mismo fallo de raíz; conviene escribirlas y
       observarlas en rojo antes de un único cambio de producción).
       - S3, `describe('baseRequest', …)` (o el describe existente que lo ejercite vía
         `refreshRequest`/`getRequest`): construir un objeto de cable **con** la clave
@@ -311,7 +311,7 @@ transición, y nunca lo inventa cuando la clave falta. Decisión 4 de `design.md
       Fallo esperado en ambas: `baseRequest` todavía no mapea el campo, así que el resultado tiene
       `annexRequirement === undefined` en los dos casos.
       Líneas de test estimadas: S3 ~10-12, S5 (con el helper `detailRoutes`) ~30-35.
-- [ ] 3.3 GREEN — agregar `annexRequirement: apiRequest.annexRequirement ?? undefined,` a
+- [x] 3.3 (GREEN observado: `lib/store.test.ts` 16/16) GREEN — agregar `annexRequirement: apiRequest.annexRequirement ?? undefined,` a
       `baseRequest`, junto al mapeo de `program` (`lib/store.tsx:~203`), con un comentario breve
       explicando que el cable tolera `null` pero el backend en realidad omite la clave por
       `@JsonInclude(NON_NULL)` a nivel de clase (`RequestResponse.java:45`) — el dominio nunca
@@ -324,8 +324,8 @@ transición, y nunca lo inventa cuando la clave falta. Decisión 4 de `design.md
       la Fase 4).
 - ~~3.4 Caracterización — S4~~ **Retirada en el replanteo del 2026-09-26**: la ausencia de la
       clave la cubre D2 (4.4) en la costura visible.
-- [ ] 3.5 Verify: `pnpm test` completo; `rm -rf .next && pnpm exec tsc --noEmit`.
-- [ ] 3.6 Commit: `git add lib/types.ts lib/store.tsx lib/store.test.ts` y
+- [x] 3.5 (observado: 345/345, `tsc` en frío exit 0, lint exit 0) Verify: `pnpm test` completo; `rm -rf .next && pnpm exec tsc --noEmit`.
+- [x] 3.6 Commit (`07a4c13`): `git add lib/types.ts lib/store.tsx lib/store.test.ts` y
       `git commit -m "feat(solicitudes): mapea el requisito de anexo desde el detalle"`.
 
 ## Fase 4 — commit 4: aviso de anexo en el detalle
@@ -334,56 +334,52 @@ transición, y nunca lo inventa cuando la clave falta. Decisión 4 de `design.md
 transición y `CurrentStateBlock`, sin afirmar que se adjuntó, y sin nada cuando la clave falta.
 Decisión 3 de `design.md`; texto acordado en P1 de `proposal.md`.
 
-- [ ] 4.1 RED — D1: en `app/requests/[id]/page.test.tsx`, con el fixture `request` +
+- [x] 4.1 RED — D1: en `app/requests/[id]/page.test.tsx`, con el fixture `request` +
       `mockTramita` (`:23-74`) y `annexRequirement` presente: esperar a que "Ana Pérez" aparezca
       (convención 4, la carga terminó) y luego afirmar `getByRole('region', { name: 'Anexo
       requerido' })`; su posición con `compareDocumentPosition` frente al enlace "Ver documento
       PDF" y frente a la región "Estado actual"; que el texto no coincide con
       `/adjuntad[oa]|se adjuntó|recibid[oa]/i` (no bloquea el imperativo "adjunte"); que no hay
       `role="alert"` ni `aria-live` en el aviso.
-      Comando: `pnpm test -- 'app/requests/[id]/page.test.tsx'`.
-      Fallo esperado: hoy no existe ningún aviso ni región "Anexo requerido".
-      Líneas de test estimadas: ~20-25.
-- [ ] 4.2 GREEN — crear `components/annex-requirement-notice.tsx`, sin `'use client'` (igual que
+      Comando: `pnpm exec vitest run 'app/requests/[id]/page.test.tsx'`.
+      **RED observado**: `muestra el requisito de anexo entre las acciones y el estado, sin
+      afirmar que se adjuntó` falla con `TestingLibraryElementError: Unable to find an
+      accessible element with the role "region" and name "Anexo requerido"` (1 failed | 10
+      passed — la prueba de D2, escrita en el mismo RED, ya pasaba trivialmente porque el
+      componente todavía no existía).
+      Líneas de test: 30 (D1 + D2 de 4.4, escritas juntas).
+- [x] 4.2 GREEN — crea `components/annex-requirement-notice.tsx`, sin `'use client'` (igual que
       `current-state-block.tsx`, sin hooks): `export function AnnexRequirementNotice({
       documentName, sourceHint }: AnnexRequirement)`; `<section
       aria-labelledby="annex-requirement-heading">`, `h3` "Anexo requerido", párrafo "Para
       reenviar a la facultad, adjunte: {documentName}. {sourceHint}."; clases `rounded-xl border
       p-5 shadow-sm border-primary/30 bg-primary/5`; sin `role` ni `aria-live` explícitos (el
       `section` con nombre ya expone `region`).
-      Líneas estimadas: ~25-30.
-- [ ] 4.3 GREEN — en `app/requests/[id]/page.tsx`, importar `AnnexRequirementNotice` y renderizar
-      entre `:294` y `:296`:
-      ```tsx
-      {req.annexRequirement ? (
-        <AnnexRequirementNotice
-          documentName={req.annexRequirement.documentName}
-          sourceHint={req.annexRequirement.sourceHint}
-        />
-      ) : null}
-      ```
-      con un comentario breve anotando que la posición es deliberada (decisión P1: entre las
-      acciones de transición y el bloque de estado, no en «Datos del estudiante») y que el texto
-      nunca afirma que el anexo se adjuntó, se recibió ni se pidió (FR-012) — tarea de
-      documentación de este commit.
-      Comando: `pnpm test -- 'app/requests/[id]/page.test.tsx'` → D1 verde.
-      Líneas de producción estimadas: ~8-10.
+      Líneas: 22 (archivo completo).
+- [x] 4.3 GREEN — en `app/requests/[id]/page.tsx`, importar `AnnexRequirementNotice` y renderizar
+      entre el cierre de la cabecera y `CurrentStateBlock`, con un comentario breve anotando que
+      la posición es deliberada (decisión P1: entre las acciones de transición y el bloque de
+      estado, no en «Datos del estudiante») y que el texto nunca afirma que el anexo se adjuntó,
+      se recibió ni se pidió (FR-012) — tarea de documentación de este commit.
+      Comando: `pnpm exec vitest run 'app/requests/[id]/page.test.tsx'` → **GREEN observado**:
+      11/11 verde.
+      Líneas de producción: 10 (import + bloque condicional + comentario).
       Criterio de aceptación: `spec.md`, escenario "El aviso de anexo se muestra junto a las
       acciones de transición".
-- [ ] 4.4 Caracterización — D2: sin la clave `annexRequirement`, al terminar la carga no aparece
-      la región "Anexo requerido" ni su texto. Ya pasa tras 4.3, sin código nuevo.
-      Líneas de test estimadas: ~8-10.
+- [x] 4.4 Caracterización — D2: sin la clave `annexRequirement`, al terminar la carga no aparece
+      la región "Anexo requerido". Escrita junto con D1 en 4.1 y confirmada en el
+      mismo GREEN de 4.3 (11/11), sin código de producción adicional.
       Criterio de aceptación: `spec.md`, escenario "Sin la clave, no hay aviso ni contenedor
       vacío".
 - ~~4.5 Caracterización — D3~~ **Retirada en el replanteo del 2026-09-26**: el render no tiene
       rama por estado; la cláusula «en cualquier estado» queda sin prueba dedicada.
 - ~~4.6 Caracterización — D4~~ **Retirada en el replanteo del 2026-09-26**: la fila «Programa» no
       cambia en este cambio; el escenario del programa heredado queda sin prueba dedicada.
-- [ ] 4.7 **Compuerta de la PR** (unidades 1-4): `pnpm test`; `rm -rf .next && pnpm exec tsc
+- [x] 4.7 **Compuerta de la PR** (unidades 1-4; observado: 347/347, `tsc` en frío exit 0, lint exit 0, build exit 0; 436 líneas de código y pruebas contra `main`, 362+/52- más 22 del componente nuevo): `pnpm test`; `rm -rf .next && pnpm exec tsc
       --noEmit`; `pnpm lint`; `pnpm build`; `git diff --shortstat main` — el número real va al
       cuerpo de la PR (sin partir aunque supere 400).
-- [ ] 4.8 **Puerta en vivo** (el orquestador, con permiso del usuario, en Chrome, contra el backend
-      local con la 009; `pnpm dev -p 3001` en este worktree). Pasos: en `/requests/new`, registrar
+- [x] 4.8 (observado el 2026-09-26, ver `apply-progress.md` §Puerta en vivo) **Puerta en vivo** (el orquestador, con permiso del usuario, en Chrome, contra el backend
+      local con la 009; `pnpm dev` en el puerto **3000** de este worktree, no en el 3001: el backend solo admite el origen `http://localhost:3000` y responde 403 «Invalid CORS request» a cualquier otro, medido el 2026-09-26). Pasos: en `/requests/new`, registrar
       sin programa (el cuerpo no lleva la clave) y con un nombre del catálogo (llega idéntico); abrir
       el detalle de una solicitud con requisito de anexo y confirmar el aviso, ejecutar una
       transición y confirmar que sigue sin recargar; abrir una sin requisito y confirmar que no hay
