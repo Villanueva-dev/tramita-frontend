@@ -117,8 +117,7 @@ export default function DocumentoPage() {
                   {closed ? (
                     <>
                       Este documento constituye la constancia formal del trámite{' '}
-                      <span className="font-medium text-foreground">{req.radicado}</span>{' '}
-                      y fue notificado al estudiante.
+                      <span className="font-medium text-foreground">{req.radicado}</span>.
                     </>
                   ) : (
                     <>

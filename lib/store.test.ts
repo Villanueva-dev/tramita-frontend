@@ -156,6 +156,20 @@ describe('baseRequest', () => {
 
     expect(request.annexRequirement).toEqual(annexRequirement)
   })
+
+  it('conserva origen y teléfono del estudiante y normaliza claves ausentes a null', () => {
+    const conContacto = baseRequest({
+      ...summary,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+    })
+    const sinContacto = baseRequest(summary)
+
+    expect(conContacto.origin).toBe('PUBLIC_LINK')
+    expect(conContacto.studentPhone).toBe('3001234567')
+    expect(sinContacto.origin).toBeNull()
+    expect(sinContacto.studentPhone).toBeNull()
+  })
 })
 
 /**

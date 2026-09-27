@@ -12,6 +12,7 @@ import {
   FileText,
   GraduationCap,
   Mail,
+  MessageCircle,
   Paperclip,
   Search,
   User,
@@ -207,6 +208,15 @@ export default function RequestDetailPage() {
 
   const isFinalized = isClosed(req)
   const responsibility = currentResponsibility(req)
+  const canNotifyStudent = req.origin === 'PUBLIC_LINK' && isFinalized
+  const notificationMessage = `Hola ${req.studentName}.\r\nSu trámite «${req.definition.name}» quedó en estado: ${req.currentState.name}.`
+  const notificationSubject = 'Su proceso ha sido completado'
+  const emailHref = canNotifyStudent && req.studentEmail
+    ? `mailto:${req.studentEmail}?subject=${encodeURIComponent(notificationSubject)}&body=${encodeURIComponent(notificationMessage)}`
+    : null
+  const whatsappHref = canNotifyStudent && req.studentPhone && /^3\d{9}$/.test(req.studentPhone)
+    ? `https://wa.me/57${req.studentPhone}?text=${encodeURIComponent(notificationMessage)}`
+    : null
   // Última entrada del timeline (índice `length − 1`), nunca `createdAt` — mutante P1/P2
   // (design.md D4): con el timeline vacío no se cae a `createdAt`, se muestra `null`.
   const waitingSince = req.timeline.length > 0 ? req.timeline[req.timeline.length - 1].date : null
@@ -290,6 +300,26 @@ export default function RequestDetailPage() {
                   Ver documento PDF
                 </Button>
               </Link>
+              {emailHref && (
+                <a
+                  href={emailHref}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  <Mail className="size-4" />
+                  Enviar correo al estudiante
+                </a>
+              )}
+              {whatsappHref && (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  <MessageCircle className="size-4" />
+                  Enviar WhatsApp al estudiante
+                </a>
+              )}
             </div>
           </div>
         </div>

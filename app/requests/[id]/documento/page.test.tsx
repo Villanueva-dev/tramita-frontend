@@ -37,6 +37,8 @@ const request: AcademicRequest = {
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',
   studentEmail: 'ana@example.com',
+  origin: null,
+  studentPhone: null,
   program: 'Ingeniería de Sistemas',
   semester: '7',
   subjects: [{ code: 'MAT-101', name: 'Matemáticas', credits: 3, group: 'A' }],
@@ -105,6 +107,23 @@ describe('DocumentoPage', () => {
     expect(screen.getByText('Solicitud de Trámite piloto')).toBeDefined()
     expect(screen.queryByText(/se solicita la adición de/i)).toBeNull()
     expect(screen.queryByText(/se solicita la novedad de notas/i)).toBeNull()
+  })
+
+  it('la constancia de cierre no afirma que el estudiante fue notificado', async () => {
+    const cerrada: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+    }
+    useTramita.mockReturnValue({
+      getRequest: () => cerrada,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<DocumentoPage />)
+
+    await waitFor(() => expect(screen.getByText('Documento oficial de cierre')).toBeDefined())
+
+    expect(screen.getByText(/Este documento constituye la constancia formal del trámite/)).toBeDefined()
+    expect(screen.queryByText(/notificado al estudiante/i)).toBeNull()
   })
 
   it('descarga el documento de ADICION_CREDITOS en EN_COORDINACION desde el endpoint existente', async () => {
