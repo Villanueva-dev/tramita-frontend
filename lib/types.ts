@@ -130,6 +130,15 @@ export interface TimelineEvent {
   comment?: string
 }
 
+/**
+ * Documento que el trámite exige anexar según su configuración (feature 009 del backend).
+ * Es un requisito, no un registro: no afirma que el anexo se haya adjuntado.
+ */
+export interface AnnexRequirement {
+  documentName: string
+  sourceHint: string
+}
+
 export interface AcademicRequest {
   id: string
   radicado: string
@@ -168,6 +177,8 @@ export interface AcademicRequest {
   studentName: string
   studentEmail: string
   program: string
+  /** Ausente cuando el trámite no exige anexo. */
+  annexRequirement?: AnnexRequirement
   semester: string
   subjects: SubjectInfo[]
   reason: string

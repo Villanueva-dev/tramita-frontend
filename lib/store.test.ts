@@ -42,6 +42,9 @@ const summary = {
   createdAt: '2026-09-01T10:00:00',
 }
 
+/** Datos sintéticos con la forma de `annexRequirement` de la 009. */
+const annexRequirement = { documentName: 'Documento de prueba', sourceHint: 'Lo entrega el estudiante.' }
+
 const withState = (code: string, name: string, isFinal: boolean, isInitial = false) => ({
   ...summary,
   currentState: { code, name, isFinal, isInitial },
@@ -146,6 +149,12 @@ describe('baseRequest', () => {
     )
 
     expect(enRegistro.stateName).toBe('En registro Cali (carga en QF)')
+  })
+
+  it('mapea el requisito de anexo que envía el backend', () => {
+    const request = baseRequest({ ...summary, annexRequirement })
+
+    expect(request.annexRequirement).toEqual(annexRequirement)
   })
 })
 
@@ -289,5 +298,33 @@ describe('createRequest (TramitaProvider)', () => {
     })
 
     expect('program' in capturedBody).toBe(false)
+  })
+})
+
+describe('transition (TramitaProvider)', () => {
+  // La transición vuelve a consultar el detalle y sobrescribe algunos campos con los que ya
+  // tenía la solicitud. El requisito de anexo tiene que salir del detalle nuevo, no del viejo:
+  // por eso el primer detalle llega sin él y el segundo con él.
+  it('conserva el requisito de anexo del detalle que se consulta tras la transición', async () => {
+    const detailPath = `/requests/${summary.id}`
+    const toFaculty = { targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false }, responsible: 'Facultad', requiresNote: false }
+    let detail: object = { ...summary, availableTransitions: [toFaculty] }
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === detailPath) return Promise.resolve(jsonResponse(200, detail))
+      if (path === `${detailPath}/timeline` || path === `${detailPath}/documents`) return Promise.resolve(jsonResponse(200, []))
+      if (path === `${detailPath}/transitions`) return Promise.resolve(jsonResponse(200, {}))
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+    await act(async () => {
+      await result.current.refreshRequest(summary.id)
+    })
+    detail = { ...summary, availableTransitions: [toFaculty], annexRequirement }
+    await act(async () => {
+      await result.current.transition(summary.id, 'EN_FACULTAD')
+    })
+
+    expect(result.current.getRequest(summary.id)?.annexRequirement).toEqual(annexRequirement)
   })
 })
