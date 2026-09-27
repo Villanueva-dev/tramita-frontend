@@ -82,10 +82,20 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   sandbox por un error local de base de datos de `pnpm`.
 - T2: `678ece2` — `feat(solicitudes): ofrece aviso manual al cerrar trámites públicos` (215
   líneas autorales, incluido el avance anterior de este documento). Riesgo nativo `medium`;
-  RDD permanece desactivado. La prueba de ejecución en vivo es N/A: no se abrió el cliente de
-  correo ni WhatsApp desde un navegador autenticado; las pruebas de componente fijan el `href`
-  exacto y el cambio de estado sin recarga. Reversión: retirar `678ece2` elimina enlaces y la
-  corrección del texto, sin quitar el mapeo de T1.
+  RDD permanece desactivado. Prueba en vivo: realizada después del commit (ver la entrada
+  siguiente). Reversión: retirar `678ece2` elimina enlaces y la corrección del texto, sin quitar
+  el mapeo de T1.
+- Prueba en vivo de T1 y T2 (2026-09-26, Chrome, front en `:3000` con el detalle de `678ece2` contra el
+  backend local en `main` `0b6a02f`, datos sintéticos). El detalle real trae `origin:
+  "PUBLIC_LINK"` y `studentPhone` con esos nombres. Solicitud pública con celular: sin enlaces en
+  estados intermedios; al registrar «Finalizada» desde la UI aparecieron correo y WhatsApp sin
+  recargar (marca en `window` conservada); destinatario, asunto, cuerpo exacto con `%0D%0A`,
+  `wa.me/57…` y ningún parámetro extra. Solicitud pública con teléfono fijo registrada como
+  «Rechazada»: solo correo, sin WhatsApp. Solicitud de Coordinación finalizada (novedad de
+  notas): sin enlaces; en esta base las de Coordinación no traen correo ni teléfono, así que la
+  exclusión por origen con contacto presente la prueba solo el test de componente. El documento
+  de una solicitud cerrada ya no menciona notificación. Observación fuera de alcance: los enlaces
+  no usan `target`, así que WhatsApp Web reemplaza la pestaña del panel.
 - Total inicial de la rama frente a `main`: 320 líneas autorales antes de este cierre documental;
   sigue por debajo del umbral de planificación de una PR. Entrega remota pendiente de autorización.
 - Seguimiento nuevo: comentario del propietario en #59 del 2026-09-27 03:35 UTC añade dos
