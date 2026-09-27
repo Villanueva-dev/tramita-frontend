@@ -34,7 +34,8 @@ export interface NewRequestInput {
   studentCedula: string
   studentName: string
   studentEmail: string
-  program: string
+  /** Se omite si no se eligió programa: el backend rechaza `""`. */
+  program?: string
   semester: string
   subjects: SubjectInfo[]
   reason: string

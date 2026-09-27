@@ -29,11 +29,3 @@ export const ORIGIN_LABELS: Record<InboxOrigin, string> = {
 
 /** `origin: null` es una anomalía de datos declarada, no un tercer origen (contrato :255-258). */
 export const ORIGIN_UNKNOWN_LABEL = 'Origen no registrado'
-
-export const PROGRAMS = [
-  'Ingeniería de Sistemas',
-  'Administración de Empresas',
-  'Contaduría Pública',
-  'Derecho',
-  'Psicología',
-]

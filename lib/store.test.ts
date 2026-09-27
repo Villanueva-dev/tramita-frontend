@@ -270,4 +270,24 @@ describe('createRequest (TramitaProvider)', () => {
 
     await expect(result.current.createRequest(newRequestInput())).rejects.toThrow('La definición no existe')
   })
+
+  // El backend acepta la clave omitida pero rechaza `program: ""` con 400.
+  it('sin programa, el cuerpo de la petición no lleva la clave program', async () => {
+    let capturedBody: Record<string, unknown> = {}
+    apiFetchMock.mockImplementation((path: string, opts: { method?: string; body?: string } = {}) => {
+      if (path === '/requests' && (opts.method ?? 'GET').toUpperCase() === 'POST') {
+        capturedBody = JSON.parse(opts.body ?? '{}')
+        return Promise.resolve(jsonResponse(201, CREATED_REQUEST))
+      }
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+
+    await act(async () => {
+      await result.current.createRequest({ ...newRequestInput(), program: undefined })
+    })
+
+    expect('program' in capturedBody).toBe(false)
+  })
 })
