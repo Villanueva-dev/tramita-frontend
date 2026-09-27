@@ -243,8 +243,12 @@ describe('RequestDetailPage', () => {
     expect(whatsappLink.getAttribute('target')).toBe('_blank')
     expect(whatsappLink.getAttribute('rel')).toBe('noopener noreferrer')
     expect(emailLink.getAttribute('target')).toBeNull()
-    expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.program))
-    expect(emailLink.getAttribute('href')).not.toContain(encodeURIComponent(cerradaPublica.reason))
+    // SC-003: ninguno de los dos enlaces expone el documento, el programa ni el motivo.
+    for (const link of [emailLink, whatsappLink]) {
+      for (const privateValue of [cerradaPublica.studentCedula, cerradaPublica.program, cerradaPublica.reason]) {
+        expect(link.getAttribute('href')).not.toContain(encodeURIComponent(privateValue))
+      }
+    }
   })
 
   it('ofrece el aviso manual también para un rechazo final', async () => {

@@ -124,4 +124,10 @@ backend, añadir información privada al texto o modificar el flujo de transici�
   mismo render que ya se ejerció en vivo. Commit de la unidad: el que acompaña esta entrada
   (`fix(solicitudes): abre WhatsApp en otra pestaña`), 22 líneas autorales incluido este
   seguimiento. Reversión: retirar ese commit devuelve el enlace a la misma pestaña.
-- Siguiente paso: redactar la PR de #59 y solicitar autorización para publicar la rama.
+- SC-003 explícito: al revisar la PR contra la issue, el criterio «un test afirma que el
+  documento, el programa y el motivo no aparecen en ninguno de los dos enlaces» solo tenía
+  aserciones explícitas de programa y motivo en el correo; la igualdad exacta de los `href` ya lo
+  cubría de forma implícita. El test del cierre público ahora recorre los dos enlaces con
+  `studentCedula`, `program` y `reason`. Sin RED: fija un comportamiento existente. `pnpm test`
+  aprobó 28 archivos y 355 pruebas; TypeScript, lint y `git diff --check` terminaron con código 0.
+- Entrega: el propietario autorizó el 2026-09-26 publicar la rama y abrir la PR de #59.
