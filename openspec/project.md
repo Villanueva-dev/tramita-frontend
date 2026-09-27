@@ -100,10 +100,17 @@ perseguir el trámite, así que el responsable del paso actual vale más que el 
 
 ## Estado actual — 2026-09-26
 
-`main` está en `70de563` (merge de la PR #72, 2026-09-26). La Fase B y el change anterior
-`formulario-do-fr-100-creditos-adicionales` son históricos.
+`main` está en `bf096f8` (merge de la PR #79, 2026-09-26). La Fase B y los changes
+`formulario-do-fr-100-creditos-adicionales` y `formulario-publico-por-pasos` son históricos.
 
-No hay change activo. `formulario-publico-por-pasos` quedó archivado en
+No hay change activo. `catalogo-programas-y-anexo` quedó archivado en
+[`changes/archive/2026-09-26-catalogo-programas-y-anexo/`](changes/archive/2026-09-26-catalogo-programas-y-anexo/archive-report.md):
+el formulario interno elige el programa del catálogo público y el detalle anuncia el requisito de
+anexo (PRs #78 y #79; #74 cerrado), y la spec `workflow-requests` incorpora sus dos requisitos
+modificados. Pendientes fuera del cambio: el veto abierto sobre el texto del aviso de anexo, los
+seguimientos no bloqueantes de #76, y #10, #50 y #52.
+
+Antes, `formulario-publico-por-pasos` quedó archivado en
 [`changes/archive/2026-09-26-formulario-publico-por-pasos/`](changes/archive/2026-09-26-formulario-publico-por-pasos/archive-report.md):
 el formulario público es un asistente de cinco pasos con su pulido visual (PRs #65–#68, #70 y
 #72; #58 y #27 cerrados), y la spec `do-fr-100-form` incorpora sus cuatro requisitos modificados
