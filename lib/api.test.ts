@@ -180,6 +180,12 @@ describe('getPublicSeal', () => {
 
     await expect(getPublicSeal('ZZZZZZZZZZZZZ')).resolves.toBeNull()
   })
+
+  it('rechaza con ApiError ante cualquier otro error: una falla no se confunde con «no hay sello»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(500, 'Error interno del servidor')))
+
+    await expect(getPublicSeal('ABC123')).rejects.toBeInstanceOf(ApiError)
+  })
 })
 
 describe('createRequest', () => {
