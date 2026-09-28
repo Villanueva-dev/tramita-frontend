@@ -29,8 +29,8 @@ contrato no respalda. Verificado en disco y en git (`origin/main` del backend `f
 ## Alcance autorizado
 
 - Reordenar y reestilizar el detalle: enlace de regreso → banner de estado → encabezado (tipo,
-  nombre del estudiante como `h1`, radicado y fecha, enlace al PDF) → dos columnas.
-- Columna principal: «Datos del estudiante» (sin fila «Nombre», que pasa al `h1`; contacto con
+  nombre del estudiante como `h2`, radicado y fecha, enlace al PDF) → dos columnas.
+- Columna principal: «Datos del estudiante» (sin fila «Nombre», que pasa al `h2`; contacto con
   correo y, si existe, teléfono), «Lo que se solicita» (tabla de asignaturas de tres vías y motivo;
   para adición de créditos, una tarjeta «Créditos solicitados» con la suma de `subjects[].credits`)
   y «Documentos adjuntos» sin cambio funcional.
@@ -85,18 +85,23 @@ cambiar la variante de color de las transiciones que exigen nota.
 
 ## Tareas
 
-- [ ] **T1 — Panel lateral «Acciones».** Va primero porque el test de orden del anexo se apoya en
-  el layout actual: si el banner sube antes de que exista el panel, ese test se rompe entre dos
-  commits. RED: las transiciones, el aviso de anexo y el aviso al estudiante viven en la región
-  «Acciones»; en un estado final el anexo sigue ahí sin transiciones; un estado final sin anexo ni
-  aviso no muestra la región. Reescribir el test de orden del anexo según D1. GREEN: layout de dos
-  columnas con el panel fijo al hacer scroll; el enlace al PDF queda en el encabezado.
-- [ ] **T2 — Encabezado con el nombre del estudiante y banner de estado.** RED: el `h1` es el
-  nombre del estudiante y aparece una sola vez (la fila «Nombre» sale de «Datos del
-  estudiante»); se muestran radicado y fecha de radicación. GREEN: el banner sube arriba y
+- [x] **T1 — Panel lateral «Acciones».** Commit `b7b5393`. Va primero porque el test de orden
+  del anexo se apoya en el layout actual: si el banner sube antes de que exista el panel, ese test
+  se rompe entre dos commits. RED: las transiciones, el aviso de anexo y el aviso al estudiante
+  viven en la región «Acciones»; en un estado final el anexo sigue ahí sin transiciones; un estado
+  final sin anexo ni aviso no muestra la región. Reescribir el test de orden del anexo según D1.
+  GREEN: layout de dos columnas con el panel fijo al hacer scroll; el enlace al PDF queda en el
+  encabezado.
+- [ ] **T2 — Encabezado con el nombre del estudiante y banner de estado.** El nombre es `h2`, no
+  `h1`: `AppShell` ya renderiza el `h1` con el título de la página
+  (`components/app-shell.tsx:185-187`) y está fuera de alcance. RED: el `h2` es el nombre del
+  estudiante y aparece una sola vez (la fila «Nombre» sale de «Datos del estudiante»); se muestra
+  «Solicitud {radicado} · radicada el {fecha}». GREEN: el banner sube arriba y
   `CurrentStateBlock` adopta el estilo del mockup, con su API y sus 15 tests intactos (incluido
   «nunca paso N de M»); un estado final usa un tono neutro, no el de éxito, porque un cierre puede
-  ser negado (`spec.md:496-503`).
+  ser negado (`spec.md:496-503`). Se retira `StatusBadge` del encabezado: con datos reales repite
+  el nombre del estado que ya muestra el banner (`stateName` sale de `currentState.name`); el
+  test #9a no lo detectaba porque su fixture conserva un `stateName` desactualizado.
 - [ ] **T3 — Datos del estudiante y lo que se solicita.** RED: el contacto muestra el teléfono
   solo cuando existe; la tarjeta «Créditos solicitados» suma los créditos en adición de créditos
   y no aparece en novedad de notas ni en una definición desconocida. GREEN: secciones
@@ -128,11 +133,27 @@ cambiar la variante de color de las transiciones que exigen nota.
   (`gentle-ai review assess`, excluyendo este documento sin trackear): `medium`,
   `under_budget`, 2 archivos, 182 líneas; verificación del propio escritor más comprobación
   puntual del orquestador (`vitest` enfocado: 18/18).
+- 2026-09-27 — **T1 commiteada**: `7cdd430` (este documento) y `b7b5393` (feat).
+- 2026-09-27 — **T2 implementada, pendiente de revisión y commit.** Ruta: delegada (escritor
+  único; disparador: `page.tsx`, `page.test.tsx` y `current-state-block.tsx`). RED observado:
+  `el nombre del estudiante es el encabezado h2 del detalle` (`Unable to find an accessible
+  element with the role "heading" and name "Ana Pérez"`), `muestra el radicado y las fechas…`
+  (`Unable to find an element with the text: /^Solicitud request-1 · radicada el…/`) y `el
+  encabezado no repite el nombre del estado…` (`expected [...] to have a length of 1 but got
+  2`). `el nombre del estudiante aparece una sola vez (guarda)` no tiene RED propio. Revisión
+  del orquestador: (1) un comentario atribuía a `CLAUDE.md` que el nombre del estudiante es el
+  dato central —el dato central es de quién depende el trámite—, corregido; (2) el rótulo del
+  banner era `h3` y quedaba antes del `h2` del nombre (jerarquía invertida): pasa a `h2`, con el
+  test `los encabezados del detalle no saltan niveles`. Ese RED se observó revirtiendo la
+  corrección a `h3` (`expected 3 to be less than or equal to 2`), porque la corrección se aplicó
+  antes que el test. GREEN sobre el diff final: `pnpm test` 28 archivos / 362 tests; `tsc
+  --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check` limpios. Riesgo nativo: `medium`,
+  `under_budget` (220 líneas antes de las correcciones del orquestador).
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T1 por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
-T1, y después T2.
+Revisión del diff de T2 por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
+T2, y después T3.
