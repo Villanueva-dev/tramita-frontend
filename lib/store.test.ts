@@ -315,6 +315,29 @@ describe('createRequest (TramitaProvider)', () => {
   })
 })
 
+describe('refreshRequest (TramitaProvider)', () => {
+  // Issue #12, criterio 1: el backend no recibe adjuntos (Request.java:39-40, FR-010) ni
+  // captura firmas de aprobadores (spec 006, FR-011), así que no expone
+  // `/requests/{id}/documents` ni sus `/approvals`. `refreshRequest` debe pedir solo el
+  // detalle y su timeline.
+  it('pide solo /requests/{id} y su /timeline, nunca /documents', async () => {
+    const detailPath = `/requests/${summary.id}`
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === detailPath) return Promise.resolve(jsonResponse(200, summary))
+      if (path === `${detailPath}/timeline`) return Promise.resolve(jsonResponse(200, []))
+      return Promise.resolve(problemResponse(404, 'No existe en el backend'))
+    })
+
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+    await act(async () => {
+      await result.current.refreshRequest(summary.id)
+    })
+
+    const calledPaths = apiFetchMock.mock.calls.map((call) => call[0]).sort()
+    expect(calledPaths).toEqual([detailPath, `${detailPath}/timeline`].sort())
+  })
+})
+
 describe('transition (TramitaProvider)', () => {
   // La transición vuelve a consultar el detalle y sobrescribe algunos campos con los que ya
   // tenía la solicitud. El requisito de anexo tiene que salir del detalle nuevo, no del viejo:
@@ -325,7 +348,7 @@ describe('transition (TramitaProvider)', () => {
     let detail: object = { ...summary, availableTransitions: [toFaculty] }
     apiFetchMock.mockImplementation((path: string) => {
       if (path === detailPath) return Promise.resolve(jsonResponse(200, detail))
-      if (path === `${detailPath}/timeline` || path === `${detailPath}/documents`) return Promise.resolve(jsonResponse(200, []))
+      if (path === `${detailPath}/timeline`) return Promise.resolve(jsonResponse(200, []))
       if (path === `${detailPath}/transitions`) return Promise.resolve(jsonResponse(200, {}))
       return Promise.resolve(problemResponse(500, 'No debería llamarse'))
     })

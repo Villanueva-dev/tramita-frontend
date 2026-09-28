@@ -50,7 +50,6 @@ const request: AcademicRequest = {
   semester: '7',
   subjects: [],
   reason: 'Solicitud académica',
-  attachments: [],
   timeline: [],
   assignedTo: 'FACULTAD',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },

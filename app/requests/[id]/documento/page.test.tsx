@@ -43,7 +43,6 @@ const request: AcademicRequest = {
   semester: '7',
   subjects: [{ code: 'MAT-101', name: 'Matemáticas', credits: 3, group: 'A' }],
   reason: 'Solicitud académica',
-  attachments: [],
   timeline: [],
   assignedTo: 'COORDINACION',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },

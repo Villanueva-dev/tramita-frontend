@@ -29,11 +29,13 @@ Tres PRs secuenciales contra `main`, uno por criterio de cierre (decidido el 202
 - **PR-2** (criterio 1): fuera las llamadas a endpoints inexistentes.
 - **PR-3** (criterios 3 y 4): documento real en vez del simulado.
 
-**Cambio de orden (2026-09-28).** La PR-3 va antes que la PR-2 y lleva `Relacionado: #12`; el
-`Closes #12` pasa a la PR-2, porque el criterio 1 depende de la T4 y la T4 reescribe el mismo
-archivo que el rediseño del detalle (`feat/detalle-ui`, en curso en otra sesión). La T5 queda
-anulada por el comentario del propietario del 2026-09-27 en #12: el asistente vuelve con la
-feature 010 del backend.
+**Cambio de orden (2026-09-27).** La PR-3 fue antes que la PR-2, con `Relacionado: #12`,
+porque la T4 reescribe el mismo archivo que el rediseño del detalle (#86). La T5 queda anulada
+por el comentario del propietario del 2026-09-27 en #12: el asistente vuelve con la feature 010
+del backend. Por eso la PR-2 **tampoco** cierra #12: `POST /assistant`
+(`app/assistant/page.tsx:54`) sigue siendo una llamada muerta hasta que el backend mergee la 010
+(rama `router-ia`, sin PR; el `main` del backend no expone `/assistant`). La PR-2 lleva
+`Relacionado: #12`, y #12 se cierra con la 010.
 
 Fuera de alcance: el defecto de `apiFetch` que serializa `FormData` como JSON (#10 §2.2), la
 idempotencia del registro en el backend (Tramita#30) y los datos de prueba locales.
@@ -77,17 +79,32 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
   - Revisar el diff, repetir una comprobación como padre y crear un commit convencional.
   - Abrir el PR con «Relacionado: #12» y la nota sobre #10 §2.2.
 
-### PR-2 — Fuera las llamadas a endpoints inexistentes (se detalla al empezar)
+### PR-2 — Fuera las llamadas a endpoints inexistentes (rama `fix/llamadas-muertas-12`, desde `366ed13`)
 
-- [ ] **T4** — Retirar `GET /documents`, la descarga por id, las aprobaciones y la tarjeta
-  «Documentos adjuntos» del detalle, con los tipos que queden sin uso.
+- [x] **T4** — Retirar `GET /documents`, la descarga por id, las aprobaciones y la tarjeta
+  «Documentos adjuntos» del detalle, con los tipos que queden sin uso. Plan aprobado por el
+  propietario (2026-09-27), líneas verificadas sobre `366ed13`:
+  - `lib/store.tsx`: `GET /documents` (`:268`, dentro de `loadRequest`), `GET …/approvals`
+    (`:250`, `loadAttachment`) y `POST …/approvals` (`:366`, `registerDocumentApproval`).
+    `loadRequest` queda con `/requests/{id}` y `/timeline`.
+  - `app/requests/[id]/page.tsx`: la descarga `GET …/documents/{id}` (`:147`) y la tarjeta
+    «Documentos adjuntos» con «Registrar firma» (`:468-624`).
+  - `lib/types.ts`: `Attachment`, `AttachmentApproval`, `DocumentApprovalInput`, `SignatureType`
+    y el campo `attachments` de `AcademicRequest`, que el backend nunca envía (FR-010).
+  - El mensaje de resultado del detalle pasa a `string | null`: su único error era la descarga,
+    y los errores de transición los muestra `ActionDialog` (T4a del rediseño).
+  - Ruta: un escritor delegado (disparador: 5+ archivos de código y pruebas). TDD estricto,
+    runner `pnpm test`. Garantías: refrescar una solicitud pide solo `/requests/{id}` y
+    `/timeline`; el detalle no muestra «Documentos adjuntos» ni «Registrar firma».
+  - No se tocan los parecidos: `canvas-firma` (firma del estudiante), el aviso de anexo de la
+    009 y el `Content-Disposition: attachment` del PDF.
 - ~~**T5** — Retirar `app/assistant/page.tsx` y su entrada en `components/app-shell.tsx`.~~
   Anulada el 2026-09-27 (comentario del propietario en #12).
 
 ### PR-3 — Documento real en vez del simulado (rama `fix/documento-real-12`, desde `0f99c23`)
 
 - [x] **T6** — Retirar `PdfDocument` y el botón «Imprimir»; corregir los textos falsos de
-  `app/requests/[id]/documento/page.tsx`. Líneas re-verificadas el 2026-09-28 sobre `0f99c23`:
+  `app/requests/[id]/documento/page.tsx`. Líneas re-verificadas el 2026-09-27 sobre `0f99c23`:
   - `components/pdf-document.tsx` (169 líneas): «DOCUMENTO OFICIAL» (`:31`) y «Se autoriza»
     (`:91`, `:99`) con cualquier estado final, rechazo incluido; «Verificable con folio RC-…»
     (`:8`, `:162-163`), un folio que `/verificar` rechaza por formato; fabrica un documento de
@@ -148,7 +165,7 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
   prueba). El detalle cargó dos veces porque Strict Mode ejecuta los efectos dos veces en
   desarrollo (activo por defecto con el App Router, `reactStrictMode.md` de Next); cada carga
   todavía pide `GET /documents` (404), que retira PR-2.
-- 2026-09-28, antes de la PR-3: `main` en `0f99c23` (con #83, `/verificar`), worktree limpio,
+- 2026-09-27, antes de la PR-3: `main` en `0f99c23` (con #83, `/verificar`), worktree limpio,
   suite 29 archivos y 365 pruebas en verde. RDD `off` por `clone_local`. La otra sesión
   (`feat/detalle-ui`) no toca `documento/page.tsx`, `pdf-document.tsx` ni este documento.
 - T6 (escritor delegado; diff revisado por el padre y aprobado por el propietario):
@@ -165,7 +182,7 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
     y cambios archivados de openspec). Ninguna spec viva de `openspec/specs/` exige la vista previa.
   - Commit `4280671` (`fix(documento): la página del documento deja de afirmar lo que el PDF no es`),
     3 archivos, +41 −261.
-- T7 en vivo (Chrome, 2026-09-28, backend local, con permiso del propietario; registró un sello):
+- T7 en vivo (Chrome, 2026-09-27, backend local, con permiso del propietario; registró un sello):
   - Solicitud en curso `0b934002…`: sin vista previa ni «Imprimir», ninguno de los textos «Se
     autoriza», «DOCUMENTO OFICIAL», «Verificable con folio», «constancia formal» u «oficial de
     cierre»; enlace a `/verificar` presente.
@@ -176,3 +193,35 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
   - Solicitudes cerradas (solo lectura, sin descargar): una `RECHAZADA` y una `FINALIZADA` muestran
     «Documento de la solicitud» con su estado real y ninguno de los textos falsos.
   - Criterio 4 confirmado: la descarga llega como archivo (`blob`), no como JSON.
+- PR-3 mergeada como #84 (`d6ad98e`, 2026-09-27 21:39 -0500), CI verde; #12 sigue abierta, como se
+  esperaba. El rediseño del detalle (#86) se mergeó a continuación sin revertir nada de la PR-3.
+- 2026-09-27, antes de la PR-2: `main` en `366ed13`, worktree limpio, sin PRs abiertas. Suite
+  base: 29 archivos, 381 pruebas en verde; `tsc` y `pnpm lint` limpios.
+- T4 (escritor delegado; diff revisado por el padre y aprobado por el propietario):
+  - RED: `pnpm exec vitest run lib/store.test.ts 'app/requests/[id]/page.test.tsx'` → 2 fallidas,
+    50 aprobadas. `refreshRequest` pidió un tercer path (`/documents`); el detalle mostró dos veces
+    «documentos adjuntos» (título y texto de vacío).
+  - GREEN: los mismos dos archivos, 51 aprobadas. `pnpm test`: 29 archivos, 382 pruebas (381 + 2
+    nuevas − 1 borrada, la del error de descarga), repetido por el padre; `tsc`, `pnpm lint`,
+    `pnpm build` y `git diff --check` limpios.
+  - Búsqueda de nombres retirados (`attachments`, `Attachment*`, `DocumentApprovalInput`,
+    `SignatureType`, `registerDocumentApproval`, `mapApproval`, `loadAttachment`, `ApiDocument`):
+    sin resultados en `app`, `components` ni `lib`. Hace falta porque ni `tsc` ni ESLint marcan
+    imports sin uso en este repo.
+  - Mutantes: `/documents` de vuelta en `loadRequest` (repetido por el padre) y la tarjeta de
+    vuelta. Los dos mueren; restauración con `cp` y `cmp` idéntico.
+  - Corrección del padre al escritor: los comentarios nuevos citaban «spec.md:108» sin la
+    feature; ahora dicen «spec 006, FR-011».
+  - Commit `ae09837` (`fix(solicitudes): deja de pedir documentos que el backend no expone`),
+    8 archivos, +54 −449.
+- Prueba en vivo de la PR-2 (Chrome, 2026-09-27, backend local; solo lectura, sin descargas ni
+  transiciones, así que no registró sellos):
+  - Detalle de una solicitud en curso: sin «Documentos adjuntos», sin «Registrar firma» y sin
+    botón de descarga de adjuntos; conserva «Datos del estudiante», «Lo que se solicita»,
+    «Historial» y «Acciones».
+  - Red al cargar el detalle: `GET /api/requests/{id}` y `/timeline` (200, dos veces cada uno por
+    Strict Mode en desarrollo) y **0** peticiones a `/documents`, que antes salían en cada carga.
+  - `/requests/{id}/documento`: las mismas dos rutas y 0 a `/documents`; no se pulsó «Descargar».
+  - Un primer intento dio 401 porque la sesión de Chrome había expirado tras reiniciar los
+    servidores; el propietario volvió a iniciar sesión y la prueba se repitió completa. Incluso
+    con 401, la red ya mostraba solo las dos rutas.

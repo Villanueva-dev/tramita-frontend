@@ -5,9 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
-  CircleAlert,
   CornerUpLeft,
   Download,
   FileText,
@@ -15,7 +13,6 @@ import {
   History,
   Mail,
   MessageCircle,
-  Paperclip,
   Search,
   User,
   X,
@@ -35,37 +32,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useTramita } from '@/lib/store'
-import { apiFetch, problemMessage } from '@/lib/api'
 import { currentResponsibility, isClosed } from '@/lib/request-state'
-import { formatDate, formatDateTime } from '@/lib/format'
-import type { DocumentApprovalInput, SignatureType } from '@/lib/types'
-
-const DEFAULT_APPROVAL_DRAFT: DocumentApprovalInput = {
-  signerName: '',
-  signerRole: '',
-  signatureType: 'ESCANEADA',
-  signedAt: '',
-  note: '',
-}
-
-function approvalDateValue() {
-  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
-  return now.toISOString().slice(0, 16)
-}
-
-function normalizeApprovalDate(value: string) {
-  return value.length === 16 ? `${value}:00` : value
-}
-
-// T4b (rediseno-detalle-solicitud.md): antes era un `string` y el render siempre usaba el
-// ícono y el estilo de éxito, así que un error de descarga se anunciaba como si hubiera
-// funcionado. El tipo distingue el caso para elegir rol ARIA, ícono y tono en el render.
-type ResultMessage = { kind: 'success' | 'error'; text: string }
+import { formatDate } from '@/lib/format'
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -79,15 +48,14 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function RequestDetailPage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { getRequest, refreshRequest, transition, registerDocumentApproval } = useTramita()
+  const { getRequest, refreshRequest, transition } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
-  const [resultMessage, setResultMessage] = useState<ResultMessage | null>(null)
+  // Issue #12: su único productor de error era la descarga de un adjunto (retirada, criterio
+  // 1), y los errores de transición ya los muestra `ActionDialog` (T4a). Un solo valor posible
+  // no necesita distinguir `kind`.
+  const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [now] = useState(() => Date.now())
-  const [approvalDrafts, setApprovalDrafts] = useState<Record<string, DocumentApprovalInput>>({})
-  const [approvalError, setApprovalError] = useState<string>('')
-  const [approvalSavingId, setApprovalSavingId] = useState<string | null>(null)
-  const [openApprovalId, setOpenApprovalId] = useState<string | null>(null)
 
   const req = getRequest(params.id)
 
@@ -141,25 +109,6 @@ export default function RequestDetailPage() {
 
   const requestId = req.id
 
-  async function downloadAttachment(id: string, name: string) {
-    try {
-      // El archivo se obtiene del almacenamiento del backend, no de un mock local.
-      const response = await apiFetch(`/requests/${requestId}/documents/${id}`)
-      if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo descargar el archivo.'))
-      const url = URL.createObjectURL(await response.blob())
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = name
-      anchor.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      setResultMessage({
-        kind: 'error',
-        text: error instanceof Error ? error.message : 'No se pudo descargar el archivo.',
-      })
-    }
-  }
-
   async function runAction(comment: string) {
     if (!dialog) return
     // El éxito se informa después de confirmar la persistencia en PostgreSQL. El error ya no
@@ -167,52 +116,8 @@ export default function RequestDetailPage() {
     // dentro de sí mismo y mantiene sus botones activos para reintentar (T4a,
     // odd/tasks/rediseno-detalle-solicitud.md).
     await transition(requestId, dialog.targetStateCode, comment)
-    setResultMessage({ kind: 'success', text: `Solicitud registrada en estado ${dialog.confirmLabel}.` })
+    setResultMessage(`Solicitud registrada en estado ${dialog.confirmLabel}.`)
     setDialog(null)
-  }
-
-  function getApprovalDraft(documentId: string): DocumentApprovalInput {
-    return approvalDrafts[documentId] ?? {
-      ...DEFAULT_APPROVAL_DRAFT,
-      signedAt: approvalDateValue(),
-    }
-  }
-
-  function updateApprovalDraft(documentId: string, patch: Partial<DocumentApprovalInput>) {
-    setApprovalDrafts((current) => ({
-      ...current,
-      [documentId]: { ...getApprovalDraft(documentId), ...patch },
-    }))
-  }
-
-  async function submitApproval(documentId: string) {
-    const draft = getApprovalDraft(documentId)
-    if (!draft.signerName.trim() || !draft.signerRole.trim() || !draft.signedAt.trim()) {
-      setApprovalError('Complete nombre, rol y fecha de firma para registrar la aprobación.')
-      return
-    }
-    try {
-      setApprovalError('')
-      setApprovalSavingId(documentId)
-      // La firma se registra como evidencia del documento persistido, no como ejecución criptográfica local.
-      await registerDocumentApproval(requestId, documentId, {
-        signerName: draft.signerName.trim(),
-        signerRole: draft.signerRole.trim(),
-        signatureType: draft.signatureType as SignatureType,
-        signedAt: normalizeApprovalDate(draft.signedAt),
-        note: draft.note?.trim(),
-      })
-      setApprovalDrafts((current) => ({
-        ...current,
-        [documentId]: { ...DEFAULT_APPROVAL_DRAFT, signedAt: approvalDateValue() },
-      }))
-      setOpenApprovalId(null)
-      setResultMessage({ kind: 'success', text: 'Aprobación documental registrada.' })
-    } catch (error) {
-      setApprovalError(error instanceof Error ? error.message : 'No se pudo registrar la aprobación documental.')
-    } finally {
-      setApprovalSavingId(null)
-    }
   }
 
   const isFinalized = isClosed(req)
@@ -267,26 +172,16 @@ export default function RequestDetailPage() {
             </button>
           </div>
         )}
-        {/* D5 (rediseno-detalle-solicitud.md): posición flotante conservada; se corrige la
-            semántica — antes todo mensaje llevaba el ícono de éxito y ningún rol ARIA, así que
-            un error de descarga parecía un éxito. Éxito: `role="status"`. Error: `role="alert"`,
-            tono destructivo e ícono de alerta. */}
-        {resultMessage && resultMessage.kind === 'success' && (
+        {/* D5 (rediseno-detalle-solicitud.md): posición flotante conservada. Issue #12: su único
+            productor de error era la descarga de un adjunto (retirada, criterio 1); el único
+            mensaje que queda es el éxito de una transición, anunciado como `role="status"`. */}
+        {resultMessage && (
           <div
             role="status"
             className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-base font-medium text-background shadow-lg"
           >
             <CheckCircle2 className="size-4 shrink-0" />
-            {resultMessage.text}
-          </div>
-        )}
-        {resultMessage && resultMessage.kind === 'error' && (
-          <div
-            role="alert"
-            className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-destructive px-4 py-2.5 text-base font-medium text-destructive-foreground shadow-lg"
-          >
-            <CircleAlert className="size-4 shrink-0" />
-            {resultMessage.text}
+            {resultMessage}
           </div>
         )}
 
@@ -462,164 +357,6 @@ export default function RequestDetailPage() {
                     {req.reason}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Attachments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                  <Paperclip className="size-5 text-primary" />
-                  Documentos adjuntos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {req.attachments.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-                    No hay documentos adjuntos en esta solicitud.
-                  </div>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {req.attachments.map((a) => (
-                      <li
-                        key={a.id}
-                        className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="grid size-8 place-items-center rounded bg-destructive/10 text-destructive">
-                            <FileText className="size-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium">{a.name}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span>{a.size}</span>
-                              <span aria-hidden>·</span>
-                              <span>{a.approvals.length === 0 ? 'Sin firmas registradas' : `${a.approvals.length} firma${a.approvals.length === 1 ? '' : 's'} registrada${a.approvals.length === 1 ? '' : 's'}`}</span>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="icon-sm" aria-label="Descargar" onClick={() => void downloadAttachment(a.id, a.name)}>
-                            <Download className="size-4" />
-                          </Button>
-                        </div>
-
-                        <div className="mt-3 grid gap-2 rounded-lg border border-border/70 bg-card/70 p-3 text-xs sm:grid-cols-2">
-                          <div>
-                            <span className="font-medium text-foreground">Hash SHA-256:</span>{' '}
-                            <span className="break-all text-muted-foreground">{a.sha256 ?? 'No disponible'}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-foreground">Último sello:</span>{' '}
-                            <span className="text-muted-foreground">{a.approvals[0] ? formatDateTime(a.approvals[a.approvals.length - 1].timestampedAt) : 'Sin registrar'}</span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between gap-3">
-                          <p className="text-xs text-muted-foreground">
-                            La firma se conserva como evidencia trazable del documento aprobado.
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setApprovalError('')
-                              setOpenApprovalId((current) => current === a.id ? null : a.id)
-                            }}
-                          >
-                            Registrar firma
-                          </Button>
-                        </div>
-
-                        {a.approvals.length > 0 && (
-                          <div className="mt-3 flex flex-col gap-2">
-                            {a.approvals.map((approval) => (
-                              <div key={approval.id} className="rounded-lg border border-success/20 bg-success/5 px-3 py-2 text-xs">
-                                <div className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                                  <Check className="size-3.5 text-success" />
-                                  <span>{approval.signerName}</span>
-                                  <Badge variant="outline">{approval.signerRole}</Badge>
-                                  <Badge variant="outline">{approval.signatureType}</Badge>
-                                </div>
-                                <div className="mt-1 grid gap-1 text-muted-foreground sm:grid-cols-2">
-                                  <span>Firma declarada: {formatDateTime(approval.signedAt)}</span>
-                                  <span>Sello UTC: {formatDateTime(approval.timestampedAt)}</span>
-                                  <span className="sm:col-span-2 break-all">Hash aprobado: {approval.documentSha256}</span>
-                                  <span className="sm:col-span-2">Registrado por: {approval.recordedByEmail}</span>
-                                  {approval.note && <span className="sm:col-span-2">Observación: {approval.note}</span>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {openApprovalId === a.id && (
-                          <div className="mt-3 rounded-lg border border-border bg-card p-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`signer-name-${a.id}`}>Quién firmó</Label>
-                                <Input
-                                  id={`signer-name-${a.id}`}
-                                  value={getApprovalDraft(a.id).signerName}
-                                  onChange={(event) => updateApprovalDraft(a.id, { signerName: event.target.value })}
-                                  placeholder="Decanatura de Facultad"
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`signer-role-${a.id}`}>Rol</Label>
-                                <Input
-                                  id={`signer-role-${a.id}`}
-                                  value={getApprovalDraft(a.id).signerRole}
-                                  onChange={(event) => updateApprovalDraft(a.id, { signerRole: event.target.value })}
-                                  placeholder="FACULTAD"
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`signature-type-${a.id}`}>Tipo de firma</Label>
-                                <Select
-                                  id={`signature-type-${a.id}`}
-                                  value={getApprovalDraft(a.id).signatureType}
-                                  onChange={(event) => updateApprovalDraft(a.id, { signatureType: event.target.value as SignatureType })}
-                                >
-                                  <option value="ESCANEADA">Escaneada</option>
-                                  <option value="DIGITAL">Digital</option>
-                                </Select>
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`signed-at-${a.id}`}>Fecha y hora de firma</Label>
-                                <Input
-                                  id={`signed-at-${a.id}`}
-                                  type="datetime-local"
-                                  value={getApprovalDraft(a.id).signedAt}
-                                  onChange={(event) => updateApprovalDraft(a.id, { signedAt: event.target.value })}
-                                />
-                              </div>
-                              <div className="space-y-1.5 md:col-span-2">
-                                <Label htmlFor={`approval-note-${a.id}`}>Observación</Label>
-                                <Textarea
-                                  id={`approval-note-${a.id}`}
-                                  rows={3}
-                                  value={getApprovalDraft(a.id).note ?? ''}
-                                  onChange={(event) => updateApprovalDraft(a.id, { note: event.target.value })}
-                                  placeholder="Detalle cómo llegó la firma o cualquier verificación relevante."
-                                />
-                              </div>
-                            </div>
-                            {approvalError && (
-                              <p className="mt-3 text-xs font-medium text-destructive">{approvalError}</p>
-                            )}
-                            <div className="mt-4 flex justify-end gap-2">
-                              <Button variant="outline" size="sm" onClick={() => setOpenApprovalId(null)}>
-                                Cancelar
-                              </Button>
-                              <Button size="sm" onClick={() => void submitApproval(a.id)} disabled={approvalSavingId === a.id}>
-                                {approvalSavingId === a.id ? 'Guardando…' : 'Guardar firma'}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </CardContent>
             </Card>
           </div>

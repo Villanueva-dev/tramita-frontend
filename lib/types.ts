@@ -88,36 +88,6 @@ export interface PublicSeal {
 
 export type RequestType = 'adicion_creditos' | 'novedad_notas'
 export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
-export type SignatureType = 'DIGITAL' | 'ESCANEADA'
-
-export interface AttachmentApproval {
-  id: number
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  documentSha256: string
-  recordedByEmail: string
-  note?: string
-  signedAt: string
-  timestampedAt: string
-}
-
-export interface DocumentApprovalInput {
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  signedAt: string
-  note?: string
-}
-
-export interface Attachment {
-  id: string
-  name: string
-  size: string
-  type: string
-  sha256?: string
-  approvals: AttachmentApproval[]
-}
 
 export interface SubjectInfo {
   code: string
@@ -194,7 +164,6 @@ export interface AcademicRequest {
   semester: string
   subjects: SubjectInfo[]
   reason: string
-  attachments: Attachment[]
   timeline: TimelineEvent[]
   assignedTo: string
   availableTransitions?: AvailableTransition[]

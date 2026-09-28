@@ -28,10 +28,6 @@ export const mockRequests: AcademicRequest[] = [
     ],
     reason:
       'Solicito adición de 5 créditos para poder adelantar materias y graduarme en el periodo previsto. Cuento con promedio acumulado de 4.3.',
-    attachments: [
-      { id: 'a1', name: 'historial_academico.pdf', size: '248 KB', type: 'application/pdf', approvals: [] },
-      { id: 'a2', name: 'carta_solicitud.pdf', size: '96 KB', type: 'application/pdf', approvals: [] },
-    ],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -75,9 +71,6 @@ export const mockRequests: AcademicRequest[] = [
     ],
     reason:
       'El docente reportó una nota que no corresponde al promedio de las evaluaciones. Se adjunta acta de calificaciones firmada.',
-    attachments: [
-      { id: 'a3', name: 'acta_calificaciones.pdf', size: '312 KB', type: 'application/pdf', approvals: [] },
-    ],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -121,7 +114,6 @@ export const mockRequests: AcademicRequest[] = [
       { code: 'CP-601', name: 'Auditoría I', credits: 3, group: 'A2' },
     ],
     reason: 'Solicito adición de créditos para nivelar el plan de estudios.',
-    attachments: [],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       {
@@ -174,10 +166,6 @@ export const mockRequests: AcademicRequest[] = [
     ],
     reason:
       'Error en el cargue de la nota final del segundo corte. El docente confirma la corrección.',
-    attachments: [
-      { id: 'a4', name: 'correo_docente.pdf', size: '84 KB', type: 'application/pdf', approvals: [] },
-      { id: 'a5', name: 'acta_correccion.pdf', size: '190 KB', type: 'application/pdf', approvals: [] },
-    ],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2025-01-04T11:45:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
@@ -208,9 +196,6 @@ export const mockRequests: AcademicRequest[] = [
       { code: 'PS-503', name: 'Psicología Clínica', credits: 3, group: 'B1' },
     ],
     reason: 'Adición de créditos autorizada para adelanto de plan de estudios.',
-    attachments: [
-      { id: 'a6', name: 'historial_academico.pdf', size: '260 KB', type: 'application/pdf', approvals: [] },
-    ],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2024-12-18T08:00:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
@@ -250,9 +235,6 @@ export const mockRequests: AcademicRequest[] = [
     ],
     reason:
       'La sustentación fue calificada por el jurado pero la nota no se reflejó en el sistema. Adjunto acta del jurado.',
-    attachments: [
-      { id: 'a7', name: 'acta_jurado.pdf', size: '410 KB', type: 'application/pdf', approvals: [] },
-    ],
     assignedTo: COORDINATOR_NAME,
     timeline: [
       { id: 't1', date: '2025-01-08T07:40:00', actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
