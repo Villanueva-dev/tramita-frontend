@@ -23,6 +23,15 @@ test, cerrar #36, no tocar `metrics` del store).
   M1, M2, M3 y B3; B1, B2, B4 y B5 quedan como deuda registrada abajo. La muestra corre desde
   `main` en `:3000`, así que la PR se mergea antes. El navegador queda libre para T3. No se sabe
   en qué pantalla trabaja la coordinadora: M2 se aplica para cubrir todos los anchos.
+- **Tras la prueba en vivo (2026-09-28, tarde)**: (1) se retira la segunda caja «Buscar» del
+  panel de filtros (T8): dos cajas con el mismo rótulo confunden a una usuaria no técnica, y la
+  del panel solo añadía afinar por radicado o código dentro de resultados que ya son de un solo
+  estudiante. (2) **Una sola lista paginada**: el propietario no quiere dos listas de solicitudes
+  en pantalla (la tabla de resultados sin paginar y la bandeja). No son lo mismo —la tabla trae
+  todos los trámites del estudiante buscado, en cualquier estado, y la bandeja solo lo pendiente
+  de la Coordinación—, así que la salida acordada es mostrar los resultados en el mismo formato
+  paginado de la bandeja, con título propio y «Volver a la bandeja», y retirar la tabla. Va en
+  la **PR siguiente**, para no reabrir esta, ya revisada y probada.
 
 ## Alcance autorizado
 
@@ -101,6 +110,10 @@ resultados de búsqueda; `components/app-shell.tsx`.
   `Refs:`. Hecho con rebase no interactivo y rama de respaldo `backup-pre-reword-56`, con
   autorización explícita; cambió también el mensaje del registro de la revisión, que citaba un
   hash volátil.
+- [x] **T8 — Retirar la segunda caja «Buscar» del panel de filtros.** Commit `a7ead41`.
+  `app/dashboard/page.tsx` (estado `query`, su filtro y el bloque del panel) y `page.test.tsx`.
+  RED: tras buscar, no hay `textbox` con nombre «Buscar» y sí las cuatro etiquetas de los
+  filtros. Ruta: delegada (escritor: dos archivos).
 - [x] **T3 — Prueba en vivo** en Chrome, después de T4–T7, sirviendo el worktree en `:3001`: a
   1024, 1280, 1366 y 390 px, con 48 solicitudes; tamaño raíz de fuente confirmado (18 px en el
   Chrome del propietario; el código no lo fija).
@@ -226,6 +239,13 @@ resultados de búsqueda; `components/app-shell.tsx`.
     y mide 516 px: empuja toda la columna a ~514 px y aparece scroll horizontal en todo el
     tablero. Solo ocurre cuando el nombre del actor es un correo. Propuesta: issue aparte
     (`[overflow-wrap:anywhere]` en el `h2`, o mostrar un nombre en lugar del correo).
+
+- 2026-09-28 (tarde) — **T8 hecha, commit `a7ead41`**, escritor delegado. RED (`pnpm exec vitest
+  run app/dashboard/page.test.tsx`): 1 fallido / 19 en verde («tras buscar, el panel de filtros
+  no tiene una segunda caja de búsqueda»). GREEN: 20/20. Verificación: `pnpm lint` OK · `tsc`
+  OK · `pnpm test` 28 archivos / 395 · `pnpm build` OK · `git diff --check` OK. Chequeo puntual
+  del orquestador: 20/20. En vivo en `:3001`, tras buscar: sin `input#search`; el panel muestra
+  Tipo de trámite, Responsable, Estado y Fecha de radicación.
 
 ## Deuda registrada (no se aplica en esta PR)
 
