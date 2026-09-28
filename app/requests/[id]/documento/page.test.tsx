@@ -50,15 +50,6 @@ const request: AcademicRequest = {
   availableTransitions: [],
 }
 
-// #9(b): una definición que el cliente no reconoce no tiene tipo derivado.
-const unknownDefinitionRequest: AcademicRequest = {
-  ...request,
-  id: 'request-2',
-  type: null,
-  studentName: 'Estudiante Piloto',
-  definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
-}
-
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -74,56 +65,35 @@ function setup() {
 }
 
 describe('DocumentoPage', () => {
-  it('muestra el documento de ADICION_CREDITOS en EN_COORDINACION sin afirmar cierre', async () => {
+  it('un rechazo no se presenta como documento oficial ni ofrece imprimir', async () => {
+    const rechazada: AcademicRequest = {
+      ...request,
+      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
+      stateName: 'Rechazada',
+    }
+    useTramita.mockReturnValue({
+      getRequest: () => rechazada,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<DocumentoPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDefined())
+
+    expect(screen.queryByText(/se autoriza/i)).toBeNull()
+    expect(screen.queryByText(/documento oficial/i)).toBeNull()
+    expect(screen.queryByText(/constancia formal/i)).toBeNull()
+    expect(screen.queryByText(/verificable con folio/i)).toBeNull()
+    expect(screen.queryByText(/notificado al estudiante/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /imprimir/i })).toBeNull()
+    expect(screen.getAllByText('RAD-2026-001').length).toBeGreaterThan(0)
+  })
+
+  it('enlaza a la verificación pública del código del pie', async () => {
     setup()
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDefined())
 
-    expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
-    // El título usa `definition.name`, tal como lo envía el motor (D2): «créditos» en
-    // minúscula, no el rótulo del cliente (`REQUEST_TYPE_LABELS`, con mayúscula).
-    expect(screen.getByText('Solicitud de Adición de créditos')).toBeDefined()
-    expect(screen.queryByText(/documento oficial de cierre/i)).toBeNull()
-    expect(screen.queryByText(/constancia formal/i)).toBeNull()
-    expect(screen.queryByText(/notificado al estudiante/i)).toBeNull()
-    expect(screen.queryByText(/finalizado/i)).toBeNull()
-    expect(screen.queryByText(/tramitado y resuelto/i)).toBeNull()
-    expect(screen.queryByText(/se autoriza/i)).toBeNull()
-    expect(screen.queryByText(/observación de cierre/i)).toBeNull()
-    expect(screen.queryByText(/coordinador\(a\) académico/i)).toBeNull()
-  })
-
-  // #9(b): una definición desconocida muestra su propio nombre en el título, y el
-  // párrafo de detalle —que solo sabe describir adición o notas— no se muestra.
-  it('una definición desconocida muestra su nombre y no el párrafo de adición (#9b)', async () => {
-    useTramita.mockReturnValue({
-      getRequest: () => unknownDefinitionRequest,
-      refreshRequest: vi.fn().mockResolvedValue(undefined),
-    })
-    render(<DocumentoPage />)
-
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDefined())
-
-    expect(screen.getByText('Solicitud de Trámite piloto')).toBeDefined()
-    expect(screen.queryByText(/se solicita la adición de/i)).toBeNull()
-    expect(screen.queryByText(/se solicita la novedad de notas/i)).toBeNull()
-  })
-
-  it('la constancia de cierre no afirma que el estudiante fue notificado', async () => {
-    const cerrada: AcademicRequest = {
-      ...request,
-      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
-    }
-    useTramita.mockReturnValue({
-      getRequest: () => cerrada,
-      refreshRequest: vi.fn().mockResolvedValue(undefined),
-    })
-    render(<DocumentoPage />)
-
-    await waitFor(() => expect(screen.getByText('Documento oficial de cierre')).toBeDefined())
-
-    expect(screen.getByText(/Este documento constituye la constancia formal del trámite/)).toBeDefined()
-    expect(screen.queryByText(/notificado al estudiante/i)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Verificar documento' }).getAttribute('href')).toBe('/verificar')
   })
 
   it('descarga el documento de ADICION_CREDITOS en EN_COORDINACION desde el endpoint existente', async () => {
@@ -152,5 +122,8 @@ describe('DocumentoPage', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:document')
     // El nombre lo fija el backend: identifica el formato oficial y omite datos personales.
     expect(downloadedAs).toBe('DO-FR-100-request-1.pdf')
+    // El aviso muestra el nombre real guardado, no uno inventado en el cliente.
+    expect(await screen.findByText('DO-FR-100-request-1.pdf')).toBeDefined()
+    expect(screen.queryByText(/constancia_/)).toBeNull()
   })
 })
