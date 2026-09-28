@@ -74,37 +74,41 @@ resultados de búsqueda; `components/app-shell.tsx`.
 
 ## Tareas
 
-- [x] **T1 — Bandeja paginada con formato A.** Commit `2f4423f`. Archivos: `lib/use-coordination-inbox.ts`,
+- [x] **T1 — Bandeja paginada con formato A.** Commit `156cd40` (hash tras T7). Archivos: `lib/use-coordination-inbox.ts`,
   `components/dashboard/coordination-inbox.tsx`, sus tests, `lib/store.tsx` (exportar
   `typeFromCode`) y, si hace falta, `components/type-badge.tsx` (`className` opcional). RED: con
   11 entradas, la página 1 muestra 10 y la undécima aparece en la página 2; con 10 o menos no hay
   controles de paginación; el orden del servidor se conserva; `mayHaveMore` se calcula con 200;
   cada fila es un enlace a `/requests/{id}`; una adición devuelta lleva la marca de devuelta y una
   en revisión no. GREEN: paginación y filas con el formato A.
-- [x] **T2 — Tablero: buscador primero, sin tarjetas ni indicadores.** Commit `b3c1b1e`. Archivos:
+- [x] **T2 — Tablero: buscador primero, sin tarjetas ni indicadores.** Commit `5b70ceb` (hash tras T7). Archivos:
   `app/dashboard/page.tsx`, `page.test.tsx`, `page.integration.test.tsx`; se borran
   `components/dashboard/summary-cards.tsx` y su test. RED: el buscador precede a la bandeja; no
   hay tarjetas ni indicadores; los filtros no aparecen antes de buscar y sí después. GREEN: el
   reordenamiento y las eliminaciones del comentario de alcance de #56.
-- [ ] **T4 — M2: la ficha de estado parte línea en vez de montarse sobre la espera.**
-  `coordination-inbox.tsx:50`: `min-h-[30px] py-0.5` en lugar de `h-[30px] whitespace-nowrap`.
-  Visual, sin RED propio. Ruta: inline (una línea, sin decisión abierta).
-- [ ] **T5 — M3: al cambiar de página, la lista vuelve a su inicio y lo anuncia.**
-  `coordination-inbox.tsx` y su test. RED: tras «Siguiente», la sección de la bandeja recibe el
-  foco y se desplaza a su inicio (`scrollIntoView`); «Página X de Y» lleva `aria-live="polite"`.
-  Ruta: delegada (escritor: dos archivos no triviales).
-- [ ] **T6 — M1: la spec deja de exigir `limit` = 50.** `openspec/specs/coordination-inbox/spec.md`
-  (:21-26, :38, :160-172, :230-236): 200 y 199, citando el contrato `openapi.yaml:84-91`
-  (`minimum 1`, `maximum 200`, `default 50`). Ruta: inline.
-- [ ] **T7 — B3: reescribir los mensajes de `2f4423f` y `b3c1b1e`** a 72 columnas, con
-  `Verificado:` y `Refs:`. Con rama de respaldo `backup-pre-reword-56` y autorización explícita.
-- [ ] **T3 — Prueba en vivo** en Chrome, después de T4–T7, sirviendo el worktree en `:3001`: a
-  1024, 1280, 1366 y 390 px, con más de 10 solicitudes; confirmar el tamaño raíz de fuente.
+- [x] **T4 — M2: la ficha de estado parte línea en vez de montarse sobre la espera.** Commit
+  `7d13da3`. `coordination-inbox.tsx:50`: `min-h-[30px] py-0.5` en lugar de `h-[30px]
+  whitespace-nowrap`. Visual, sin RED propio. Ruta: inline (una línea, sin decisión abierta).
+- [x] **T5 — M3: al cambiar de página, la lista vuelve a su inicio y lo anuncia.** Commit
+  `bc8079b`. `coordination-inbox.tsx` y su test. RED: tras «Siguiente», la sección de la bandeja
+  recibe el foco y se desplaza a su inicio (`scrollIntoView`); «Página X de Y» lleva
+  `aria-live="polite"`. Ruta: delegada (escritor: dos archivos no triviales).
+- [x] **T6 — M1: la spec deja de exigir `limit` = 50.** Commit `f76398b`.
+  `openspec/specs/coordination-inbox/spec.md` (:21-26, :38, :160-172, :230-236): 200 y 199,
+  citando el contrato `openapi.yaml:84-91` (`minimum 1`, `maximum 200`, `default 50`). Ruta:
+  inline.
+- [x] **T7 — B3: reescribir los mensajes de T1 y T2** a 72 columnas, con `Verificado:` y
+  `Refs:`. Hecho con rebase no interactivo y rama de respaldo `backup-pre-reword-56`, con
+  autorización explícita; cambió también el mensaje del registro de la revisión, que citaba un
+  hash volátil.
+- [x] **T3 — Prueba en vivo** en Chrome, después de T4–T7, sirviendo el worktree en `:3001`: a
+  1024, 1280, 1366 y 390 px, con 48 solicitudes; tamaño raíz de fuente confirmado (18 px en el
+  Chrome del propietario; el código no lo fija).
 
 ## Progreso y evidencia
 
 - 2026-09-28 — Documento creado. Línea base medida en el worktree.
-- 2026-09-28 — **T1 hecha, commit `2f4423f`**, tras la aprobación del diff por el propietario. Ruta:
+- 2026-09-28 — **T1 hecha, commit `156cd40`** (`2f4423f` antes de T7), tras la aprobación del diff por el propietario. Ruta:
   delegada (escritor). RED antes de implementar (`pnpm exec vitest run
   components/dashboard/coordination-inbox.test.tsx lib/use-coordination-inbox.test.ts`): 11
   fallidos / 20 en verde; entre ellos `limit=200` (recibía `limit=50`), «con 11 entradas, la
@@ -120,7 +124,7 @@ resultados de búsqueda; `components/app-shell.tsx`.
   (error/rechazo). Verificación: `pnpm lint` OK · `pnpm exec tsc --noEmit` OK · `pnpm test` 29
   archivos / 394 tests en verde · `pnpm build` OK · `git diff --check` OK.
 
-- 2026-09-28 — **T2 hecha, commit `b3c1b1e`**, tras la aprobación del diff por el propietario. Ruta:
+- 2026-09-28 — **T2 hecha, commit `5b70ceb`** (`b3c1b1e` antes de T7), tras la aprobación del diff por el propietario. Ruta:
   delegada (escritor). RED antes de implementar (`pnpm exec vitest run
   app/dashboard/page.test.tsx`): 3 de 4 tests nuevos fallaban (el buscador no precedía a la
   bandeja; «Pendientes» presente; el panel de filtros se renderizaba sin haber buscado). El
@@ -138,7 +142,8 @@ resultados de búsqueda; `components/app-shell.tsx`.
   en el navegador compartido. No se usa Chrome hasta su aviso.
 
 - 2026-09-28 — **Revisión con agente limpio** (procedimiento `Tramita/docs/workflow/code-review-agente-limpio.md`,
-  `opus`, sin contexto, rango `5ff20a7..1cc77f5`). Veredicto: mergeable tras corregir; 0
+  `opus`, sin contexto, rango `5ff20a7..83f2bd8` con los hashes tras T7; entonces
+  `5ff20a7..1cc77f5`). Veredicto: mergeable tras corregir; 0
   críticos, 0 altos, 3 medios, 5 bajos. 14 mutantes mueren y 6 sobreviven. **Nada aplicado:
   pendiente de decisión del propietario.** Re-verificados por el orquestador con comandos
   propios: M1, M2 (por aritmética, sin render), M3 y B3.
@@ -158,7 +163,8 @@ resultados de búsqueda; `components/app-shell.tsx`.
     (`spec.md:98-100, 114-120`); el mutante que lo pinta de rojo sobrevive.
   - **B2 (sin re-verificar).** Sin test que distinga tres cosas: que el encabezado cuente todas
     las cargadas, que los filtros queden bajo el buscador y D2 («Revisar», no «Corregir»).
-  - **B3 (confirmado, error del orquestador).** `2f4423f` y `b3c1b1e` no llevan la línea
+  - **B3 (confirmado, error del orquestador).** Los commits de T1 y T2 (entonces `2f4423f` y
+    `b3c1b1e`) no llevan la línea
     `Verificado:` (`.gitmessage:53`) y tienen líneas de 73 a 76 caracteres (máximo 72). Al
     `2f4423f` le falta además `Refs:` al contrato. Sin push todavía: se corrige reescribiendo los
     mensajes, con autorización del propietario.
@@ -176,17 +182,62 @@ resultados de búsqueda; `components/app-shell.tsx`.
   entre 768 y ~1010 px y entre 1024 y ~1300 px, no solo hasta 1180. Descartada la alternativa
   de dar ancho mínimo a la columna: a 1024 aplasta el nombre y la espera.
 
+- 2026-09-28 (tarde) — **T4, T5, T6 y T7 hechas**, tras la aprobación del plan y de los diffs
+  por el propietario.
+  - T4 `7d13da3`, inline. Verificado sobre su propio árbol (sin los tests de T5): `pnpm lint`
+    OK · `pnpm exec tsc --noEmit` OK · `pnpm test` 28 archivos / 392 tests en verde.
+  - T5 `bc8079b`, escritor delegado. RED (`pnpm exec vitest run
+    components/dashboard/coordination-inbox.test.tsx`): 2 fallidos / 21 en verde («al pasar de
+    página, la bandeja vuelve a su inicio y recibe el foco»; «el contador se anuncia como región
+    viva cortés»). GREEN: 23/23. Verificación: `pnpm lint` OK · `tsc` OK · `pnpm test` 28
+    archivos / 394 · `pnpm build` OK · `git diff --check` OK. Corrección del orquestador: el
+    comentario de `goToPage` no cita la etiqueta «M3» del revisor. Chequeo puntual del
+    orquestador: 23/23. B4 queda resuelto de paso (los botones calculan desde `safePage`).
+  - T6 `f76398b`, inline: 7 reemplazos exactos; `grep` sin 50 ni 49 restantes.
+  - T7: `git rebase -i 5ff20a7` no interactivo (`GIT_SEQUENCE_EDITOR` marca tres `reword`;
+    `GIT_EDITOR` copia el mensaje nuevo según el asunto). `git diff backup-pre-reword-56 HEAD`
+    vacío; los 8 mensajes ≤ 72 caracteres (contados en caracteres, no en bytes). Hashes:
+    `2f4423f`→`156cd40`, `b1ec67a`→`8e29649`, `b3c1b1e`→`5b70ceb`, `1cc77f5`→`83f2bd8`,
+    `2d86aa1`→`0ad754a`, `586f27b`→`7d13da3`, `e3008d5`→`bc8079b`, `c514e46`→`f76398b`.
+
+- 2026-09-28 (tarde) — **T3 hecha** en Chrome con la sesión del propietario, sirviendo el
+  worktree en `:3001`. Gotcha: el backend valida el `Origin` contra `APP_CORS_ALLOWED_ORIGINS`
+  y `proxy.ts:5-6` lo reenvía intacto a propósito, así que el puerto del front tiene que estar
+  en esa allowlist (tras el reinicio del backend solo admitía `:3001`; `:3000` daba 403 sin
+  cuerpo, la firma del rechazo CORS de Spring). Bandeja con 48 solicitudes (5 páginas). Raíz de
+  fuente del Chrome del propietario: **18 px**; el código no la fija, la coordinadora vería 16.
+  - **M2.** A 1920 px la ficha «En coordinación (revisión)» mide 229 × 32 px en una columna de
+    357 (no parte). Con `iframe`s del ancho exacto (viewport propio, media queries reales): a
+    1366 → columna 222, ficha 222 × 59 (2 líneas), solape −22 px (el gap); a 1280 → columna 196,
+    ficha 196 × 59, −22; a 1024 (ventana real) → columna 218, ficha 218 × 59, −22. La fila mide
+    143 px cuando la ficha parte y 107 cuando no. **Nada se monta.**
+  - **M3 en escritorio (1366).** «Siguiente» desde el pie (scrollY 1268) → scrollY 351, foco en
+    la sección, título a 118 px con el encabezado fijo hasta 72 (visible), «Página 2 de 5»,
+    `aria-live="polite"`, `aria-atomic="true"`. Con `.click()` programático aparece el anillo de
+    foco (`outline: auto`), como con teclado.
+  - **M3 a 390 px, pulsación real con el mouse.** scrollY 2030 → 513, foco en la sección,
+    `:focus-visible` false y `outline: none` (sin anillo), título a 109 px (visible), «Página 2
+    de 5». Filas apiladas (ficha bajo el nombre), ficha en una línea (229 px), botones
+    «Anterior»/«Siguiente» de 54 px de alto (48 × 1,125).
+  - **Regresión T1/T2 a 1920.** Buscador antes de la bandeja; sin panel de filtros antes de
+    buscar; sin tarjetas ni indicadores; consola sin errores.
+  - **Hallazgo fuera de alcance, preexistente en `main` (`page.tsx:102,116-117`).** A 390 px
+    el saludo «Buenos días, <correo de la cuenta>» no puede partir (un correo no tiene espacios)
+    y mide 516 px: empuja toda la columna a ~514 px y aparece scroll horizontal en todo el
+    tablero. Solo ocurre cuando el nombre del actor es un correo. Propuesta: issue aparte
+    (`[overflow-wrap:anywhere]` en el `h2`, o mostrar un nombre en lugar del correo).
+
 ## Deuda registrada (no se aplica en esta PR)
 
 - B1 y B2: tests perdidos o faltantes (origen nulo con estilo neutro; encabezado que cuenta
   todas las cargadas; filtros bajo el buscador; D2).
-- B4: «Anterior»/«Siguiente» calculan desde `page` y no desde `safePage`; inalcanzable hoy
-  porque la bandeja carga una vez por montaje.
+- ~~B4~~: resuelto de paso en T5 (`bc8079b`): «Anterior»/«Siguiente» calculan desde `safePage`.
 - B5: `isSuccessfullyClosed` y la marca `rejection` quedan sin uso en producción a propósito,
   a la espera de las tarjetas con conteos (#51); `metrics` sobra en el mock de `page.test.tsx`.
 
 ## Siguiente paso
 
-T4–T7 con el diff mostrado al propietario antes de cada commit; después T3 en `:3001`; luego
-el borrador de la PR completo, push y PR (`Closes #56`, `Closes #36`) con autorización
-separada, y merge por el propietario antes de la muestra.
+Commit de este documento; borrador de la PR completo, push y PR (`Closes #56`, `Closes #36`)
+con autorización separada; merge por el propietario antes de la muestra. Antes de la muestra
+desde `main` en `:3000`, el backend necesita `http://localhost:3000` en
+`APP_CORS_ALLOWED_ORIGINS` (hoy solo tiene `:3001`).
