@@ -88,6 +88,9 @@ interface TramitaContextValue {
   /** True cuando la última búsqueda se completó: distingue «aún no buscó» de «sin coincidencias». */
   searched: boolean
   searchErrors: string[]
+  /** Devuelve el tablero a la bandeja (lista-unica-resultados D3): deja `searched` en
+   *  `false` y vacía resultados y errores. El tablero no puede tocar ese estado directamente. */
+  clearSearch: () => void
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   getRequest: (id: string) => AcademicRequest | undefined
@@ -266,6 +269,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  /** «Volver a la bandeja» (D3): la única forma honesta de salir de la búsqueda es dejar
+   *  `searched` en `false` acá — el tablero no puede tocarlo directamente. */
+  const clearSearch = useCallback(() => {
+    setRequests([])
+    setSearched(false)
+    setSearchErrors([])
+  }, [])
+
   const isAuthenticated = authStatus === 'authenticated'
 
   useEffect(() => {
@@ -374,13 +385,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     searchRequests,
     searched,
     searchErrors,
+    clearSearch,
     login,
     logout,
     getRequest,
     refreshRequest,
     createRequest,
     transition,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition])
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, clearSearch, login, logout, getRequest, refreshRequest, createRequest, transition])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 

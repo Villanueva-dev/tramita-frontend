@@ -2,9 +2,8 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { FilePlus2, Search, SlidersHorizontal, UserRound, X } from 'lucide-react'
+import { ArrowLeft, FilePlus2, Search, SlidersHorizontal, UserRound, X } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { RequestsTable } from '@/components/dashboard/requests-table'
 import { CoordinationInbox } from '@/components/dashboard/coordination-inbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,10 +12,31 @@ import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
 import { useCoordinationInbox } from '@/lib/use-coordination-inbox'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
-import type { RequestStatus, RequestType } from '@/lib/types'
+import type { AcademicRequest, InboxEntry, RequestStatus, RequestType } from '@/lib/types'
+
+/**
+ * Adapta un resultado de búsqueda al formato de la bandeja (lista-unica-resultados D2):
+ * una sola lista en pantalla, en vez de la tabla sin paginar que antes mostraban los
+ * resultados. `waitingSince = createdAt` porque los resultados no "esperan" una
+ * transición —incluyen trámites cerrados—; la variante `results` de `CoordinationInbox`
+ * ya rotula ese instante como "Radicada hace…", no "Esperando desde hace…".
+ * `pendingResponsible: ''` porque ese dato es propio de la bandeja, no de la búsqueda.
+ */
+function toInboxEntry(request: AcademicRequest): InboxEntry {
+  return {
+    id: request.id,
+    definition: request.definition,
+    studentName: request.studentName,
+    currentState: request.currentState,
+    createdAt: request.createdAt,
+    waitingSince: request.createdAt,
+    pendingResponsible: '',
+    origin: request.origin ?? null,
+  }
+}
 
 export default function DashboardPage() {
-  const { requests, coordinatorName, searchRequests, searched, searchErrors } = useTramita()
+  const { requests, coordinatorName, searchRequests, searched, searchErrors, clearSearch } = useTramita()
   const inbox = useCoordinationInbox()
   const [now] = useState(() => Date.now())
   // Término que viaja al backend (localización); los filtros de abajo acotan
@@ -42,6 +62,10 @@ export default function DashboardPage() {
     })
   }, [requests, typeFilter, statusFilter, responsibleFilter, dateFilter, now])
 
+  // Adaptados una sola vez por render de `filtered` (D2): es lo que ve la variante
+  // «resultados» de `CoordinationInbox`, en vez de la tabla sin paginar retirada.
+  const resultEntries = useMemo(() => filtered.map(toInboxEntry), [filtered])
+
   const hasActiveFilters =
     typeFilter !== 'all' ||
     statusFilter !== 'all' ||
@@ -53,6 +77,15 @@ export default function DashboardPage() {
     setStatusFilter('all')
     setResponsibleFilter('all')
     setDateFilter('all')
+  }
+
+  // «Volver a la bandeja» (D5): deja el tablero como al entrar. `clearSearch` es la única
+  // forma honesta de apagar `searched` (D3); limpiar filtros y el término evita que
+  // reaparezcan al buscar de nuevo.
+  function returnToInbox() {
+    clearSearch()
+    setSearchTerm('')
+    clearFilters()
   }
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
@@ -115,6 +148,18 @@ export default function DashboardPage() {
               Buscar
             </Button>
           </form>
+
+          {searched && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-fit gap-2 text-base"
+              onClick={returnToInbox}
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Volver a la bandeja
+            </Button>
+          )}
 
           {searchErrors.map((message) => (
             <p key={message} className="text-sm text-destructive">{message}</p>
@@ -227,31 +272,28 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Results */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Mostrando{' '}
-                  <span className="font-medium text-foreground">
-                    {filtered.length}
-                  </span>{' '}
-                  de {requests.length} solicitudes
-                </p>
-              </div>
-              {requests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Sin coincidencias para lo buscado.
-                </p>
-              ) : (
-                <RequestsTable requests={filtered} />
-              )}
-            </div>
+            {/* La lista de resultados ya dice «Mostrando a–b de n» (D4): esto solo explica
+                por qué se ve menos, cuando hay un filtro activo. */}
+            {hasActiveFilters && (
+              <p className="text-sm text-muted-foreground">
+                {filtered.length} de {requests.length} coinciden con los filtros
+              </p>
+            )}
           </>
         )}
 
-        {/* Bandeja de trabajo: qué espera la acción de la Coordinación, sin que nadie
-            busque. El orden y el recorte son del servidor (design.md, D1). */}
-        <CoordinationInbox inbox={inbox} now={now} />
+        {/* Una sola lista en pantalla (lista-unica-resultados): sin buscar, la bandeja de
+            trabajo —qué espera la acción de la Coordinación, en el orden del servidor
+            (design.md, D1)—; tras buscar, los resultados en el mismo formato (D1/D2), para
+            que dos listas con distinto propósito no lean como "la misma cosa". */}
+        {!searched && <CoordinationInbox inbox={inbox} now={now} />}
+        {searched && (
+          <CoordinationInbox
+            variant="results"
+            inbox={{ status: 'ready', entries: resultEntries, mayHaveMore: false }}
+            now={now}
+          />
+        )}
       </div>
     </AppShell>
   )
