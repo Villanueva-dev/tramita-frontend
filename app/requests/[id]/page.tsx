@@ -253,7 +253,9 @@ export default function RequestDetailPage() {
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <InfoRow label="Código" value={req.studentCode} />
+                  {req.studentCode.trim() ? (
+                    <InfoRow label="Código" value={req.studentCode} />
+                  ) : null}
                   <InfoRow label="Cédula" value={req.studentCedula} />
                   <InfoRow label="Programa" value={req.program} />
                   <InfoRow label="Semestre" value={req.semester} />
