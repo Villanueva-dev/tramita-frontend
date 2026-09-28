@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm, updateRequest as saveRequest } from './api'
+import { apiFetch, fetchRequestMetrics, problemMessage, searchRequests as fetchRequestsByTerm, updateRequest as saveRequest } from './api'
 import { apiErrorMessages } from './api-errors'
 import { useAuth } from './auth-store'
 import { addBusinessDays } from './format'
@@ -321,9 +321,18 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // El catálogo real evita que el formulario dependa de tipos hardcodeados.
     if (!isAuthenticated) return
+    let ignore = false
+    fetchRequestMetrics()
+      .then((result) => {
+        if (!ignore) setMetrics(result)
+      })
+      .catch(() => {
+        if (!ignore) setMetrics(null)
+      })
     apiFetch('/workflow-definitions').then(async (response) => {
       if (!response.ok) return
       const definitions = await response.json() as ApiDefinition[]
+      if (ignore) return
       setWorkflowConfig((current) => definitions.map((definition) =>
         current.find((item) => item.id === typeFromCode(definition.code)) ?? {
           id: typeFromCode(definition.code),
@@ -334,6 +343,9 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
         },
       ))
     })
+    return () => {
+      ignore = true
+    }
   }, [isAuthenticated])
 
   const login = useCallback(async (email: string, password: string) => {

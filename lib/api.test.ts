@@ -12,6 +12,7 @@ import {
   advanceRequest,
   ADVANCE_REQUEST_422_FIELD,
   askAssistant,
+  fetchRequestMetrics,
   submitPublicRequest,
 } from './api'
 import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
@@ -142,6 +143,27 @@ describe('askAssistant', () => {
       status: 503,
       title: 'Asistente no disponible',
     })
+  })
+})
+
+describe('fetchRequestMetrics', () => {
+  it('consulta las métricas agregadas del dashboard', async () => {
+    const metrics = {
+      total: 3,
+      byDefinition: { ADICION_CREDITOS: 3 },
+      byCurrentState: { REGISTRADA: 1, EN_FACULTAD: 2 },
+      completed: 0,
+      averageCycleHours: null,
+      returnCount: 0,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, metrics))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchRequestMetrics()).resolves.toEqual(metrics)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/metrics/requests',
+      expect.objectContaining({ method: 'GET' }),
+    )
   })
 })
 

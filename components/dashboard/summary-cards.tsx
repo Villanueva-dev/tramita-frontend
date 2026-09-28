@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
-import type { AcademicRequest } from '@/lib/types'
+import type { AcademicRequest, RequestMetrics } from '@/lib/types'
 import { isOverdue } from '@/lib/format'
 
 interface CardDef {
@@ -24,18 +24,20 @@ interface CardDef {
 
 export function SummaryCards({
   requests,
+  metrics,
   active,
   onSelect,
 }: {
   requests: AcademicRequest[]
+  metrics: RequestMetrics | null
   active: string
   onSelect: (key: string) => void
 }) {
-  const pending = requests.filter((r) => r.status === 'pendiente').length
-  const inProgress = requests.filter(
-    (r) => r.status === 'en_revision' || r.status === 'devuelto',
-  ).length
-  const completed = requests.filter(
+  const pending = metrics?.byCurrentState.REGISTRADA ?? requests.filter((r) => r.status === 'pendiente').length
+  const inProgress = metrics
+    ? metrics.total - pending - metrics.completed
+    : requests.filter((r) => r.status === 'en_revision' || r.status === 'devuelto').length
+  const completed = metrics?.completed ?? requests.filter(
     (r) => r.status === 'aprobado' || r.status === 'finalizado',
   ).length
   const urgent = requests.filter(

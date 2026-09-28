@@ -142,6 +142,7 @@ export default function DashboardPage() {
         {/* Summary cards */}
         <SummaryCards
           requests={requests}
+          metrics={metrics}
           active={cardFilter}
           onSelect={(k) => setCardFilter(k as CardFilter)}
         />

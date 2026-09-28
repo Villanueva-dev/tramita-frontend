@@ -11,6 +11,7 @@ import type {
   PublicReceipt,
   PublicRequestBody,
   Request,
+  RequestMetrics,
   RequestSummary,
   TimelineEntry,
   WorkflowDefinition,
@@ -235,6 +236,12 @@ export async function askAssistant(question: string): Promise<AssistantResponse>
   })
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as AssistantResponse
+}
+
+export async function fetchRequestMetrics(): Promise<RequestMetrics> {
+  const res = await apiFetch('/metrics/requests')
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as RequestMetrics
 }
 
 // --- Motor de workflow (Fase B) ---
