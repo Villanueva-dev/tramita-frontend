@@ -15,13 +15,41 @@ import type { InboxEntry } from '@/lib/types'
 /** Filas por página (issue #56): paginación de vista, no una nueva consulta al servidor. */
 const PAGE_SIZE = 10
 
+/** Variante de la lista (D1, odd/tasks/lista-unica-resultados.md): por defecto la bandeja. */
+export type CoordinationInboxVariant = 'inbox' | 'results'
+
 /**
- * «Esperando desde hace N días», con `waitingSince` — nunca `createdAt` (mutante 1,
- * coordination-inbox/spec.md, «La antigüedad de la espera se mide desde waitingSince»).
+ * Rótulo de tiempo de una fila, con `waitingSince` — nunca `createdAt` (mutante 1,
+ * coordination-inbox/spec.md, «La antigüedad de la espera se mide desde waitingSince»). El
+ * prefijo cambia según la variante; el cálculo, no: en los resultados de búsqueda el
+ * adaptador del tablero (`app/dashboard/page.tsx`, `toInboxEntry`) ya iguala
+ * `waitingSince` a `createdAt`, así que «Radicada hace…» sigue leyendo el mismo campo.
  */
-function ageLabel(entry: InboxEntry, now: number): string {
-  const days = daysSince(entry.waitingSince, new Date(now))
-  return `Esperando desde hace ${days} día${days === 1 ? '' : 's'}`
+function ageLabelFor(prefix: string) {
+  return (entry: InboxEntry, now: number): string => {
+    const days = daysSince(entry.waitingSince, new Date(now))
+    return `${prefix} ${days} día${days === 1 ? '' : 's'}`
+  }
+}
+
+/**
+ * Copy por variante (D1): título, mensaje de vacío y rótulo de tiempo. Solo eso cambia —el
+ * aviso de `mayHaveMore` y el texto de carga son iguales en las dos variantes.
+ */
+const VARIANT_COPY: Record<
+  CoordinationInboxVariant,
+  { heading: string; empty: string; ageLabel: (entry: InboxEntry, now: number) => string }
+> = {
+  inbox: {
+    heading: 'Bandeja de trabajo',
+    empty: 'No hay solicitudes pendientes en este momento.',
+    ageLabel: ageLabelFor('Esperando desde hace'),
+  },
+  results: {
+    heading: 'Resultados de la búsqueda',
+    empty: 'Sin coincidencias para lo buscado.',
+    ageLabel: ageLabelFor('Radicada hace'),
+  },
 }
 
 /**
@@ -71,7 +99,15 @@ function StateChip({ entry }: { entry: InboxEntry }) {
  * un solo punto de tabulación por fila. En escritorio cierra con «Revisar →»; a 390 px, con
  * un chevrón. Dice «Revisar» y nunca «Corregir»: el backend no expone edición de solicitudes.
  */
-function InboxRow({ entry, now }: { entry: InboxEntry; now: number }) {
+function InboxRow({
+  entry,
+  now,
+  ageLabel,
+}: {
+  entry: InboxEntry
+  now: number
+  ageLabel: (entry: InboxEntry, now: number) => string
+}) {
   return (
     <Link
       href={`/requests/${entry.id}`}
@@ -109,17 +145,33 @@ function InboxRow({ entry, now }: { entry: InboxEntry; now: number }) {
 }
 
 /**
- * La bandeja de trabajo de la Coordinación: qué espera su acción, en el orden que decide el
- * servidor (design.md, D1). Presentacional: el contenedor (`app/dashboard/page.tsx`) llama a
- * `useCoordinationInbox()` y reparte `inbox`/`now`. Nunca reordena ni filtra el arreglo que
- * llega — es exactamente lo que prueba el mutante 2b.
+ * Lista de solicitudes en el formato de la bandeja de trabajo (issue #56 y, con
+ * `variant="results"`, lista-unica-resultados D1). Antes había dos formatos en pantalla —esta
+ * bandeja y una tabla aparte para los resultados de búsqueda (`RequestsTable`, retirada)—; una
+ * sola lista paginada evita que dos formatos distintos lean como "dos cosas que hacen lo
+ * mismo" para una usuaria no técnica. Los resultados incluyen trámites cerrados que no
+ * "esperan" nada, así que solo cambian el título, el vacío y el rótulo de tiempo (`VARIANT_COPY`)
+ * — nunca el dato que muestran: el rótulo de estado sigue saliendo de `currentState.name`.
+ *
+ * Presentacional: el contenedor (`app/dashboard/page.tsx`) decide `inbox`/`now`/`variant`.
+ * Nunca reordena ni filtra el arreglo que llega — es exactamente lo que prueba el mutante 2b.
  *
  * La paginación es estado de vista local (issue #56): de 10 en 10, recortando el arreglo ya
- * ordenado por el servidor. No dispara una nueva consulta de red.
+ * ordenado por el servidor (o, en resultados, por el filtrado del tablero). No dispara una
+ * nueva consulta de red.
  */
-export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: number }) {
+export function CoordinationInbox({
+  inbox,
+  now,
+  variant = 'inbox',
+}: {
+  inbox: InboxState
+  now: number
+  variant?: CoordinationInboxVariant
+}) {
   const [page, setPage] = useState(0)
   const sectionRef = useRef<HTMLElement>(null)
+  const copy = VARIANT_COPY[variant]
 
   const entries = inbox.status === 'ready' ? inbox.entries : []
   const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE))
@@ -150,7 +202,7 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
     >
       <div className="flex flex-col gap-3 p-4 md:p-6">
         <h3 id="coordination-inbox-heading" className="text-xl font-bold leading-none tracking-tight">
-          Bandeja de trabajo
+          {copy.heading}
         </h3>
 
         {inbox.status === 'loading' && (
@@ -166,7 +218,7 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
         )}
 
         {inbox.status === 'ready' && entries.length === 0 && (
-          <p className="text-base text-muted-foreground">No hay solicitudes pendientes en este momento.</p>
+          <p className="text-base text-muted-foreground">{copy.empty}</p>
         )}
 
         {inbox.status === 'ready' && entries.length > 0 && inbox.mayHaveMore && (
@@ -179,7 +231,7 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
       {entries.length > 0 && (
         <div>
           {pageEntries.map((entry) => (
-            <InboxRow key={entry.id} entry={entry} now={now} />
+            <InboxRow key={entry.id} entry={entry} now={now} ageLabel={copy.ageLabel} />
           ))}
         </div>
       )}
