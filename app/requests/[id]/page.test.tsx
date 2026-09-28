@@ -5,6 +5,10 @@ import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
+// T4b: la descarga de un adjunto llama a `apiFetch` directo desde `page.tsx` (no pasa por el
+// store). Se mockea aparte, con `importOriginal`, para no tocar `problemMessage` (se necesita
+// real: lee `response.json()` para construir el mensaje del error).
+const apiFetchMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -14,6 +18,10 @@ vi.mock('@/components/app-shell', () => ({
 vi.mock('@/lib/store', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/store')>()),
   useTramita,
+}))
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiFetch: apiFetchMock,
 }))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
@@ -103,20 +111,132 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
     // El estado se muestra con el nombre del motor de workflow, no con la etiqueta genérica
-    // de la categoría interna. Aparece dos veces: la insignia del encabezado y el bloque de
-    // estado actual (`CurrentStateBlock`).
+    // de la categoría interna. Desde T2 aparece una sola vez, en el banner de estado
+    // (`CurrentStateBlock`): el encabezado ya no repite el nombre vía `StatusBadge`.
     expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined()
+  })
+
+  // T2 (rediseno-detalle-solicitud.md): el nombre del estudiante pasa a ser el encabezado
+  // visual del detalle. Es `h2` y no `h1` porque `AppShell` ya renderiza el `h1` con el
+  // título de la página (`components/app-shell.tsx:185-187`), fuera de alcance de esta tarea.
+  it('el nombre del estudiante es el encabezado h2 del detalle', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Ana Pérez' })).toBeDefined()
+  })
+
+  // Guarda, no RED propio: hoy la fila «Nombre» de «Datos del estudiante» ya es la única
+  // aparición visible de `studentName` (los usos en `mailto:`/`wa.me` van dentro de atributos
+  // `href`, no como texto del DOM). Tras T2 sigue habiendo una sola aparición: la fila
+  // «Nombre» se retira y el nombre pasa al `h2`.
+  it('el nombre del estudiante aparece una sola vez en el detalle (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('Ana Pérez')).toHaveLength(1)
+  })
+
+  // T2: el radicado y la fecha de radicación se muestran en una sola línea bajo el nombre del
+  // estudiante. Regex robusta al formato local de `formatDate` (es-CO): solo se afirma el texto
+  // fijo alrededor de la fecha, no su formato exacto.
+  it('muestra el radicado y la fecha de radicación bajo el nombre', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText(/^Solicitud request-1 · radicada el .+$/)).toBeDefined()
+  })
+
+  // T5 (prueba en vivo): el contrato del detalle no trae `updatedAt` (RequestResponse), y el
+  // store lo rellena con `createdAt` (lib/store.tsx:191). Mostrar «última actualización»
+  // afirmaba la fecha de radicación como si fuera la del último cambio, aun después de registrar
+  // una transición. La fecha real del último cambio ya está en el historial.
+  it('no afirma una fecha de última actualización que el contrato no trae', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText(/última actualización/i)).toBeNull()
+  })
+
+  // T2: con datos reales, `stateName` sale de `currentState.name` (`lib/store.tsx:188`), así
+  // que ambos coinciden — a diferencia del fixture de #9a, que conserva un `stateName`
+  // desactualizado y por eso no detectaba la duplicación. El encabezado ya no debe repetir el
+  // nombre del estado que muestra el banner (`CurrentStateBlock`): se retira `StatusBadge`.
+  it('el encabezado no repite el nombre del estado que ya muestra el banner', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('En coordinación (revisión)')).toHaveLength(1)
+  })
+
+  // T2: el detalle cuelga del `h1` de `AppShell` (mockeado en estas pruebas), así que ningún
+  // encabezado puede saltar un nivel respecto del anterior. El banner de estado va antes del
+  // nombre del estudiante (`h2`): si su rótulo fuera `h3`, la jerarquía quedaría invertida.
+  it('los encabezados del detalle no saltan niveles', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const levels = screen
+      .getAllByRole('heading')
+      .map((heading) => Number(heading.getAttribute('aria-level') ?? heading.tagName.slice(1)))
+    let previous = 1
+    for (const level of levels) {
+      expect(level).toBeLessThanOrEqual(previous + 1)
+      previous = level
+    }
   })
 
   it('abre el diálogo para la transición que entrega el backend', async () => {
     setup()
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined())
+    // T1: el botón de transición vive en el panel lateral «Acciones», ya no en el encabezado.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('button', { name: 'En facultad' })).toBeDefined()
+
     fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
 
     expect(screen.getByRole('dialog')).toBeDefined()
     expect(screen.getByText(/registrar transición a en facultad/i)).toBeDefined()
+  })
+
+  // Bug (T4a, odd/tasks/rediseno-detalle-solicitud.md): `ActionDialog` no esperaba la promesa de
+  // `onConfirm` y `runAction` mandaba el error solo al toast sin cerrar el diálogo, así que
+  // quedaba trabado con «Confirmar»/«Cancelar» deshabilitados y el mensaje visible solo detrás
+  // del fondo del modal.
+  it('si la transición falla, el diálogo sigue abierto y muestra el error dentro de sí mismo', async () => {
+    const transition = vi.fn().mockRejectedValue(new Error('El backend rechazó la transición.'))
+    useTramita.mockReturnValue({
+      getRequest: () => request,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition,
+      registerDocumentApproval: vi.fn(),
+    })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert.textContent).toContain('El backend rechazó la transición.')
+    // El diálogo sigue siendo el mismo (no se cerró y volvió a abrir): sigue montado.
+    expect(screen.getByRole('dialog')).toBeDefined()
+    // El mensaje no se duplica en el toast, detrás del fondo del modal.
+    expect(screen.getAllByText('El backend rechazó la transición.')).toHaveLength(1)
+    const confirmButton = within(dialog).getByRole('button', { name: 'En facultad' })
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancelar' })
+    expect(confirmButton.hasAttribute('disabled')).toBe(false)
+    expect(cancelButton.hasAttribute('disabled')).toBe(false)
   })
 
   // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). El
@@ -231,6 +351,11 @@ describe('RequestDetailPage', () => {
     const message = 'Hola Ana Pérez.\r\nSu trámite «Adición de créditos» quedó en estado: Finalizada.'
     const emailLink = screen.getByRole('link', { name: 'Enviar correo al estudiante' })
     const whatsappLink = screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })
+
+    // T1: los avisos manuales viven en el panel lateral «Acciones», junto a las transiciones.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
 
     expect(emailLink.getAttribute('href')).toBe(
       `mailto:ana@example.com?subject=${encodeURIComponent('Su proceso ha sido completado')}&body=${encodeURIComponent(message)}`,
@@ -363,14 +488,14 @@ describe('RequestDetailPage', () => {
     render(<RequestDetailPage />)
 
     await screen.findByRole('button', { name: 'Finalizada' })
-    vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: 'Finalizada' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Finalizada' }))
-    await vi.advanceTimersByTimeAsync(700)
 
-    expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', '')
-    expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
-    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+    // Sin relojes falsos: T4a retira la espera artificial de 700 ms, así que se espera el
+    // resultado real de la transición y de que el diálogo cierre y la página se actualice.
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', ''))
+    expect(await screen.findByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(await screen.findByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
   })
 
   // «Ahora depende de» es el único punto que responde a quién depende el trámite: la fila
@@ -430,9 +555,12 @@ describe('RequestDetailPage', () => {
   })
 
   // El sistema nunca sabe si el anexo se adjuntó (FR-012): el aviso solo recuerda qué llevar
-  // y de dónde sale, entre las acciones de transición (donde se decide reenviar) y el bloque
-  // de estado, sin convertirse en una región viva que interrumpa cada carga o transición.
-  it('muestra el requisito de anexo entre las acciones y el estado, sin afirmar que se adjuntó', async () => {
+  // y de dónde sale. D1 (odd/tasks/rediseno-detalle-solicitud.md): el requisito canónico es
+  // «cerca de las acciones de transición» (spec.md:292, escenario :355-359); el orden relativo
+  // al enlace del PDF era la forma de cumplirlo con el layout viejo (un solo encabezado). Con
+  // el panel lateral, «cerca» significa dentro de la misma región «Acciones» — se abandona la
+  // aproximación por posición de DOM y se afirma directamente la contención.
+  it('muestra el requisito de anexo dentro del panel de acciones, sin afirmar que se adjuntó', async () => {
     const conAnexo: AcademicRequest = {
       ...request,
       annexRequirement: {
@@ -446,20 +574,12 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
-    const documentLink = screen.getByRole('link', { name: 'Ver documento PDF' })
-    const annexNotice = screen.getByRole('region', { name: 'Anexo requerido' })
-    const currentStateBlock = screen.getByRole('region', { name: 'Estado actual' })
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    const annexNotice = within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })
 
     expect(annexNotice.textContent).toContain('Documento de prueba')
     expect(annexNotice.textContent).toContain('Lo entrega el estudiante')
     expect(annexNotice.textContent).not.toMatch(/adjuntad[oa]|se adjuntó|recibid[oa]/i)
-
-    expect(
-      documentLink.compareDocumentPosition(annexNotice) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      annexNotice.compareDocumentPosition(currentStateBlock) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
 
     expect(annexNotice.matches('[role="alert"]')).toBe(false)
     expect(annexNotice.hasAttribute('aria-live')).toBe(false)
@@ -473,5 +593,193 @@ describe('RequestDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
     expect(screen.queryByRole('region', { name: 'Anexo requerido' })).toBeNull()
+  })
+
+  // T1 (rediseno-detalle-solicitud.md): un estado final no tiene transiciones (:233), pero el
+  // aviso de anexo sigue siendo obligatorio en cualquier estado (spec.md:292-294). La región
+  // «Acciones» debe existir solo por el aviso, sin ofrecer ningún botón de transición.
+  it('en un estado final con anexo, la región Acciones existe con el aviso y sin botones de transición', async () => {
+    const cerradoConAnexo: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+      annexRequirement: {
+        documentName: 'Documento de prueba',
+        sourceHint: 'Lo entrega el estudiante',
+      },
+    }
+    mockTramita({ getRequest: () => cerradoConAnexo })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })).toBeDefined()
+    expect(within(actionsPanel).queryAllByRole('button')).toHaveLength(0)
+  })
+
+  // T1: sin transiciones, sin anexo y sin enlaces de aviso (origin: null, como en el fixture
+  // base), no queda ningún contenedor vacío en el panel lateral: la región no se renderiza.
+  it('sin transiciones, anexo ni enlaces de aviso, la región Acciones no se renderiza', async () => {
+    const cerradoSinAvisos: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => cerradoSinAvisos })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('region', { name: 'Acciones' })).toBeNull()
+  })
+
+  // T3 (rediseno-detalle-solicitud.md): `studentPhone` es `string | null` en el contrato (una
+  // clave ausente llega como `null`, lib/store.tsx:210). La fila «Teléfono» de «Datos del
+  // estudiante» solo existe cuando el dato llega.
+  it('muestra la fila «Teléfono» cuando studentPhone llega con un valor', async () => {
+    const conTelefono: AcademicRequest = { ...request, studentPhone: '3001234567' }
+    mockTramita({ getRequest: () => conTelefono })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Teléfono')).toBeDefined()
+    expect(screen.getByText('3001234567')).toBeDefined()
+  })
+
+  // Guarda, no RED propio: el fixture base ya declara `studentPhone: null` y el resto de la
+  // suite lo usa sin que aparezca la fila; se afirma explícitamente una vez.
+  it('no muestra la fila «Teléfono» cuando studentPhone es null (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Teléfono')).toBeNull()
+  })
+
+  // T3: «Lo que se solicita» reemplaza a «Información del trámite» (mismo ícono, sin cambio
+  // de contrato).
+  it('la sección de asignaturas se titula «Lo que se solicita»', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Lo que se solicita')).toBeDefined()
+    expect(screen.queryByText('Información del trámite')).toBeNull()
+  })
+
+  // T3: la tarjeta «Créditos solicitados» suma `subjects[].credits` (3 + 2 = 5). Se marca con
+  // `dl`/`dt`/`dd` para que sea testeable por rol («term»/«definition»), acotado con `within`
+  // porque «Datos del estudiante» ya declara sus propios `dt`/`dd` por cada fila.
+  it('«Créditos solicitados» suma los créditos de las asignaturas en adición de créditos', async () => {
+    const conAsignaturas: AcademicRequest = {
+      ...request,
+      subjects: [
+        { code: 'MAT-101', name: 'Cálculo I', credits: 3 },
+        { code: 'FIS-201', name: 'Física I', credits: 2 },
+      ],
+    }
+    mockTramita({ getRequest: () => conAsignaturas })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const summary = screen.getByText('Créditos solicitados').closest('dl') as HTMLElement
+    expect(within(summary).getByRole('term').textContent).toBe('Créditos solicitados')
+    expect(within(summary).getByRole('definition').textContent).toBe('5')
+  })
+
+  // Guardas (hoy ya pasan sin la tarjeta implementada): novedad de notas, una definición
+  // desconocida (#9b, `type: null`) y adición sin asignaturas no deben insinuar un total de
+  // créditos.
+  it('no muestra «Créditos solicitados» en novedad de notas, definición desconocida ni adición sin asignaturas (guardas)', async () => {
+    const casos: AcademicRequest[] = [
+      {
+        ...request,
+        type: 'novedad_notas',
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+        subjects: [{ code: 'MAT-101', name: 'Cálculo I', credits: 3, currentGrade: '3.0', proposedGrade: '4.0' }],
+      },
+      baseRequest({
+        id: 'request-5',
+        definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+        studentName: 'Estudiante Piloto',
+        studentDocument: '9999999999',
+        currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+        subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+        createdAt: '2026-09-01T12:00:00',
+        availableTransitions: [],
+      }),
+      { ...request, subjects: [] },
+    ]
+
+    for (const caso of casos) {
+      mockTramita({ getRequest: () => caso })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText(caso.studentName)).toBeDefined())
+      expect(screen.queryByText('Créditos solicitados')).toBeNull()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
+
+  // T4b (rediseno-detalle-solicitud.md): antes, el mensaje flotante siempre llevaba el ícono de
+  // éxito (`CheckCircle2`) y ningún rol accesible, así que un lector de pantalla no distinguía
+  // un error de un éxito. El mensaje de éxito se anuncia como `role="status"`.
+  it('el mensaje de éxito de una transición se anuncia con role="status"', async () => {
+    const transition = setup()
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'EN_FACULTAD', ''))
+    const status = await screen.findByRole('status')
+    expect(status.textContent).toContain('Solicitud registrada en estado En facultad.')
+  })
+
+  // T4b: un error de descarga (hoy inalcanzable en la práctica porque la sección de documentos
+  // llega vacía, pero el código lo maneja) usaba el mismo mensaje flotante que el éxito, con el
+  // mismo ícono. Debe anunciarse aparte, como `role="alert"`, y nunca como `role="status"`.
+  it('un error de descarga se anuncia con role="alert" y nunca como role="status"', async () => {
+    const conAdjunto: AcademicRequest = {
+      ...request,
+      attachments: [
+        { id: 'doc-1', name: 'Certificado.pdf', size: '120 KB', type: 'application/pdf', approvals: [] },
+      ],
+    }
+    mockTramita({ getRequest: () => conAdjunto })
+    apiFetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ detail: 'No se pudo descargar el archivo de prueba.' }),
+    } as Response)
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('No se pudo descargar el archivo de prueba.')
+    // Ningún `role="status"` debe llevar el mensaje de error: son roles ARIA distintos y
+    // anunciarlo como éxito sería el mismo defecto que se corrige en esta tarea.
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  // T4b: la tarjeta «Resumen» solo repetía el tipo de trámite, que el encabezado ya muestra
+  // (`TypeBadge`, T2). Se retira del panel lateral.
+  it('la tarjeta «Resumen» ya no existe', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Resumen')).toBeNull()
   })
 })

@@ -7,10 +7,12 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  CircleAlert,
   CornerUpLeft,
   Download,
   FileText,
   GraduationCap,
+  History,
   Mail,
   MessageCircle,
   Paperclip,
@@ -19,7 +21,6 @@ import {
   X,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
 import { CurrentStateBlock } from '@/components/current-state-block'
@@ -29,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -60,11 +62,16 @@ function normalizeApprovalDate(value: string) {
   return value.length === 16 ? `${value}:00` : value
 }
 
+// T4b (rediseno-detalle-solicitud.md): antes era un `string` y el render siempre usaba el
+// ícono y el estilo de éxito, así que un error de descarga se anunciaba como si hubiera
+// funcionado. El tipo distingue el caso para elegir rol ARIA, ícono y tono en el render.
+type ResultMessage = { kind: 'success' | 'error'; text: string }
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{value}</dd>
+      <dt className="text-base text-muted-foreground">{label}</dt>
+      <dd className="text-[17px] font-medium">{value}</dd>
     </div>
   )
 }
@@ -74,7 +81,7 @@ export default function RequestDetailPage() {
   const searchParams = useSearchParams()
   const { getRequest, refreshRequest, transition, registerDocumentApproval } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
-  const [toast, setToast] = useState<string>('')
+  const [resultMessage, setResultMessage] = useState<ResultMessage | null>(null)
   const [loading, setLoading] = useState(true)
   const [now] = useState(() => Date.now())
   const [approvalDrafts, setApprovalDrafts] = useState<Record<string, DocumentApprovalInput>>({})
@@ -96,10 +103,10 @@ export default function RequestDetailPage() {
   const [showCreated, setShowCreated] = useState(justCreated)
 
   useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(''), 3500)
+    if (!resultMessage) return
+    const t = setTimeout(() => setResultMessage(null), 3500)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [resultMessage])
 
   if (loading) {
     return (
@@ -146,20 +153,22 @@ export default function RequestDetailPage() {
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'No se pudo descargar el archivo.')
+      setResultMessage({
+        kind: 'error',
+        text: error instanceof Error ? error.message : 'No se pudo descargar el archivo.',
+      })
     }
   }
 
   async function runAction(comment: string) {
     if (!dialog) return
-    try {
-      // El éxito se informa después de confirmar la persistencia en PostgreSQL.
-      await transition(requestId, dialog.targetStateCode, comment)
-      setToast(`Solicitud registrada en estado ${dialog.confirmLabel}.`)
-      setDialog(null)
-    } catch (error) {
-      setToast(error instanceof Error ? error.message : 'No se pudo aplicar la transición.')
-    }
+    // El éxito se informa después de confirmar la persistencia en PostgreSQL. El error ya no
+    // se captura acá: se propaga a `ActionDialog` (contrato de `onConfirm`), que lo muestra
+    // dentro de sí mismo y mantiene sus botones activos para reintentar (T4a,
+    // odd/tasks/rediseno-detalle-solicitud.md).
+    await transition(requestId, dialog.targetStateCode, comment)
+    setResultMessage({ kind: 'success', text: `Solicitud registrada en estado ${dialog.confirmLabel}.` })
+    setDialog(null)
   }
 
   function getApprovalDraft(documentId: string): DocumentApprovalInput {
@@ -198,7 +207,7 @@ export default function RequestDetailPage() {
         [documentId]: { ...DEFAULT_APPROVAL_DRAFT, signedAt: approvalDateValue() },
       }))
       setOpenApprovalId(null)
-      setToast('Aprobación documental registrada.')
+      setResultMessage({ kind: 'success', text: 'Aprobación documental registrada.' })
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : 'No se pudo registrar la aprobación documental.')
     } finally {
@@ -229,6 +238,18 @@ export default function RequestDetailPage() {
     commentRequired: availableTransition.requiresNote,
     variant: availableTransition.requiresNote ? 'destructive' : 'default',
   }))
+  // Sin transiciones, sin anexo y sin enlaces de aviso, el panel no tiene nada que mostrar:
+  // la región no se renderiza, tampoco como contenedor vacío.
+  const hasActionsPanel =
+    transitionActions.length > 0 ||
+    Boolean(req.annexRequirement) ||
+    Boolean(emailHref) ||
+    Boolean(whatsappHref)
+  const totalCredits = req.subjects.reduce((sum, subject) => sum + subject.credits, 0)
+  // «Créditos solicitados» solo tiene sentido en adición de créditos y solo cuando hay
+  // asignaturas que sumar: una definición desconocida (`type: null`, #9b) o una solicitud sin
+  // asignaturas no debe insinuar un total.
+  const showCreditsSummary = req.type === 'adicion_creditos' && req.subjects.length > 0
 
   return (
     <AppShell title="Detalle de solicitud">
@@ -246,92 +267,39 @@ export default function RequestDetailPage() {
             </button>
           </div>
         )}
-        {toast && (
-          <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background shadow-lg">
-            <CheckCircle2 className="size-4" />
-            {toast}
+        {/* D5 (rediseno-detalle-solicitud.md): posición flotante conservada; se corrige la
+            semántica — antes todo mensaje llevaba el ícono de éxito y ningún rol ARIA, así que
+            un error de descarga parecía un éxito. Éxito: `role="status"`. Error: `role="alert"`,
+            tono destructivo e ícono de alerta. */}
+        {resultMessage && resultMessage.kind === 'success' && (
+          <div
+            role="status"
+            className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-base font-medium text-background shadow-lg"
+          >
+            <CheckCircle2 className="size-4 shrink-0" />
+            {resultMessage.text}
+          </div>
+        )}
+        {resultMessage && resultMessage.kind === 'error' && (
+          <div
+            role="alert"
+            className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-destructive px-4 py-2.5 text-base font-medium text-destructive-foreground shadow-lg"
+          >
+            <CircleAlert className="size-4 shrink-0" />
+            {resultMessage.text}
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <Link
-            href="/dashboard"
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Volver a la bandeja
-          </Link>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-serif text-2xl font-bold tracking-tight">
-                  {req.radicado}
-                </h2>
-                <StatusBadge status={req.status} stateName={req.stateName} />
-                {req.priority === 'urgente' && !isFinalized && (
-                  <Badge variant="destructive">Urgente</Badge>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <TypeBadge code={req.definition.code} name={req.definition.name} />
-                <span>Radicado el {formatDate(req.createdAt)}</span>
-                <span aria-hidden>·</span>
-                <span>Última actualización {formatDate(req.updatedAt)}</span>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2">
-              {transitionActions.map((action) => (
-                <Button
-                  key={action.targetStateCode}
-                  variant={action.variant}
-                  onClick={() => setDialog(action)}
-                  className="gap-2"
-                >
-                  <CheckCircle2 className="size-4" />
-                  {action.confirmLabel}
-                </Button>
-              ))}
-              <Link href={`/requests/${req.id}/documento`}>
-                <Button className="gap-2">
-                  <Download className="size-4" />
-                  Ver documento PDF
-                </Button>
-              </Link>
-              {emailHref && (
-                <a
-                  href={emailHref}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  <Mail className="size-4" />
-                  Enviar correo al estudiante
-                </a>
-              )}
-              {whatsappHref && (
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  <MessageCircle className="size-4" />
-                  Enviar WhatsApp al estudiante
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Va junto a las acciones porque ahí se decide reenviar a la facultad; el texto nunca
-            afirma que el anexo ya se adjuntó, se recibió ni se pidió (el sistema no lo sabe). */}
-        {req.annexRequirement ? (
-          <AnnexRequirementNotice
-            documentName={req.annexRequirement.documentName}
-            sourceHint={req.annexRequirement.sourceHint}
-          />
-        ) : null}
+        {/* Enlace de regreso → banner de estado → encabezado: el banner va primero porque el
+            dato central del producto es de quién depende ahora el trámite (CLAUDE.md, «Qué se
+            está construyendo»), y ese dato vive en `CurrentStateBlock`. */}
+        <Link
+          href="/dashboard"
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Volver a la bandeja
+        </Link>
 
         <CurrentStateBlock
           state={req.currentState}
@@ -340,20 +308,56 @@ export default function RequestDetailPage() {
           now={now}
         />
 
+        {/* Header: el nombre del estudiante identifica la solicitud; es `h2` porque `AppShell`
+            ya renderiza el `h1` con el título de la página
+            (`components/app-shell.tsx:185-187`). Sin `StatusBadge`: con datos
+            reales `stateName` sale de `currentState.name` (`lib/store.tsx:188`) y repetiría el
+            nombre del estado que ya muestra el banner de arriba. */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <TypeBadge code={req.definition.code} name={req.definition.name} />
+              {req.priority === 'urgente' && !isFinalized && (
+                <Badge variant="destructive">Urgente</Badge>
+              )}
+            </div>
+            <h2 className="font-serif text-[34px] font-bold leading-tight tracking-tight">
+              {req.studentName}
+            </h2>
+            {/* Sin «última actualización»: el contrato no trae `updatedAt` y el store lo rellena
+                con `createdAt` (lib/store.tsx:191). La fecha del último cambio está en el
+                historial. */}
+            <p className="text-[17px] text-muted-foreground">
+              {`Solicitud ${req.radicado} · radicada el ${formatDate(req.createdAt)}`}
+            </p>
+          </div>
+
+          {/* Los botones de transición y los avisos al estudiante viven en el panel lateral
+              «Acciones» (T1, odd/tasks/rediseno-detalle-solicitud.md); el enlace al PDF se
+              queda en el encabezado. */}
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/requests/${req.id}/documento`}>
+              <Button variant="outline" className="h-12 gap-2 px-5 text-base font-semibold">
+                <Download className="size-4" />
+                Ver documento PDF
+              </Button>
+            </Link>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left column */}
           <div className="flex flex-col gap-6 lg:col-span-2">
             {/* Student data */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <User className="size-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <User className="size-5 text-primary" />
                   Datos del estudiante
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <InfoRow label="Nombre" value={req.studentName} />
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
                   <InfoRow label="Código" value={req.studentCode} />
                   <InfoRow label="Cédula" value={req.studentCedula} />
                   <InfoRow label="Programa" value={req.program} />
@@ -361,12 +365,21 @@ export default function RequestDetailPage() {
                   <InfoRow
                     label="Correo"
                     value={
-                      <span className="inline-flex items-center gap-1 text-primary">
-                        <Mail className="size-3.5" />
-                        <span className="truncate">{req.studentEmail}</span>
+                      <span className="inline-flex items-start gap-1 text-primary">
+                        <Mail className="mt-0.5 size-3.5 shrink-0" />
+                        {/* Un correo no tiene espacios donde partirse: sin
+                            `overflow-wrap:anywhere` desborda la columna, y elidirlo con puntos
+                            suspensivos ocultaría parte del dato. */}
+                        <span className="break-words [overflow-wrap:anywhere]">
+                          {req.studentEmail}
+                        </span>
                       </span>
                     }
                   />
+                  {/* `studentPhone` es opcional en el contrato: una clave ausente llega como
+                      `null` (lib/store.tsx:210). El chequeo de verdad descarta además una cadena
+                      vacía, así que la fila solo aparece cuando hay un número que mostrar. */}
+                  {req.studentPhone && <InfoRow label="Teléfono" value={req.studentPhone} />}
                 </dl>
               </CardContent>
             </Card>
@@ -374,16 +387,26 @@ export default function RequestDetailPage() {
             {/* Request info */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <GraduationCap className="size-4 text-primary" />
-                  Información del trámite
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <GraduationCap className="size-5 text-primary" />
+                  Lo que se solicita
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <div className="overflow-hidden rounded-lg border border-border">
-                  <table className="w-full text-left text-sm">
+                {showCreditsSummary && (
+                  <dl className="rounded-xl bg-primary/5 px-4 py-3">
+                    <dt className="text-base text-muted-foreground">Créditos solicitados</dt>
+                    <dd className="text-[26px] font-bold text-primary">{totalCredits}</dd>
+                  </dl>
+                )}
+
+                {/* `overflow-x-auto`, no `overflow-hidden`: a 17px la tabla no cabe en un
+                    celular (~390px) y ocultar el desborde escondía la última columna; así se
+                    desplaza dentro de su recuadro sin perder datos. */}
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-[17px]">
                     <thead>
-                      <tr className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
+                      <tr className="border-b border-border bg-muted/50 text-base text-muted-foreground">
                         <th className="px-3 py-2 font-semibold">Código</th>
                         <th className="px-3 py-2 font-semibold">Asignatura</th>
                         {/* Tres vías, no un ternario binario (D2): `type: null` es una
@@ -432,10 +455,10 @@ export default function RequestDetailPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <p className="text-xs font-medium text-muted-foreground">
+                  <p className="text-base font-medium text-muted-foreground">
                     Motivo / justificación
                   </p>
-                  <p className="text-pretty text-sm leading-relaxed">
+                  <p className="text-pretty text-[17px] leading-relaxed">
                     {req.reason}
                   </p>
                 </div>
@@ -445,8 +468,8 @@ export default function RequestDetailPage() {
             {/* Attachments */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Paperclip className="size-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <Paperclip className="size-5 text-primary" />
                   Documentos adjuntos
                 </CardTitle>
               </CardHeader>
@@ -601,25 +624,81 @@ export default function RequestDetailPage() {
             </Card>
           </div>
 
-          {/* Right column: timeline */}
-          <div className="flex flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Resumen</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="flex flex-col gap-3">
-                  <InfoRow
-                    label="Tipo de trámite"
-                    value={req.definition.name}
-                  />
-                </dl>
-              </CardContent>
-            </Card>
+          {/* Right column: acciones + timeline. Fija al hacer scroll, como en el mockup: el panel
+              de acciones y el historial acompañan mientras se revisa la columna principal.
+              `top-20` = la barra sticky de `AppShell` (`h-16`) más 1rem de aire: con menos, el
+              panel se pega debajo de la barra y su título queda oculto. */}
+          <div className="flex flex-col gap-6 lg:sticky lg:top-20 lg:self-start">
+            {hasActionsPanel && (
+              <section
+                aria-label="Acciones"
+                className="overflow-hidden rounded-2xl border-2 border-primary"
+              >
+                <div className="bg-primary/10 px-5 py-3">
+                  <h3 className="text-[17px] font-bold text-primary">Acciones</h3>
+                </div>
+                <div className="flex flex-col gap-3 p-5">
+                  {transitionActions.length > 0 && (
+                    <>
+                      <p className="text-[17px]">
+                        Registre el estado al que pasa la solicitud.
+                      </p>
+                      {transitionActions.map((action) => (
+                        <Button
+                          key={action.targetStateCode}
+                          variant={action.variant}
+                          onClick={() => setDialog(action)}
+                          className="h-[52px] w-full gap-2 text-[17px] font-semibold"
+                        >
+                          <CheckCircle2 className="size-4" />
+                          {action.confirmLabel}
+                        </Button>
+                      ))}
+                    </>
+                  )}
 
+                  {req.annexRequirement ? (
+                    <AnnexRequirementNotice
+                      documentName={req.annexRequirement.documentName}
+                      sourceHint={req.annexRequirement.sourceHint}
+                    />
+                  ) : null}
+
+                  {emailHref && (
+                    <a
+                      href={emailHref}
+                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-base font-medium hover:bg-muted"
+                    >
+                      <Mail className="size-4" />
+                      Enviar correo al estudiante
+                    </a>
+                  )}
+                  {whatsappHref && (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-base font-medium hover:bg-muted"
+                    >
+                      <MessageCircle className="size-4" />
+                      Enviar WhatsApp al estudiante
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* «Resumen» se retira (T4b): solo repetía el tipo de trámite, que el encabezado ya
+                muestra con `TypeBadge` (T2). */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Historial y auditoría</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <History className="size-5 text-primary" />
+                  Historial
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Lo registrado en este trámite, del más reciente al más antiguo.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <WorkflowTimeline events={req.timeline} />

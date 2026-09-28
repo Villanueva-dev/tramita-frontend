@@ -1,5 +1,7 @@
+import { Clock, Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { daysSince } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { Responsibility } from '@/lib/request-state'
 import type { State } from '@/lib/types'
 
@@ -42,31 +44,55 @@ export function CurrentStateBlock({
   const showAge = !state.isFinal && waitingSince !== null
   const days = showAge && waitingSince !== null ? daysSince(waitingSince, new Date(now)) : null
 
+  // Tono neutro en un estado final, no el de éxito (`success`): un cierre puede ser negado
+  // (spec.md :496-503), así que el bloque no puede afirmar que el trámite terminó bien.
   return (
     <section
       aria-labelledby="current-state-heading"
-      className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm"
+      className={cn(
+        'flex flex-wrap items-center gap-5 rounded-2xl border-2 px-6 py-5 sm:px-7',
+        state.isFinal ? 'border-border bg-muted/40' : 'border-primary/30 bg-primary/5',
+      )}
     >
-      <h3 id="current-state-heading" className="font-semibold leading-none tracking-tight">
-        Estado actual
-      </h3>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-base font-medium">{state.name}</span>
-        {state.isInitial && <Badge variant="info">Inicial</Badge>}
-        {state.isFinal && <Badge variant="secondary">Cerrado</Badge>}
-      </div>
-      <dl className="flex flex-col gap-3">
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-medium text-muted-foreground">Ahora depende de</dt>
-          <dd className="text-sm">{responsibilityText(responsibility)}</dd>
-        </div>
-        {showAge && days !== null && (
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs font-medium text-muted-foreground">Antigüedad del estado</dt>
-            <dd className="text-sm">{ageLabel(days)}</dd>
-          </div>
+      <span
+        aria-hidden
+        className={cn(
+          'grid size-16 shrink-0 place-items-center rounded-full text-white',
+          state.isFinal ? 'bg-muted-foreground' : 'bg-primary',
         )}
-      </dl>
+      >
+        {state.isFinal ? <Lock className="size-8" /> : <Clock className="size-8" />}
+      </span>
+      <div className="flex flex-col gap-2">
+        {/* `h2`: el banner es una sección de primer nivel y va antes del `h2` con el nombre
+            del estudiante; un `h3` aquí invertiría la jerarquía de encabezados. */}
+        <h2
+          id="current-state-heading"
+          className={cn(
+            'text-base font-semibold uppercase tracking-wide',
+            state.isFinal ? 'text-muted-foreground' : 'text-primary',
+          )}
+        >
+          Estado actual
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[34px] font-bold leading-tight">{state.name}</span>
+          {state.isInitial && <Badge variant="info">Inicial</Badge>}
+          {state.isFinal && <Badge variant="secondary">Cerrado</Badge>}
+        </div>
+        <dl className="flex flex-col gap-1 text-[18px]">
+          <div className="flex flex-col gap-0.5">
+            <dt className="font-medium text-muted-foreground">Ahora depende de</dt>
+            <dd>{responsibilityText(responsibility)}</dd>
+          </div>
+          {showAge && days !== null && (
+            <div className="flex flex-col gap-0.5">
+              <dt className="font-medium text-muted-foreground">Antigüedad del estado</dt>
+              <dd>{ageLabel(days)}</dd>
+            </div>
+          )}
+        </dl>
+      </div>
     </section>
   )
 }
