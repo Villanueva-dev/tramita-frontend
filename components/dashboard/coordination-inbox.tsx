@@ -40,6 +40,8 @@ function originLabel(origin: InboxEntry['origin']): string {
  * `typeFromCode` (`lib/store.tsx`): no se crea ningún mapa nuevo de estado a color (regla 1,
  * revisar-frontend-next). En novedad de notas la devolución no es un estado —la tabla de
  * `request-state.ts` no tiene fila para ella—, así que ahí la ficha siempre queda neutra.
+ * Parte línea cuando su columna es angosta (768–1300 px): con `whitespace-nowrap` se montaba
+ * sobre la columna de espera.
  */
 function StateChip({ entry }: { entry: InboxEntry }) {
   const type = typeFromCode(entry.definition.code)
@@ -47,7 +49,7 @@ function StateChip({ entry }: { entry: InboxEntry }) {
   return (
     <span
       className={cn(
-        'inline-flex h-[30px] w-fit items-center gap-1 whitespace-nowrap rounded-full px-3 text-base font-semibold',
+        'inline-flex min-h-[30px] w-fit items-center gap-1 rounded-full px-3 py-0.5 text-base font-semibold',
         returned ? 'bg-warning/20 text-warning-foreground' : 'bg-secondary text-secondary-foreground',
       )}
     >
