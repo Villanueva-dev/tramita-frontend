@@ -183,18 +183,40 @@ describe('DashboardPage — buscador primero, sin tarjetas (#56)', () => {
     expect(screen.queryByLabelText(/responsable/i)).toBeNull()
   })
 
-  it('el panel de filtros aparece después de buscar, con «Responsable»', () => {
-    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
+  it('el panel de filtros aparece después de buscar, con «Responsable» si algún resultado lo trae', () => {
+    const conResponsable = baseRequest({
+      id: 'request-con-responsable',
+      definition: request.definition,
+      studentName: 'Laura Gómez',
+      studentDocument: '3000000000',
+      currentState: request.currentState,
+      createdAt: '2026-09-01T12:00:00',
+      availableTransitions: [
+        { targetState: request.currentState, responsible: 'FACULTAD', requiresNote: false },
+      ],
+    })
+    renderDashboard({ tramita: { requests: [conResponsable], searched: true, searchErrors: [] } })
 
     expect(screen.getByText(/filtros/i)).toBeDefined()
     expect(screen.getByLabelText(/responsable/i)).toBeDefined()
+  })
+
+  // `GET /requests?search=` no devuelve el responsable (RequestSummary, contrato :237-246):
+  // `assignedTo` llega vacío y el selector ofrecía una opción en blanco. Sin datos, no se ofrece.
+  it('«Responsable» no se ofrece cuando ningún resultado trae responsable', () => {
+    const sinResponsable: AcademicRequest = { ...request, id: 'request-sin-responsable', assignedTo: '' }
+    renderDashboard({ tramita: { requests: [sinResponsable], searched: true, searchErrors: [] } })
+
+    expect(screen.getByLabelText(/tipo de trámite/i)).toBeDefined()
+    expect(screen.queryByLabelText(/responsable/i)).toBeNull()
   })
 
   // Había dos cajas «Buscar»: la principal, que consulta al backend, y otra dentro del
   // panel de filtros que filtraba en el cliente. Confunde a una usuaria no técnica; se
   // retira la del panel y sus cuatro controles restantes quedan solos (#56).
   it('tras buscar, el panel de filtros no tiene una segunda caja de búsqueda', () => {
-    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
+    // `request` trae responsable (`assignedTo`), así que el selector «Responsable» se ofrece (#96).
+    renderDashboard({ tramita: { requests: [request], searched: true, searchErrors: [] } })
 
     expect(screen.queryByRole('textbox', { name: 'Buscar' })).toBeNull()
     expect(screen.getByLabelText('Cédula o nombre del estudiante')).toBeDefined()

@@ -106,7 +106,12 @@ export default function DashboardPage() {
   }
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
-  const responsibleOptions = Array.from(new Set(resultEntries.map((entry) => entry.pendingResponsible))).sort()
+  // `GET /requests?search=` no devuelve el responsable (RequestSummary, contrato :237-246):
+  // `assignedTo` llega vacío salvo en solicitudes ya cargadas con su detalle. Sin datos, el
+  // selector no se ofrece; antes mostraba una opción en blanco.
+  const responsibleOptions = Array.from(
+    new Set(resultEntries.map((entry) => entry.pendingResponsible).filter((responsible) => responsible !== '')),
+  ).sort()
   // Un filtro nuevo es una lista nueva: la `key` la vuelve a montar en la página 1.
   const filtersKey = `${typeFilter}|${statusFilter}|${responsibleFilter}|${dateFilter}`
 
@@ -233,7 +238,7 @@ export default function DashboardPage() {
                 ))}
               </Select>
             </div>
-            {searched && (
+            {searched && responsibleOptions.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="responsible" className="text-xs text-muted-foreground">
                   Responsable
