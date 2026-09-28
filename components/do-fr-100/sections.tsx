@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
+import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from '@/lib/public-request-options'
 import type { ComponentProps, ReactNode } from 'react'
 
 export interface PublicRequestFormValues {
@@ -95,6 +96,46 @@ function TextField({
 }
 
 /**
+ * Selector nativo requerido para un campo de lista cerrada (`ACADEMIC_FIELD_OPTIONS`). Hermano de
+ * `TextField`: misma forma y mismo tamaño de lectura; la primera opción, vacía y deshabilitada,
+ * es el estado «sin elegir» y hace que el campo falle la validación de obligatoriedad.
+ */
+function SelectField({
+  field,
+  label,
+  placeholder,
+  value,
+  onChange,
+  error,
+}: {
+  field: AcademicListField
+  label: string
+  placeholder: string
+  value: string
+  onChange: FieldChangeHandler
+  error?: string
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={field} className={READING_TEXT_SIZE}>{label}</Label>
+      <Select
+        id={field}
+        value={value}
+        onChange={(event) => onChange(field, event.target.value)}
+        required
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${field}-error` : undefined}
+        className={`h-13 ${READING_TEXT_SIZE}`}
+      >
+        <option value="" disabled>{placeholder}</option>
+        {ACADEMIC_FIELD_OPTIONS[field].map((option) => <option key={option} value={option}>{option}</option>)}
+      </Select>
+      {error ? <p id={`${field}-error`} role="alert" className="text-sm text-destructive">{error}</p> : null}
+    </div>
+  )
+}
+
+/**
  * Grupos de campos del asistente (design.md, decisión 1). Cada grupo renderiza exactamente los
  * campos que `FIELD_STEP` (`steps.ts`) asigna a su paso, en el orden del papel. `values`,
  * `onChange` y `errors` reciben el contrato completo, igual que `PublicRequestSectionsProps`,
@@ -164,8 +205,9 @@ export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
 }
 
 /**
- * Los cinco campos del paso «Datos académicos» (`FIELD_STEP.academic`). Sin tarjeta propia, por
- * la misma razón que `ApplicantFields`.
+ * Los cinco campos del paso «Datos académicos» (`FIELD_STEP.academic`): el programa sale del
+ * catálogo público y sede, facultad, semestre y modalidad de listas cerradas, todos selectores
+ * nativos. Sin tarjeta propia, por la misma razón que `ApplicantFields`.
  */
 export function AcademicFields({ values, onChange, errors, programCatalog }: FieldGroupProps & {
   programCatalog: {
@@ -213,10 +255,10 @@ export function AcademicFields({ values, onChange, errors, programCatalog }: Fie
         ) : null}
         {errors.program ? <p id="program-error" role="alert" className="text-sm text-destructive">{errors.program}</p> : null}
       </div>
-      <TextField field="campus" label={FIELD_LABELS.campus} value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} hint="Por ejemplo: Cali" />
-      <TextField field="faculty" label={FIELD_LABELS.faculty} value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} hint="Por ejemplo: Ingenierías" />
-      <TextField field="semester" label={FIELD_LABELS.semester} value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} hint="Por ejemplo: Sexto" />
-      <TextField field="modality" label={FIELD_LABELS.modality} value={values.modality} onChange={onChange} error={errors.modality} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.modality} hint="Por ejemplo: Distancia" />
+      <SelectField field="campus" label={FIELD_LABELS.campus} placeholder="Seleccione una sede" value={values.campus} onChange={onChange} error={errors.campus} />
+      <SelectField field="faculty" label={FIELD_LABELS.faculty} placeholder="Seleccione una facultad" value={values.faculty} onChange={onChange} error={errors.faculty} />
+      <SelectField field="semester" label={FIELD_LABELS.semester} placeholder="Seleccione un semestre" value={values.semester} onChange={onChange} error={errors.semester} />
+      <SelectField field="modality" label={FIELD_LABELS.modality} placeholder="Seleccione una modalidad" value={values.modality} onChange={onChange} error={errors.modality} />
     </>
   )
 }

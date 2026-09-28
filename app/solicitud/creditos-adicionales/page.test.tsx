@@ -7,6 +7,7 @@ import PublicAdditionalCreditsPage from './page'
 import type { PublicRequestFormValues } from '@/components/do-fr-100/sections'
 import { FIELD_STEP, STEPS, type StepId } from '@/components/do-fr-100/steps'
 import { ApiError, listPublicPrograms, submitPublicRequest } from '@/lib/api'
+import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from '@/lib/public-request-options'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -29,14 +30,16 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const ACADEMIC_LIST_FIELDS: AcademicListField[] = ['campus', 'faculty', 'semester', 'modality']
+
 const completeValues: PublicRequestFormValues = {
   studentName: 'Estudiante Sintético',
   studentDocument: '0000000100',
   studentEmail: 'estudiante.sintetico@example.test',
   studentPhone: '0000000000',
   program: 'Programa de Prueba',
-  campus: 'Sede Sintética',
-  faculty: 'Facultad de Prueba',
+  campus: 'Cali',
+  faculty: 'Ingenierías',
   modality: 'Presencial',
   semester: '8',
   reason: 'Solicitud sintética de prueba.',
@@ -358,7 +361,7 @@ describe('PublicAdditionalCreditsPage', () => {
     continueTo('Firma del solicitante')
   })
 
-  it('guards the request type against checkboxes and keeps program as the only catalog selector', async () => {
+  it('guards the request type against checkboxes and keeps program as the only selector fed by the catalog', async () => {
     render(<PublicAdditionalCreditsPage />)
 
     expect(screen.getByText('Matrícula créditos adicionales')).toBeDefined()
@@ -366,8 +369,15 @@ describe('PublicAdditionalCreditsPage', () => {
     fillFieldsOfStep('applicant', completeValues)
     continueTo(HEADING_OF.academic)
     await waitForProgramCatalog()
-    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    // Programa (catálogo) más sede, facultad, semestre y modalidad (listas cerradas propias).
+    expect(screen.getAllByRole('combobox')).toHaveLength(5)
     expect(screen.getByRole('combobox', { name: 'Programa académico en el que se encuentra' }).id).toBe('program')
+    const program = document.getElementById('program') as HTMLSelectElement
+    expect(Array.from(program.options).map((option) => option.value)).toContain('Ingeniería de Sistemas')
+    for (const field of ACADEMIC_LIST_FIELDS) {
+      const select = document.getElementById(field) as HTMLSelectElement
+      expect(Array.from(select.options).map((option) => option.value)).not.toContain('Ingeniería de Sistemas')
+    }
   })
 
   it('guards the exact contract fields and one extensive textarea, across all mounted steps', () => {
@@ -513,7 +523,7 @@ describe('PublicAdditionalCreditsPage', () => {
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
   })
 
-  it.each(Object.keys(completeValues))('blocks Continuar and marks %s invalid when it is blank after trim', async (field) => {
+  it.each(Object.keys(completeValues).filter((field) => !ACADEMIC_LIST_FIELDS.includes(field as AcademicListField)))('blocks Continuar and marks %s invalid when it is blank after trim', async (field) => {
     render(<PublicAdditionalCreditsPage />)
     await reachStepWithOverride(field as keyof PublicRequestFormValues, '   ')
 
@@ -600,7 +610,7 @@ describe('PublicAdditionalCreditsPage', () => {
 
   it.each([
     ['studentName', 121], ['studentDocument', 21], ['studentEmail', 256], ['studentPhone', 11],
-    ['program', 121], ['campus', 121], ['faculty', 121], ['modality', 51], ['semester', 51], ['reason', 2001],
+    ['program', 121], ['reason', 2001],
   ])('blocks Continuar for %s over its contract limit', async (field, length) => {
     const overLimitValue = field === 'studentDocument' || field === 'studentPhone'
       ? '1'.repeat(length)
@@ -615,6 +625,83 @@ describe('PublicAdditionalCreditsPage', () => {
 
     expect(document.getElementById(field)?.getAttribute('aria-invalid')).toBe('true')
     expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
+  })
+
+  describe('academic fields from closed lists', () => {
+    async function reachAcademicStep() {
+      render(<PublicAdditionalCreditsPage />)
+      fillFieldsOfStep('applicant', completeValues)
+      continueTo(HEADING_OF.academic)
+      await waitForProgramCatalog()
+    }
+
+    it.each(ACADEMIC_LIST_FIELDS)('renders %s as a required select offering exactly its list after a disabled placeholder', async (field) => {
+      await reachAcademicStep()
+
+      const select = document.getElementById(field) as HTMLSelectElement
+      expect(select.tagName).toBe('SELECT')
+      expect(select.required).toBe(true)
+      const [placeholder, ...options] = Array.from(select.options)
+      expect(placeholder.value).toBe('')
+      expect(placeholder.disabled).toBe(true)
+      expect(options.map((option) => option.value)).toEqual([...ACADEMIC_FIELD_OPTIONS[field]])
+      expect(options.map((option) => option.textContent)).toEqual([...ACADEMIC_FIELD_OPTIONS[field]])
+    })
+
+    it('preselects the campus only because its list has a single option and leaves the rest unselected', async () => {
+      await reachAcademicStep()
+
+      expect(ACADEMIC_FIELD_OPTIONS.campus).toHaveLength(1)
+      expect((document.getElementById('campus') as HTMLSelectElement).value).toBe('Cali')
+      for (const field of ['faculty', 'semester', 'modality'] as const) {
+        expect((document.getElementById(field) as HTMLSelectElement).value).toBe('')
+      }
+    })
+
+    it.each(['faculty', 'semester', 'modality'] as const)('blocks Continuar and marks %s invalid when it is left unselected', async (field) => {
+      render(<PublicAdditionalCreditsPage />)
+      await reachStepWithOverride(field, '')
+
+      clickContinue()
+
+      expectStep(HEADING_OF.academic)
+      expect(document.getElementById(field)?.getAttribute('aria-invalid')).toBe('true')
+      expect(document.getElementById(`${field}-error`)).not.toBeNull()
+      expect(vi.mocked(submitPublicRequest)).not.toHaveBeenCalled()
+    })
+
+    it('sends the chosen values exactly as listed', async () => {
+      vi.mocked(submitPublicRequest).mockResolvedValue({ message: 'Tu solicitud llegó a la Coordinación.' })
+      render(<PublicAdditionalCreditsPage />)
+      await reachReview({
+        ...completeValues,
+        faculty: 'Ciencias de la Salud',
+        semester: '12',
+        modality: 'Virtual',
+      })
+
+      submitForm()
+
+      await waitFor(() => expect(submitPublicRequest).toHaveBeenCalledWith(
+        'ADICION_CREDITOS',
+        expect.objectContaining({
+          campus: 'Cali',
+          faculty: 'Ciencias de la Salud',
+          semester: '12',
+          modality: 'Virtual',
+        }),
+      ))
+    })
+
+    it('gives the four selects the same reading height and text size as the program selector', async () => {
+      await reachAcademicStep()
+
+      for (const field of ACADEMIC_LIST_FIELDS) {
+        const select = document.getElementById(field) as HTMLSelectElement
+        expect(select.className).toContain('h-13')
+        expect(select.className).toContain('text-[1.0625rem]')
+      }
+    })
   })
 
   it('sends the unchanged semester and replaces the form with an in-place receipt on 201', async () => {
@@ -783,10 +870,6 @@ describe('PublicAdditionalCreditsPage', () => {
     ['studentName', 'applicant'],
     ['studentEmail', 'applicant'],
     ['program', 'academic'],
-    ['campus', 'academic'],
-    ['faculty', 'academic'],
-    ['semester', 'academic'],
-    ['modality', 'academic'],
     ['reason', 'reason'],
   ] as [keyof PublicRequestFormValues, 'applicant' | 'academic' | 'reason'][])(
     'links a synthetic example hint to %s via aria-describedby',

@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError, submitPublicRequest } from '@/lib/api'
 import { apiErrorMessages } from '@/lib/api-errors'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
+import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from '@/lib/public-request-options'
 import { useProgramCatalog } from '@/lib/use-program-catalog'
 import type { PublicRequestBody } from '@/lib/types'
 
@@ -64,13 +65,18 @@ function StepErrorNotice({ errors }: { errors: FormErrors }) {
 
 export const PUBLIC_REQUEST_DEFINITION_CODE = 'ADICION_CREDITOS'
 
+// La sede se preselecciona solo mientras su lista tenga una única opción: un valor fijo se
+// volvería un defecto silencioso el día que se agregue otra sede, y quien no toque el campo
+// enviaría un dato falso.
+const INITIAL_CAMPUS = ACADEMIC_FIELD_OPTIONS.campus.length === 1 ? ACADEMIC_FIELD_OPTIONS.campus[0] : ''
+
 const INITIAL_VALUES: PublicRequestFormValues = {
   studentName: '',
   studentDocument: '',
   studentEmail: '',
   studentPhone: '',
   program: '',
-  campus: '',
+  campus: INITIAL_CAMPUS,
   faculty: '',
   modality: '',
   semester: '',
@@ -93,15 +99,13 @@ const PHONE_PATTERN = /^[0-9]{10}$/
 // Comparte la validación del formulario interno: correo completo con dominio y sufijo, sin
 // restringir el proveedor del estudiante.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const SINGLE_LINE_FIELDS: Exclude<keyof PublicRequestFormValues, 'reason' | 'program'>[] = [
+// `program` y los campos de lista cerrada quedan fuera: sus valores vienen de una lista y viajan
+// tal como están, sin normalizar.
+const SINGLE_LINE_FIELDS: Exclude<keyof PublicRequestFormValues, 'reason' | 'program' | AcademicListField>[] = [
   'studentName',
   'studentDocument',
   'studentEmail',
   'studentPhone',
-  'campus',
-  'faculty',
-  'modality',
-  'semester',
 ]
 
 function stripNonDigits(value: string): string {
