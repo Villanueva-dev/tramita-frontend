@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import DashboardPage from './page'
 import { baseRequest } from '@/lib/store'
 import { INBOX_LIMIT } from '@/lib/use-coordination-inbox'
-import type { AcademicRequest } from '@/lib/types'
+import type { AcademicRequest, InboxEntry } from '@/lib/types'
 import type { InboxState } from '@/lib/use-coordination-inbox'
 
 const useTramita = vi.hoisted(() => vi.fn())
@@ -170,16 +170,24 @@ describe('DashboardPage — buscador primero, sin tarjetas (#56)', () => {
     expect(screen.queryByText('Devoluciones')).toBeNull()
   })
 
-  it('el panel de filtros no aparece antes de buscar', () => {
+  // #96: la bandeja también se filtra, así que el panel ya no espera a la búsqueda.
+  // «Responsable» sigue oculto porque, sin buscar, la lista activa es la bandeja y
+  // siempre es la Coordinación (decisión del propietario, odd/tasks/filtros-bandeja-96.md).
+  it('el panel de filtros se ve sin buscar, sin el selector «Responsable»', () => {
     renderDashboard({ tramita: { requests: [], searched: false, searchErrors: [] } })
 
-    expect(screen.queryByText(/filtros y búsqueda/i)).toBeNull()
+    expect(screen.getByText(/filtros/i)).toBeDefined()
+    expect(screen.getByLabelText(/tipo de trámite/i)).toBeDefined()
+    expect(screen.getByLabelText(/estado/i)).toBeDefined()
+    expect(screen.getByLabelText(/fecha de radicación/i)).toBeDefined()
+    expect(screen.queryByLabelText(/responsable/i)).toBeNull()
   })
 
-  it('el panel de filtros aparece después de buscar', () => {
+  it('el panel de filtros aparece después de buscar, con «Responsable»', () => {
     renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
 
-    expect(screen.getByText(/filtros y búsqueda/i)).toBeDefined()
+    expect(screen.getByText(/filtros/i)).toBeDefined()
+    expect(screen.getByLabelText(/responsable/i)).toBeDefined()
   })
 
   // Había dos cajas «Buscar»: la principal, que consulta al backend, y otra dentro del
@@ -423,7 +431,129 @@ describe('DashboardPage — una sola lista (lista-unica-resultados)', () => {
   })
 })
 
-function entry() {
+// Issue #96: los filtros acotan la lista activa —bandeja sin buscar, resultados con
+// búsqueda—, no solo los resultados de la búsqueda (#56).
+describe('DashboardPage — filtros sobre la lista activa (#96)', () => {
+  it('sin buscar, elegir un tipo deja en la bandeja solo ese tipo, en el mismo orden, y explica cuántas coinciden', () => {
+    renderDashboard({
+      tramita: { requests: [], searched: false, searchErrors: [] },
+      inbox: {
+        status: 'ready',
+        entries: [
+          entry({ id: 'entry-a', studentName: 'Ana Primero' }),
+          entry({
+            id: 'entry-b',
+            studentName: 'Bruno Segundo',
+            definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+          }),
+          entry({ id: 'entry-c', studentName: 'Carla Tercero' }),
+        ],
+        mayHaveMore: false,
+      },
+    })
+
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    const inboxRegion = screen.getByRole('region', { name: /bandeja de trabajo/i })
+    const names = within(inboxRegion)
+      .getAllByText(/^(Ana Primero|Bruno Segundo|Carla Tercero)$/)
+      .map((el) => el.textContent)
+
+    expect(names).toEqual(['Ana Primero', 'Carla Tercero'])
+    expect(screen.getByText(/2 de 3 coinciden con los filtros/i)).toBeDefined()
+  })
+
+  it('el selector «Estado» ofrece exactamente los estados presentes en la lista activa', () => {
+    renderDashboard({
+      tramita: { requests: [], searched: false, searchErrors: [] },
+      inbox: {
+        status: 'ready',
+        entries: [
+          entry({
+            id: 'entry-registrada',
+            currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false, isInitial: true },
+          }),
+          entry({
+            id: 'entry-en-coordinacion',
+            currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: false },
+          }),
+        ],
+        mayHaveMore: false,
+      },
+    })
+
+    const statusSelect = screen.getByLabelText(/estado/i)
+    const options = within(statusSelect).getAllByRole('option').map((option) => option.textContent)
+
+    expect(options).toEqual(['Todos los estados', 'En coordinación (revisión)', 'Registrada'])
+
+    fireEvent.change(statusSelect, { target: { value: 'Registrada' } })
+
+    // `within` de la región de la bandeja, no de toda la pantalla: la opción retirada
+    // del selector sigue diciendo «En coordinación (revisión)» aunque ya no esté elegida.
+    const inboxRegion = screen.getByRole('region', { name: /bandeja de trabajo/i })
+    expect(within(inboxRegion).queryByText('En coordinación (revisión)')).toBeNull()
+  })
+
+  it('cambiar un filtro en la bandeja vuelve a la página 1', () => {
+    Element.prototype.scrollIntoView = vi.fn() // jsdom no lo implementa; «Siguiente» lo invoca
+    const doce = Array.from({ length: 12 }, (_, i) => entry({ id: `entry-${i}` }))
+    renderDashboard({
+      tramita: { requests: [], searched: false, searchErrors: [] },
+      inbox: { status: 'ready', entries: doce, mayHaveMore: false },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }))
+    expect(screen.getByText('Página 2 de 2')).toBeDefined()
+
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    expect(screen.getByText('Página 1 de 2')).toBeDefined()
+  })
+
+  // `baseRequest` deriva `assignedTo` de `availableTransitions?.[0]?.responsible`
+  // (lib/store.tsx): los dos fixtures difieren ahí para que «Responsable» tenga algo que
+  // distinguir (D2, pendingResponsible = assignedTo).
+  it('con búsqueda, «Responsable» filtra los resultados por responsable', () => {
+    const uno = baseRequest({
+      id: 'request-resp-1',
+      definition: request.definition,
+      studentName: 'Responsable Uno',
+      studentDocument: '3000000001',
+      currentState: request.currentState,
+      createdAt: '2026-09-01T12:00:00',
+      availableTransitions: [
+        { targetState: request.currentState, responsible: 'FACULTAD', requiresNote: false },
+      ],
+    })
+    const dos = baseRequest({
+      id: 'request-resp-2',
+      definition: request.definition,
+      studentName: 'Responsable Dos',
+      studentDocument: '3000000002',
+      currentState: request.currentState,
+      createdAt: '2026-09-01T12:00:00',
+      availableTransitions: [
+        { targetState: request.currentState, responsible: 'COORDINACION', requiresNote: false },
+      ],
+    })
+    renderDashboard({ tramita: { requests: [uno, dos], searched: true, searchErrors: [] } })
+
+    fireEvent.change(screen.getByLabelText(/responsable/i), { target: { value: 'FACULTAD' } })
+
+    expect(screen.getByText('Responsable Uno')).toBeDefined()
+    expect(screen.queryByText('Responsable Dos')).toBeNull()
+    expect(screen.getByText(/1 de 2 coinciden con los filtros/i)).toBeDefined()
+  })
+})
+
+// Acepta overrides (#96): los tests de filtros necesitan bandejas con tipos, estados o
+// nombres distintos entre sí, sin perder los valores por defecto de los demás campos.
+function entry(overrides: Partial<InboxEntry> = {}): InboxEntry {
   return {
     id: `entry-${Math.random()}`,
     definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
@@ -433,5 +563,6 @@ function entry() {
     waitingSince: '2026-09-20T12:00:00-05:00',
     pendingResponsible: 'COORDINACION',
     origin: 'COORDINATION' as const,
+    ...overrides,
   }
 }

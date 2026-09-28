@@ -9,10 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { useTramita } from '@/lib/store'
+import { typeFromCode, useTramita } from '@/lib/store'
 import { useCoordinationInbox } from '@/lib/use-coordination-inbox'
-import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
-import type { AcademicRequest, InboxEntry, RequestStatus, RequestType } from '@/lib/types'
+import { REQUEST_TYPE_LABELS } from '@/lib/ui-constants'
+import type { AcademicRequest, InboxEntry, RequestType } from '@/lib/types'
 
 /**
  * Adapta un resultado de búsqueda al formato de la bandeja (lista-unica-resultados D2):
@@ -20,7 +20,8 @@ import type { AcademicRequest, InboxEntry, RequestStatus, RequestType } from '@/
  * resultados. `waitingSince = createdAt` porque los resultados no "esperan" una
  * transición —incluyen trámites cerrados—; la variante `results` de `CoordinationInbox`
  * ya rotula ese instante como "Radicada hace…", no "Esperando desde hace…".
- * `pendingResponsible: ''` porque ese dato es propio de la bandeja, no de la búsqueda.
+ * `pendingResponsible: request.assignedTo` (#96, D2): con el filtro unificado sobre
+ * `InboxEntry[]`, «Responsable» lee este campo también en los resultados.
  */
 function toInboxEntry(request: AcademicRequest): InboxEntry {
   return {
@@ -30,7 +31,7 @@ function toInboxEntry(request: AcademicRequest): InboxEntry {
     currentState: request.currentState,
     createdAt: request.createdAt,
     waitingSince: request.createdAt,
-    pendingResponsible: '',
+    pendingResponsible: request.assignedTo,
     origin: request.origin ?? null,
   }
 }
@@ -43,28 +44,44 @@ export default function DashboardPage() {
   // los resultados ya traídos, sin volver a preguntarle al servidor.
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
+  // Nombre de estado del servidor (`currentState.name`), no `RequestStatus` (#96, D3):
+  // el selector se arma con los estados presentes en la lista activa, no con un mapa fijo.
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [responsibleFilter, setResponsibleFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState<'all' | '7' | '30'>('all')
 
+  // Todos los resultados adaptados al formato de la bandeja (#96, D1): antes solo se
+  // adaptaban los ya filtrados; ahora el filtro corre sobre esta lista completa.
+  const resultEntries = useMemo(() => requests.map(toInboxEntry), [requests])
+  const inboxEntries = inbox.status === 'ready' ? inbox.entries : []
+  // Lista activa (#96, D1): la bandeja sin buscar, los resultados con búsqueda. Un solo
+  // predicado filtra las dos, en vez de duplicar reglas entre `AcademicRequest` e `InboxEntry`.
+  const activeEntries: InboxEntry[] = searched ? resultEntries : inboxEntries
+
   const filtered = useMemo(() => {
-    return requests.filter((r) => {
-      if (typeFilter !== 'all' && r.type !== typeFilter) return false
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false
-      if (responsibleFilter !== 'all' && r.assignedTo !== responsibleFilter) return false
+    return activeEntries.filter((entry) => {
+      if (typeFilter !== 'all' && typeFromCode(entry.definition.code) !== typeFilter) return false
+      if (statusFilter !== 'all' && entry.currentState.name !== statusFilter) return false
+      // Responsable solo tiene sentido con resultados (#96): sin buscar, la lista activa
+      // es la bandeja y siempre es la Coordinación (decisión del propietario).
+      if (searched && responsibleFilter !== 'all' && entry.pendingResponsible !== responsibleFilter) {
+        return false
+      }
 
       if (dateFilter !== 'all') {
-        const days = (now - new Date(r.createdAt).getTime()) / 86400000
+        const days = (now - new Date(entry.createdAt).getTime()) / 86400000
         if (days > Number(dateFilter)) return false
       }
 
       return true
     })
-  }, [requests, typeFilter, statusFilter, responsibleFilter, dateFilter, now])
+  }, [activeEntries, typeFilter, statusFilter, responsibleFilter, dateFilter, searched, now])
 
-  // Adaptados una sola vez por render de `filtered` (D2): es lo que ve la variante
-  // «resultados» de `CoordinationInbox`, en vez de la tabla sin paginar retirada.
-  const resultEntries = useMemo(() => filtered.map(toInboxEntry), [filtered])
+  // Estados presentes en la lista activa, no un mapa legado (#96, D3): sin lista
+  // (cargando, error, vacía) `activeEntries` es `[]` y solo queda «Todos los estados».
+  const statusOptions = Array.from(new Set(activeEntries.map((entry) => entry.currentState.name))).sort(
+    (a, b) => a.localeCompare(b, 'es'),
+  )
 
   const hasActiveFilters =
     typeFilter !== 'all' ||
@@ -89,7 +106,9 @@ export default function DashboardPage() {
   }
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
-  const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
+  const responsibleOptions = Array.from(new Set(resultEntries.map((entry) => entry.pendingResponsible))).sort()
+  // Un filtro nuevo es una lista nueva: la `key` la vuelve a montar en la página 1.
+  const filtersKey = `${typeFilter}|${statusFilter}|${responsibleFilter}|${dateFilter}`
 
   return (
     <AppShell title="Bandeja de trabajo">
@@ -173,126 +192,132 @@ export default function DashboardPage() {
           ) : null}
         </div>
 
-        {/* Los filtros acotan los resultados de la búsqueda: antes de buscar no hay nada que
-            filtrar y solo empujarían la bandeja hacia abajo (#56). */}
-        {searched && (
-          <>
-            <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <SlidersHorizontal className="size-4 text-primary" />
-                Filtros y búsqueda
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={clearFilters}
-                    className="ml-auto gap-1 text-muted-foreground"
-                  >
-                    <X className="size-3" />
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="type" className="text-xs text-muted-foreground">
-                    Tipo de trámite
-                  </Label>
-                  <Select
-                    id="type"
-                    value={typeFilter}
-                    onChange={(e) =>
-                      setTypeFilter(e.target.value as RequestType | 'all')
-                    }
-                  >
-                    <option value="all">Todos los tipos</option>
-                    {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="responsible" className="text-xs text-muted-foreground">
-                    Responsable
-                  </Label>
-                  <div className="relative">
-                    <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Select
-                      id="responsible"
-                      className="pl-9"
-                      value={responsibleFilter}
-                      onChange={(e) => setResponsibleFilter(e.target.value)}
-                    >
-                      <option value="all">Todos los responsables</option>
-                      {responsibleOptions.map((responsible) => (
-                        <option key={responsible} value={responsible}>
-                          {responsible}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="status" className="text-xs text-muted-foreground">
-                    Estado
-                  </Label>
-                  <Select
-                    id="status"
-                    value={statusFilter}
-                    onChange={(e) =>
-                      setStatusFilter(e.target.value as RequestStatus | 'all')
-                    }
-                  >
-                    <option value="all">Todos los estados</option>
-                    {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="date" className="text-xs text-muted-foreground">
-                    Fecha de radicación
-                  </Label>
-                  <Select
-                    id="date"
-                    value={dateFilter}
-                    onChange={(e) =>
-                      setDateFilter(e.target.value as 'all' | '7' | '30')
-                    }
-                  >
-                    <option value="all">Cualquier fecha</option>
-                    <option value="7">Últimos 7 días</option>
-                    <option value="30">Últimos 30 días</option>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* La lista de resultados ya dice «Mostrando a–b de n» (D4): esto solo explica
-                por qué se ve menos, cuando hay un filtro activo. */}
+        {/* El panel acota la lista activa (#96): la bandeja sin buscar, los resultados con
+            búsqueda. Sustituye la D4 de #56 (filtros solo tras buscar): la Coordinación
+            quiere acotar los pendientes sin buscar. La bandeja se filtra en el cliente
+            porque `GET /requests/inbox` solo acepta `responsible` y `limit` (contrato 007,
+            :67-95), sin parámetro de filtro. */}
+        <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <SlidersHorizontal className="size-4 text-primary" />
+            Filtros
             {hasActiveFilters && (
-              <p className="text-sm text-muted-foreground">
-                {filtered.length} de {requests.length} coinciden con los filtros
-              </p>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={clearFilters}
+                className="ml-auto gap-1 text-muted-foreground"
+              >
+                <X className="size-3" />
+                Limpiar
+              </Button>
             )}
-          </>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="type" className="text-xs text-muted-foreground">
+                Tipo de trámite
+              </Label>
+              <Select
+                id="type"
+                value={typeFilter}
+                onChange={(e) =>
+                  setTypeFilter(e.target.value as RequestType | 'all')
+                }
+              >
+                <option value="all">Todos los tipos</option>
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {searched && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="responsible" className="text-xs text-muted-foreground">
+                  Responsable
+                </Label>
+                <div className="relative">
+                  <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Select
+                    id="responsible"
+                    className="pl-9"
+                    value={responsibleFilter}
+                    onChange={(e) => setResponsibleFilter(e.target.value)}
+                  >
+                    <option value="all">Todos los responsables</option>
+                    {responsibleOptions.map((responsible) => (
+                      <option key={responsible} value={responsible}>
+                        {responsible}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="status" className="text-xs text-muted-foreground">
+                Estado
+              </Label>
+              <Select
+                id="status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Todos los estados</option>
+                {statusOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="date" className="text-xs text-muted-foreground">
+                Fecha de radicación
+              </Label>
+              <Select
+                id="date"
+                value={dateFilter}
+                onChange={(e) =>
+                  setDateFilter(e.target.value as 'all' | '7' | '30')
+                }
+              >
+                <option value="all">Cualquier fecha</option>
+                <option value="7">Últimos 7 días</option>
+                <option value="30">Últimos 30 días</option>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* La lista de resultados ya dice «Mostrando a–b de n» (D4): esto solo explica
+            por qué se ve menos, cuando hay un filtro activo. */}
+        {hasActiveFilters && (
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} de {activeEntries.length} coinciden con los filtros
+          </p>
         )}
 
         {/* Una sola lista en pantalla (lista-unica-resultados): sin buscar, la bandeja de
             trabajo —qué espera la acción de la Coordinación, en el orden del servidor
             (design.md, D1)—; tras buscar, los resultados en el mismo formato (D1/D2), para
-            que dos listas con distinto propósito no lean como "la misma cosa". */}
-        {!searched && <CoordinationInbox inbox={inbox} now={now} />}
+            que dos listas con distinto propósito no lean como "la misma cosa". Los filtros
+            (#96) se aplican sobre ambas mediante `filtered`; `filtersKey` (D5) las remonta
+            en la página 1 al cambiar. */}
+        {!searched && (
+          <CoordinationInbox
+            key={filtersKey}
+            inbox={inbox.status === 'ready' ? { ...inbox, entries: filtered } : inbox}
+            now={now}
+          />
+        )}
         {searched && (
           <CoordinationInbox
-            // Un filtro nuevo es una lista nueva: la `key` la vuelve a montar en la página 1.
-            key={`${typeFilter}|${statusFilter}|${responsibleFilter}|${dateFilter}`}
+            key={filtersKey}
             variant="results"
-            inbox={{ status: 'ready', entries: resultEntries, mayHaveMore: false }}
+            inbox={{ status: 'ready', entries: filtered, mayHaveMore: false }}
             now={now}
           />
         )}
