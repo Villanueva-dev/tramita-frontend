@@ -107,7 +107,7 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
     estricto, runner `pnpm test`. Garantías: un rechazo no se presenta como documento oficial ni
     ofrece «Imprimir»; el aviso nombra el archivo guardado; la página enlaza a `/verificar`. Se
     borra la prueba `#9b` (`page.test.tsx:98`), porque lo que protegía vivía en `PdfDocument`.
-- [ ] **T7** — Comprobar en vivo la descarga real, con permiso previo (registra un sello).
+- [x] **T7** — Comprobar en vivo la descarga real, con permiso previo (registra un sello).
 
 ## Criterios de aceptación (de #12)
 
@@ -165,3 +165,14 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
     y cambios archivados de openspec). Ninguna spec viva de `openspec/specs/` exige la vista previa.
   - Commit `4280671` (`fix(documento): la página del documento deja de afirmar lo que el PDF no es`),
     3 archivos, +41 −261.
+- T7 en vivo (Chrome, 2026-09-28, backend local, con permiso del propietario; registró un sello):
+  - Solicitud en curso `0b934002…`: sin vista previa ni «Imprimir», ninguno de los textos «Se
+    autoriza», «DOCUMENTO OFICIAL», «Verificable con folio», «constancia formal» u «oficial de
+    cierre»; enlace a `/verificar` presente.
+  - Descarga: el aviso dijo `DO-FR-100-0b934002-e36f-4f3c-b0d3-fd7b330a6e23.pdf` y en `~/Descargas`
+    se guardó un archivo con ese nombre exacto. Su pie: `Verificación: <código> · Emitido:
+    27/09/2026 · Estado: En coordinación (revisión) · Revisión: 0`. Desde el enlace de la página,
+    `/verificar` devolvió la misma fecha, estado y revisión.
+  - Solicitudes cerradas (solo lectura, sin descargar): una `RECHAZADA` y una `FINALIZADA` muestran
+    «Documento de la solicitud» con su estado real y ninguno de los textos falsos.
+  - Criterio 4 confirmado: la descarga llega como archivo (`blob`), no como JSON.
