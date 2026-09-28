@@ -18,10 +18,12 @@ El sistema **MUST** solicitar `GET /requests/inbox` (`responsible` y `limit` com
 parámetros de consulta, :67-95) al entrar al tablero, sin esperar ninguna acción de
 búsqueda del usuario. El parámetro `responsible` **MUST** viajar con el valor
 constante `COORDINATION_RESPONSIBLE` (`'COORDINACION'`), declarado una única vez en el
-cliente. El parámetro `limit` **MUST** viajar explícito, con el mismo valor que el
-default documentado por el contrato (50, :84-95) — para que el aviso de truncamiento
-(ver «Aviso de posible truncamiento») compare contra el valor que efectivamente viajó,
-no contra un default del servidor que el cliente no ve.
+cliente. El parámetro `limit` **MUST** viajar explícito, con el máximo que admite el
+contrato (200, :84-91): la bandeja se pagina en el cliente (issue #56) porque el servidor
+ordena por espera el lote entero que devuelve, y paginar en el servidor ordenaría cada
+página por separado. Viaja explícito para que el aviso de truncamiento (ver «Aviso de
+posible truncamiento») compare contra el valor que efectivamente viajó, no contra un
+default del servidor que el cliente no ve.
 
 #### Scenario: La bandeja aparece sin que el usuario busque
 
@@ -35,8 +37,7 @@ no contra un default del servidor que el cliente no ve.
 - GIVEN la carga de la bandeja al entrar al tablero
 - WHEN se inspecciona la petición emitida
 - THEN `responsible` es exactamente `'COORDINACION'`
-- AND `limit` es exactamente `50`, el mismo valor documentado como default por el
-  contrato
+- AND `limit` es exactamente `200`, el máximo que admite el contrato (:84-91)
 
 ### Requirement: El orden del servidor se conserva sin reordenar en el cliente
 
@@ -157,19 +158,19 @@ explicar por qué (regla 7 de `revisar-frontend-next`).
 
 ### Requirement: Aviso de posible truncamiento
 
-Cuando la bandeja devuelve exactamente `limit` entradas (50), el sistema **MUST**
+Cuando la bandeja devuelve exactamente `limit` entradas (200), el sistema **MUST**
 mostrar un aviso de que puede haber más solicitudes que las mostradas. El sistema
 **MUST NOT** mostrar ese aviso cuando devuelve menos de `limit` entradas.
 
 #### Scenario: Aviso presente al llegar al límite
 
-- GIVEN `GET /requests/inbox` responde con exactamente 50 entradas
+- GIVEN `GET /requests/inbox` responde con exactamente 200 entradas
 - WHEN se renderiza el tablero
 - THEN se muestra un aviso de que puede haber más solicitudes
 
 #### Scenario: Sin aviso un elemento por debajo del límite
 
-- GIVEN `GET /requests/inbox` responde con 49 entradas
+- GIVEN `GET /requests/inbox` responde con 199 entradas
 - WHEN se renderiza el tablero
 - THEN no se muestra ningún aviso de truncamiento
 
@@ -227,13 +228,13 @@ ningún conteo de prioridad: `priority` no existe en el contrato de la bandeja.
 
 #### Scenario: "o más" cuando la bandeja llega al límite
 
-- GIVEN la bandeja devuelve exactamente `limit` (50) entradas
+- GIVEN la bandeja devuelve exactamente `limit` (200) entradas
 - WHEN se renderiza el encabezado
 - THEN la frase incluye "o más"
 
 #### Scenario: Sin "o más" un elemento por debajo del límite
 
-- GIVEN la bandeja devuelve `limit - 1` (49) entradas
+- GIVEN la bandeja devuelve `limit - 1` (199) entradas
 - WHEN se renderiza el encabezado
 - THEN la frase no incluye "o más"
 
