@@ -66,6 +66,14 @@ describe('baseRequest', () => {
     })
   })
 
+  it('conserva returnedForCorrection del detalle y false cuando no viene en un resumen', () => {
+    const returned = baseRequest({ ...summary, returnedForCorrection: true })
+    const summaryOnly = baseRequest(summary)
+
+    expect(returned.returnedForCorrection).toBe(true)
+    expect(summaryOnly.returnedForCorrection).toBe(false)
+  })
+
   it('conserva el nombre del estado que envía el backend', () => {
     expect(baseRequest(withState('RECHAZADA', 'Rechazada', true)).stateName).toBe('Rechazada')
   })

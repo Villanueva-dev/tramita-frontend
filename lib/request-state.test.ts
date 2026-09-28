@@ -13,14 +13,16 @@ import {
  * Los predicados reciben el trámite entero, así que un caso de prueba no puede declarar una
  * combinación que el motor nunca produce: el estado y el trámite viajan juntos.
  */
-const adicion = (code: string, { isFinal = false, isInitial = false } = {}): StatefulRequest => ({
+const adicion = (code: string, { isFinal = false, isInitial = false, returnedForCorrection = false } = {}): StatefulRequest => ({
   currentState: { code, name: code, isFinal, isInitial },
   type: 'adicion_creditos',
+  returnedForCorrection,
 })
 
-const novedad = (code: string, { isFinal = false, isInitial = false } = {}): StatefulRequest => ({
+const novedad = (code: string, { isFinal = false, isInitial = false, returnedForCorrection = false } = {}): StatefulRequest => ({
   currentState: { code, name: code, isFinal, isInitial },
   type: 'novedad_notas',
+  returnedForCorrection,
 })
 
 /**
@@ -81,23 +83,19 @@ describe('isSuccessfullyClosed', () => {
 
 describe('isReturnedForCorrection', () => {
   it('reconoce la devolución de adición de créditos, que el motor modela como estado', () => {
-    expect(isReturnedForCorrection(adicion('DEVUELTA'))).toBe(true)
+    expect(isReturnedForCorrection(adicion('DEVUELTA', { returnedForCorrection: true }))).toBe(true)
   })
 
   it('no confunde el rechazo definitivo con una devolución', () => {
     expect(isReturnedForCorrection(adicion('RECHAZADA', { isFinal: true }))).toBe(false)
   })
 
-  // LIMITACIÓN CONOCIDA Y ACEPTADA DE A1, no un descuido.
-  // Novedad de notas no tiene estado de devolución: el motor la modela como la transición
-  // de retorno a EN_PREPARACION (V2.1.0, «la devolución NO es un estado»). Por eso «estar
-  // devuelto» no es una propiedad del estado actual —EN_PREPARACION es indistinguible de
-  // estar ahí por primera vez— y ningún dato del contrato permite responderlo hoy.
-  // Este test fija el hueco para que sea visible y deje de ser una ceguera silenciosa.
-  it('no puede reconocer la devolución de novedad de notas, que el motor modela como transición', () => {
-    for (const request of NOVEDAD_STATES) {
-      expect(isReturnedForCorrection(request)).toBe(false)
-    }
+  it('usa el marcador del backend para distinguir Novedad inicial de Novedad devuelta', () => {
+    const preparation = novedad('EN_PREPARACION', { isInitial: false })
+    const returnedPreparation = novedad('EN_PREPARACION', { returnedForCorrection: true })
+
+    expect(isReturnedForCorrection(preparation)).toBe(false)
+    expect(isReturnedForCorrection(returnedPreparation)).toBe(true)
   })
 })
 

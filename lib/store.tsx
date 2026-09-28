@@ -76,6 +76,7 @@ interface ApiRequest {
   priority?: 'normal' | 'urgente' | null
   subjects?: ApiSubject[]
   currentState: ApiState
+  returnedForCorrection?: boolean
   availableTransitions?: ApiTransition[]
   createdAt: string
 }
@@ -127,8 +128,12 @@ const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NO
 // filtro. Las decisiones no se toman con él —para eso están los predicados de
 // `request-state`, que responden una pregunta cada uno—, así que colapsar aquí es
 // aceptable mientras nadie derive de este valor si un trámite está cerrado o devuelto.
-function statusFromState(state: ApiState, type: RequestType | null): RequestStatus {
-  const request = { currentState: state, type }
+function statusFromState(
+  state: ApiState,
+  type: RequestType | null,
+  returnedForCorrection = false,
+): RequestStatus {
+  const request = { currentState: state, type, returnedForCorrection }
   if (isClosed(request)) return 'finalizado'
   if (isInitialState(request)) return 'pendiente'
   if (isReturnedForCorrection(request)) return 'devuelto'
@@ -164,7 +169,8 @@ export function subjectsForApi(subjects: SubjectInfo[]): ApiSubjectBody[] {
 
 export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   const type = typeFromCode(apiRequest.definition.code)
-  const status = statusFromState(apiRequest.currentState, type)
+  const returnedForCorrection = apiRequest.returnedForCorrection ?? false
+  const status = statusFromState(apiRequest.currentState, type, returnedForCorrection)
   const priority = apiRequest.priority ?? 'normal'
   return {
     id: apiRequest.id,
@@ -174,6 +180,7 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
     status,
     stateName: apiRequest.currentState.name,
     currentState: apiRequest.currentState,
+    returnedForCorrection,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
     studentCedula: apiRequest.studentDocument,

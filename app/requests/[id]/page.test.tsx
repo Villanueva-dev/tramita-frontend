@@ -199,10 +199,13 @@ describe('RequestDetailPage', () => {
   it('permite corregir una solicitud devuelta y envía los datos editados al store', async () => {
     const returned: AcademicRequest = {
       ...request,
+      definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      type: 'novedad_notas',
       status: 'devuelto',
-      stateName: 'Devuelta para corrección',
-      currentState: { code: 'DEVUELTA', name: 'Devuelta para corrección', isFinal: false, isInitial: false },
-      subjects: [{ code: 'MAT-1', name: 'Matemáticas', credits: 3, group: 'A' }],
+      stateName: 'En preparación (carpeta y firmas)',
+      currentState: { code: 'EN_PREPARACION', name: 'En preparación (carpeta y firmas)', isFinal: false, isInitial: false },
+      returnedForCorrection: true,
+      subjects: [{ code: 'MAT-1', name: 'Matemáticas', credits: 0, currentGrade: '2.8', proposedGrade: '3.2' }],
       availableTransitions: [],
     }
     const updateRequest = vi.fn().mockResolvedValue(undefined)
@@ -216,12 +219,35 @@ describe('RequestDetailPage', () => {
 
     await screen.findByRole('button', { name: 'Corregir datos y notas' })
     fireEvent.click(screen.getByRole('button', { name: 'Corregir datos y notas' }))
-    fireEvent.change(screen.getByLabelText('Créditos'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Nota propuesta'), { target: { value: '4.0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar corrección' }))
 
     await waitFor(() => expect(updateRequest).toHaveBeenCalledWith('request-1', expect.objectContaining({
-      subjects: [expect.objectContaining({ code: 'MAT-1', credits: 4 })],
+      subjects: [expect.objectContaining({ code: 'MAT-1', proposedGrade: '4.0' })],
     })))
+  })
+
+  it('no ofrece corrección a una Novedad que apenas está en preparación', async () => {
+    const initialPreparation: AcademicRequest = {
+      ...request,
+      definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      type: 'novedad_notas',
+      stateName: 'En preparación (carpeta y firmas)',
+      currentState: { code: 'EN_PREPARACION', name: 'En preparación (carpeta y firmas)', isFinal: false, isInitial: false },
+      returnedForCorrection: false,
+      subjects: [{ code: 'MAT-1', name: 'Matemáticas', credits: 0, currentGrade: '2.8', proposedGrade: '3.2' }],
+    }
+    useTramita.mockReturnValue({
+      getRequest: () => initialPreparation,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition: vi.fn(),
+      updateRequest: vi.fn(),
+    })
+    render(<RequestDetailPage />)
+
+    await screen.findByText('Ana Pérez')
+
+    expect(screen.queryByRole('button', { name: 'Corregir datos y notas' })).toBeNull()
   })
 
   // Bug (T4a, odd/tasks/rediseno-detalle-solicitud.md): `ActionDialog` no esperaba la promesa de

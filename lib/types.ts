@@ -44,6 +44,7 @@ export interface Request {
   studentName: string
   studentDocument: string
   currentState: State
+  returnedForCorrection?: boolean
   availableTransitions: AvailableTransition[]
   createdAt: string
 }
@@ -147,6 +148,8 @@ export interface AcademicRequest {
    * el código y `isFinal`. Descartarlos acá fue la razón de que todo colgara de `status`.
    */
   currentState: State
+  /** El backend deriva este dato del último evento y la transición configurada. */
+  returnedForCorrection?: boolean
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string

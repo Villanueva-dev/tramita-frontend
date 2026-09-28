@@ -1,19 +1,9 @@
 // Semántica de los estados del motor de workflow, declarada como DATO.
 //
-// El contrato de adición/novedad (Tramita/specs/002-workflow-engine/contracts/openapi.yaml
-// :212-218) expone de `State` `code`, `name` e `isFinal`; la feature 007
-// (Tramita/specs/007-coordination-inbox/contracts/openapi.yaml, StateResponse :284-306) le
-// agrega `isInitial`. Entre los dos responden «¿está cerrado?» y «¿es el inicio?»; las otras
-// dos preguntas —¿está devuelto?, ¿terminó con éxito?— siguen sin dato propio del contrato y
-// hay que resolverlas reconociendo códigos de estado.
-//
-// DEUDA DECLARADA, un tercio pagado. Antes de la 007, los cuatro predicados de este módulo
-// salían de la tabla de abajo. Ahora `isInitialState` lee `currentState.isInitial`
-// directamente: el cliente dejó de reconocer `EN_COORDINACION` ni `REGISTRADA` por su
-// código. Quedan dos tercios en la tabla: devolución y rechazo, porque el motor no los
-// modela como propiedades del estado y no habrá `isSuccess` como campo propio — no se abre
-// issue desde el front por esto. Cuando el backend los exponga, se cambia de dónde sale esta
-// tabla y ningún consumidor se entera.
+// El contrato expone `isFinal` y, desde la 007, `isInitial` en `State`. El backend agrega
+// `returnedForCorrection` en `Request`, derivado de la última entrada inmutable del timeline
+// y la transición configurada. La única semántica que el cliente aún reconoce por código es
+// el rechazo, porque el contrato colapsa cierre exitoso y negativo en `isFinal`.
 //
 // `isClosed` NO sale de la tabla a propósito: junto con `isInitialState`, es de los pocos
 // predicados que el contrato garantiza directamente; mezclarlos con heurística los volvería
@@ -34,11 +24,10 @@ export interface StatefulRequest {
   currentState: State
   /** `null` es una definición que el cliente no reconoce (#9 b): no recibe semántica. */
   type: RequestType | null
+  returnedForCorrection?: boolean
 }
 
 interface StateSemantics {
-  /** Devuelto para corrección: sale del flujo y vuelve a entrar una vez corregido. */
-  returned?: boolean
   /** Cierre negativo: el trámite terminó, pero no con éxito. */
   rejection?: boolean
 }
@@ -50,23 +39,15 @@ interface StateSemantics {
  * adición de créditos en `V3.2.0__Register_coordination_review_return.sql` dejó de tener
  * consumidor en esta tabla.
  *
- * `Record<RequestType, …>` no es decorativo: si mañana el cliente reconoce un tercer
- * trámite, el compilador exige su fila acá en vez de dejarlo sin semántica en silencio.
+ * `Record<RequestType, …>` mantiene explícita la semántica que el contrato aún no expresa
+ * directamente; hoy solo se necesita para distinguir rechazo de cierre exitoso.
  */
 const STATE_SEMANTICS: Record<RequestType, Record<string, StateSemantics>> = {
   // `ADICION_CREDITOS` en el motor.
   adicion_creditos: {
-    DEVUELTA: { returned: true },
     RECHAZADA: { rejection: true },
   },
-  // `NOVEDAD_NOTAS` en el motor.
-  novedad_notas: {
-    // Sin devolución ni rechazo, y no es un olvido: el motor modela la devolución de este
-    // trámite como la transición de retorno a EN_PREPARACION, no como un estado («la
-    // devolución NO es un estado», V2.1.0). Por eso «estar devuelto» no es una propiedad
-    // del estado actual acá: EN_PREPARACION es indistinguible de estar ahí por primera vez.
-    // Resolverlo necesita que el backend exponga la devolución como propiedad del trámite.
-  },
+  novedad_notas: {},
 }
 
 /** Un estado que la tabla no conoce no recibe semántica: si el motor agrega uno, la
@@ -92,7 +73,7 @@ export function isSuccessfullyClosed(request: StatefulRequest): boolean {
 
 /** ¿Está devuelto para que la Coordinación lo corrija? Un rechazo definitivo no lo está. */
 export function isReturnedForCorrection(request: StatefulRequest): boolean {
-  return semanticsOf(request).returned === true
+  return request.returnedForCorrection === true
 }
 
 /** ¿Es el estado con el que nace el trámite? Lo declara el propio estado (contrato 007). */
