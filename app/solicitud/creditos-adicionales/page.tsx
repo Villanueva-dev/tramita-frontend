@@ -31,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError, submitPublicRequest } from '@/lib/api'
 import { apiErrorMessages } from '@/lib/api-errors'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
-import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from '@/lib/public-request-options'
+import { SINGLE_CAMPUS, type AcademicListField } from '@/lib/public-request-options'
 import { useProgramCatalog } from '@/lib/use-program-catalog'
 import type { PublicRequestBody } from '@/lib/types'
 
@@ -65,18 +65,16 @@ function StepErrorNotice({ errors }: { errors: FormErrors }) {
 
 export const PUBLIC_REQUEST_DEFINITION_CODE = 'ADICION_CREDITOS'
 
-// La sede se preselecciona solo mientras su lista tenga una única opción: un valor fijo se
-// volvería un defecto silencioso el día que se agregue otra sede, y quien no toque el campo
-// enviaría un dato falso.
-const INITIAL_CAMPUS = ACADEMIC_FIELD_OPTIONS.campus.length === 1 ? ACADEMIC_FIELD_OPTIONS.campus[0] : ''
-
 const INITIAL_VALUES: PublicRequestFormValues = {
   studentName: '',
   studentDocument: '',
   studentEmail: '',
   studentPhone: '',
   program: '',
-  campus: INITIAL_CAMPUS,
+  // La sede se preselecciona solo mientras su lista tenga una única opción: un valor fijo se
+  // volvería un defecto silencioso el día que se agregue otra sede, y quien no toque el campo
+  // enviaría un dato falso.
+  campus: SINGLE_CAMPUS ?? '',
   faculty: '',
   modality: '',
   semester: '',

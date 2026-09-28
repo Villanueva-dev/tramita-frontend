@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
-import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from '@/lib/public-request-options'
+import { ACADEMIC_FIELD_OPTIONS, SINGLE_CAMPUS, type AcademicListField } from '@/lib/public-request-options'
 import type { ComponentProps, ReactNode } from 'react'
 
 export interface PublicRequestFormValues {
@@ -107,6 +107,7 @@ function SelectField({
   value,
   onChange,
   error,
+  hint,
 }: {
   field: AcademicListField
   label: string
@@ -114,17 +115,23 @@ function SelectField({
   value: string
   onChange: FieldChangeHandler
   error?: string
+  hint?: string
 }) {
+  const describedBy = [hint ? `${field}-hint` : null, error ? `${field}-error` : null]
+    .filter(Boolean)
+    .join(' ') || undefined
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={field} className={READING_TEXT_SIZE}>{label}</Label>
+      {hint ? <p id={`${field}-hint`} className="text-sm text-muted-foreground">{hint}</p> : null}
       <Select
         id={field}
         value={value}
         onChange={(event) => onChange(field, event.target.value)}
         required
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${field}-error` : undefined}
+        aria-describedby={describedBy}
         className={`h-13 ${READING_TEXT_SIZE}`}
       >
         <option value="" disabled>{placeholder}</option>
@@ -255,7 +262,19 @@ export function AcademicFields({ values, onChange, errors, programCatalog }: Fie
         ) : null}
         {errors.program ? <p id="program-error" role="alert" className="text-sm text-destructive">{errors.program}</p> : null}
       </div>
-      <SelectField field="campus" label={FIELD_LABELS.campus} placeholder="Seleccione una sede" value={values.campus} onChange={onChange} error={errors.campus} />
+      {/*
+        La pista de la sede informa por qué hay una sola opción y, de paso, mantiene su selector a la
+        altura del programa, que también lleva pista, en la grilla de dos columnas.
+      */}
+      <SelectField
+        field="campus"
+        label={FIELD_LABELS.campus}
+        placeholder="Seleccione una sede"
+        value={values.campus}
+        onChange={onChange}
+        error={errors.campus}
+        hint={SINGLE_CAMPUS ? `Por ahora, este formulario atiende solo la Sede ${SINGLE_CAMPUS}.` : undefined}
+      />
       <SelectField field="faculty" label={FIELD_LABELS.faculty} placeholder="Seleccione una facultad" value={values.faculty} onChange={onChange} error={errors.faculty} />
       <SelectField field="semester" label={FIELD_LABELS.semester} placeholder="Seleccione un semestre" value={values.semester} onChange={onChange} error={errors.semester} />
       <SelectField field="modality" label={FIELD_LABELS.modality} placeholder="Seleccione una modalidad" value={values.modality} onChange={onChange} error={errors.modality} />

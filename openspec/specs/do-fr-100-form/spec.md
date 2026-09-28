@@ -263,7 +263,10 @@ son nombres cortos: el rótulo de cada campo ya dice «Facultad» o «Sede».
 `campus` **MUST** venir preseleccionado únicamente mientras su lista tenga una sola opción.
 `faculty`, `semester` y `modality` —y `campus` si su lista llegara a tener varias opciones—
 **MUST NOT** venir preseleccionados. Un valor fijo se volvería un defecto silencioso cuando se
-agregue otra sede. Los valores **MUST** viajar tal como están en la lista, sin normalización, y
+agregue otra sede. Mientras la sede sea única, su selector **MUST** explicarlo con una pista
+enlazada por `aria-describedby` («Por ahora, este formulario atiende solo la Sede Cali.»); la
+pista desaparece junto con la preselección. Los valores **MUST** viajar tal como están en la
+lista, sin normalización, y
 los rótulos oficiales de los campos **MUST** conservarse. Como cada opción cabe en el límite de
 longitud del contrato, la lista misma garantiza ese límite.
 
@@ -288,6 +291,7 @@ cambia: acepta cualquier texto de hasta el límite en estos campos.
 - GIVEN el paso «Datos académicos» recién abierto
 - WHEN el estudiante observa los cuatro selectores
 - THEN la sede aparece elegida con «Cali»
+- AND una pista enlazada explica que el formulario atiende solo la Sede Cali
 - AND facultad, semestre y modalidad aparecen sin elegir
 
 #### Scenario: Un campo sin elegir bloquea «Continuar»

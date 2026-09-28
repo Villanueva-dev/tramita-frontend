@@ -34,3 +34,11 @@ export const ACADEMIC_FIELD_OPTIONS: Record<AcademicListField, readonly string[]
   semester: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
   modality: ['Presencial', 'Distancia', 'Virtual'],
 }
+
+/**
+ * La sede cuando su lista tiene una sola opción: la página la preselecciona y el selector explica
+ * con una pista por qué no hay otra. En cuanto haya varias es `null`, y las dos cosas desaparecen
+ * juntas en vez de quedar afirmando algo falso.
+ */
+export const SINGLE_CAMPUS: string | null =
+  ACADEMIC_FIELD_OPTIONS.campus.length === 1 ? ACADEMIC_FIELD_OPTIONS.campus[0] : null

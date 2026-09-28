@@ -658,6 +658,16 @@ describe('PublicAdditionalCreditsPage', () => {
       }
     })
 
+    // Además de informar, la pista mantiene la sede a la altura del programa en la grilla de dos
+    // columnas: sin ella, la prueba en vivo del 2026-09-28 midió el selector 30 px más arriba.
+    it('explains the single campus with a hint linked via aria-describedby', async () => {
+      await reachAcademicStep()
+
+      const campus = document.getElementById('campus')
+      expect(campus?.getAttribute('aria-describedby')).toContain('campus-hint')
+      expect(document.getElementById('campus-hint')?.textContent).toBe('Por ahora, este formulario atiende solo la Sede Cali.')
+    })
+
     it.each(['faculty', 'semester', 'modality'] as const)('blocks Continuar and marks %s invalid when it is left unselected', async (field) => {
       render(<PublicAdditionalCreditsPage />)
       await reachStepWithOverride(field, '')

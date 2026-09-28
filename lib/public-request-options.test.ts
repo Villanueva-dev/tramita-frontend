@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACADEMIC_FIELD_OPTIONS, type AcademicListField } from './public-request-options'
+import { ACADEMIC_FIELD_OPTIONS, SINGLE_CAMPUS, type AcademicListField } from './public-request-options'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from './public-request-limits'
 
 const FIELDS = Object.keys(ACADEMIC_FIELD_OPTIONS) as AcademicListField[]
@@ -38,5 +38,9 @@ describe('ACADEMIC_FIELD_OPTIONS', () => {
     for (const option of ACADEMIC_FIELD_OPTIONS[field]) {
       expect(option).toBe(option.trim().replace(/\s+/g, ' '))
     }
+  })
+
+  it('exposes the single campus while its list has one option', () => {
+    expect(SINGLE_CAMPUS).toBe('Cali')
   })
 })
