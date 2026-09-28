@@ -742,6 +742,60 @@ describe('RequestDetailPage', () => {
     }
   })
 
+  // #98: el formulario público no captura asignaturas (el estudiante las escribe en
+  // «Compromisos adquiridos», que llega como `reason`), así que su solicitud trae `subjects: []`.
+  // Sin asignaturas no se dibuja la tabla: su encabezado solo insinuaba un dato faltante.
+  it('sin asignaturas no dibuja la tabla, y el motivo sigue visible (#98)', async () => {
+    mockTramita({ getRequest: () => ({ ...request, subjects: [] }) })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getByText('Motivo / justificación')).toBeDefined()
+    expect(screen.getByText('Solicitud académica')).toBeDefined()
+  })
+
+  // Guarda de #98: la condición de la tabla depende solo de que haya asignaturas, no del tipo.
+  // Reutilizar `showCreditsSummary` (atado a adición de créditos) la ocultaría en novedad de
+  // notas y en una definición desconocida (#9b).
+  it('con asignaturas dibuja la tabla en adición de créditos, novedad de notas y definición desconocida (#98)', async () => {
+    const casos: AcademicRequest[] = [
+      {
+        ...request,
+        subjects: [{ code: 'MAT-101', name: 'Cálculo I', credits: 3 }],
+      },
+      {
+        ...request,
+        type: 'novedad_notas',
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+        subjects: [{ code: 'MAT-101', name: 'Cálculo I', credits: 3, currentGrade: '3.0', proposedGrade: '4.0' }],
+      },
+      baseRequest({
+        id: 'request-6',
+        definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+        studentName: 'Estudiante Piloto',
+        studentDocument: '9999999999',
+        currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+        subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+        createdAt: '2026-09-01T12:00:00',
+        availableTransitions: [],
+      }),
+    ]
+
+    for (const caso of casos) {
+      mockTramita({ getRequest: () => caso })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText(caso.studentName)).toBeDefined())
+      const table = screen.getByRole('table')
+      expect(within(table).getByText(caso.subjects[0].name)).toBeDefined()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
+
   // T4b (rediseno-detalle-solicitud.md): antes, el mensaje flotante siempre llevaba el ícono de
   // éxito (`CheckCircle2`) y ningún rol accesible, así que un lector de pantalla no distinguía
   // un error de un éxito. El mensaje de éxito se anuncia como `role="status"`.
