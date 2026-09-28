@@ -98,9 +98,10 @@ compuesto solo por espacios no cuente como diligenciado.
 
 Antes de validar y enviar, el sistema **MUST** normalizar cada campo de una sola línea: elimina
 espacios al inicio y al final y reemplaza cada secuencia de espacios internos por uno solo.
-`program`, que procede del catálogo, y `reason` («Compromisos adquiridos») **MUST NOT**
-normalizarse: `trim()` se usa únicamente para determinar si `reason` está vacío y ambos valores
-se conservan exactamente al revisar y enviar.
+`program`, que procede del catálogo; `campus`, `faculty`, `semester` y `modality`, que proceden
+de listas cerradas; y `reason` («Compromisos adquiridos») **MUST NOT** normalizarse: `trim()` se
+usa únicamente para determinar si `reason` está vacío y todos estos valores se conservan
+exactamente al revisar y enviar.
 
 El sistema **MUST** exigir esta obligatoriedad **por paso**: «Continuar» **MUST NOT** avanzar al
 siguiente paso si algún campo del paso visible está vacío, excede su límite o es inválido. El
@@ -238,6 +239,73 @@ no modifique su estado.
 - AND no se presenta un control de texto libre
 - WHEN el estudiante reintenta y la consulta tiene éxito
 - THEN las opciones se habilitan sin perder los demás valores diligenciados
+
+### Requirement: Sede, facultad, semestre y modalidad se eligen de listas cerradas
+
+Los campos `campus`, `faculty`, `semester` y `modality` **MUST** ser selectores nativos
+requeridos, no texto libre. Cada uno **MUST** ofrecer únicamente los valores de su lista, en este
+orden, tras una opción vacía y deshabilitada que hace de «sin elegir»:
+
+- `campus`: Cali.
+- `faculty`: Ciencias Contables, Ciencias de la Salud, Ciencias Empresariales, Ciencias Jurídicas
+  y Políticas, Diseño, Ingenierías, Medicina Veterinaria.
+- `semester`: del 1 al 12, como dígito ordinal.
+- `modality`: Presencial, Distancia, Virtual.
+
+Las listas son **provisionales**: proceden de la decisión del propietario del 2026-09-28 y de la
+web oficial de la universidad (<https://www.uniremington.edu.co/cali/>,
+<https://www.uniremington.edu.co/programas/> y, para el tope de 12 semestres,
+<https://www.uniremington.edu.co/programas/medicina/>), y no cuentan con confirmación escrita de
+la Coordinación Académica. El alcance del MVP es la Sede Cali. La oferta nacional también publica
+las modalidades Combinada e Híbrida, que se descartaron por decisión del propietario. Los valores
+son nombres cortos: el rótulo de cada campo ya dice «Facultad» o «Sede».
+
+`campus` **MUST** venir preseleccionado únicamente mientras su lista tenga una sola opción.
+`faculty`, `semester` y `modality` —y `campus` si su lista llegara a tener varias opciones—
+**MUST NOT** venir preseleccionados. Un valor fijo se volvería un defecto silencioso cuando se
+agregue otra sede. Mientras la sede sea única, su selector **MUST** explicarlo con una pista
+enlazada por `aria-describedby` («Por ahora, este formulario atiende solo la Sede Cali.»); la
+pista desaparece junto con la preselección. Los valores **MUST** viajar tal como están en la
+lista, sin normalización, y
+los rótulos oficiales de los campos **MUST** conservarse. Como cada opción cabe en el límite de
+longitud del contrato, la lista misma garantiza ese límite.
+
+Esta decisión se aparta de la plantilla en papel DO-FR-100 v2024, que pide estos campos escritos
+a mano. Se justifica por la calidad del dato: un campo mal diligenciado obliga a la Coordinación a
+devolver la solicitud para su corrección. Es el mismo compromiso que la feature 009 del backend
+declaró para `program` (`Tramita/specs/009-program-catalog-annex/spec.md:115`). El backend no
+cambia: acepta cualquier texto de hasta el límite en estos campos.
+
+(Previously: los cuatro campos eran texto libre con un ejemplo como pista, por ejemplo «Cali» o
+«Sexto».)
+
+#### Scenario: Cada campo ofrece solo su lista
+
+- GIVEN el paso «Datos académicos»
+- WHEN el estudiante abre el selector de sede, facultad, semestre o modalidad
+- THEN solo aparecen los valores de su lista, en el orden definido, tras la opción vacía
+- AND no existe un control de texto libre para ese campo
+
+#### Scenario: La sede llega elegida mientras sea la única opción
+
+- GIVEN el paso «Datos académicos» recién abierto
+- WHEN el estudiante observa los cuatro selectores
+- THEN la sede aparece elegida con «Cali»
+- AND una pista enlazada explica que el formulario atiende solo la Sede Cali
+- AND facultad, semestre y modalidad aparecen sin elegir
+
+#### Scenario: Un campo sin elegir bloquea «Continuar»
+
+- GIVEN el paso «Datos académicos» con facultad, semestre o modalidad sin elegir
+- WHEN el estudiante pulsa «Continuar»
+- THEN el asistente permanece en «Datos académicos»
+- AND el selector sin elegir queda marcado como inválido con su mensaje asociado
+
+#### Scenario: El valor elegido viaja sin cambios
+
+- GIVEN facultad «Ciencias de la Salud», semestre «12» y modalidad «Virtual» elegidos
+- WHEN el estudiante llega a la revisión y envía la solicitud
+- THEN el cuerpo público lleva exactamente esos valores y la sede «Cali», sin normalizarlos
 
 ### Requirement: El trámite viaja en la ruta, no en el cuerpo
 
