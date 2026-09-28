@@ -88,14 +88,18 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
   Pendiente con navegador: PDF real, fecha/estado/revisión en pantalla y los dos enlaces.
 - Revisión limpia (opus, sin contexto): sin CRÍTICO ni ALTO; tres MEDIO confirmados por el padre
   con comandos propios. No aplicados, con razón: día < 10 (el issue fija el dato de prueba),
-  tests de los dos enlaces (los cubre la prueba en vivo; corrección posterior: solo el del login
-  exige un archivo nuevo, el del menú cabe en `components/app-shell.test.tsx`, que ya existe),
+  test del enlace del login (exige un archivo nuevo; lo cubre la prueba en vivo),
   reescribir otra vez los `Verificado:` (lo que afirman se re-verificó cierto). Anotado aparte:
   el checklist `revisar-frontend-next` dice que `pnpm lint` está roto y ya no lo está.
 - T6: RED 2 fallidos (sin `role="status"`; `readOnly` falso); GREEN 47 en verde. Nueve mutantes
   mueren, siete de ellos sobrevivían en la revisión (M05, M08, M09, M19, M20, M21, M22). Suite 364 en verde; `tsc`, lint, build y
   `git diff --check` limpios. Commits `0aa2a8d` y `be636e0`.
 - Revisión nativa (RDD): `off` por `clone_local`; no aplica.
+- Test de la entrada del menú (pedido por el propietario tras la PR, «que no esté amañado»):
+  `components/app-shell.test.tsx` consulta el enlace por rol y nombre visible y asierta
+  `href="/verificar"`. Como la entrada ya existía, el RED son tres mutantes que lo hacen fallar:
+  sin la entrada, con destino `/dashboard` y con otro nombre. Suite 365 en verde; `tsc`, lint y
+  `git diff --check` limpios.
 - T4 en vivo (Chrome, 2026-09-27, backend local): se descargó el PDF de una solicitud de adición
   de créditos, lo que registró un sello; `pdftotext` leyó en el pie `Emitido: 27/09/2026 · Estado:
   En coordinación (revisión) · Revisión: 0`. Escribir el código en minúsculas y con espacios
