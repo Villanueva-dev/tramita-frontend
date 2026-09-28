@@ -124,19 +124,26 @@ variante de color de las transiciones que exigen nota.
   habilitar sus botones. GREEN: `onConfirm` se espera; `runAction` propaga el error al diálogo en
   vez de mandarlo al toast; se retira la espera artificial y el test que la saltaba con relojes
   falsos pasa a esperar el resultado real. Commit propio `fix(solicitudes): …`.
-- [ ] **T4b — Historial, diálogo y mensaje de resultado.** Tras T4a, el mensaje flotante de la
-  página solo lleva el éxito de una transición (y errores de descarga, hoy inalcanzables porque la
-  sección de documentos llega vacía). RED: el éxito se anuncia con `role="status"`; un error se
-  anuncia con `role="alert"` y sin el ícono de éxito. GREEN: el mensaje se tipa (éxito/error) y
-  conserva su posición flotante (D5); `WorkflowTimeline` y `ActionDialog` adoptan la escala del
-  mockup sin cambiar sus props ni su orden; se retira la tarjeta «Resumen», porque el tipo ya está
-  en el encabezado.
-- [ ] **T5 — Prueba en vivo.** En Chrome contra el backend local, con permiso del propietario
-  porque las transiciones escriben en la base local. Registrar la evidencia aquí. Comprobar en
-  particular la columna lateral fija (`lg:sticky`): si el panel y un historial largo superan la
-  altura de la ventana, el final del historial solo se ve al llegar al final de la página. Mirar
-  también el historial: la línea vertical pasa por debajo de puntos con fondo translúcido y puede
-  verse a través de ellos (ya ocurría antes del rediseño).
+- [x] **T4b — Historial, diálogo y mensaje de resultado.** Commit `1aa8fa0`. Tras T4a, el mensaje
+  flotante de la página solo lleva el éxito de una transición (y errores de descarga, hoy
+  inalcanzables porque la sección de documentos llega vacía). RED: el éxito se anuncia con
+  `role="status"`; un error se anuncia con `role="alert"` y sin el ícono de éxito. GREEN: el
+  mensaje se tipa (éxito/error) y conserva su posición flotante (D5); `WorkflowTimeline` y
+  `ActionDialog` adoptan la escala del mockup sin cambiar sus props ni su orden; se retira la
+  tarjeta «Resumen», porque el tipo ya está en el encabezado.
+- [x] **T5 — Prueba en vivo.** Hecha el 2026-09-27 en Chrome contra el backend local, con permiso
+  del propietario y con esta rama sirviendo el puerto 3000 (el backend solo admite ese origen).
+  Escrituras en la base local: dos transiciones sintéticas a «En facultad» (una concurrente por
+  API, para provocar el rechazo). Evidencia abajo, en «Progreso y evidencia».
+- [ ] **T6 — Corregir lo hallado en vivo (`fix`).** Tres defectos de layout de esta rama que los
+  tests de componente no pueden ver (jsdom no calcula layout) y uno previo que T2 mantuvo: (1) el
+  panel fijo quedaba bajo la barra sticky de `AppShell` (`lg:top-4` → `lg:top-20`; T1); (2) a 390
+  px la tabla de asignaturas ocultaba la columna «Grupo» (`overflow-hidden` → `overflow-x-auto`;
+  T3); (3) a 390 px el correo del actor en el historial estiraba la página a 402 px (`min-w-0` y
+  `overflow-wrap:anywhere`; T4b); (4) «última actualización» mostraba la fecha de radicación
+  porque el contrato no trae `updatedAt` y el store lo rellena con `createdAt`
+  (`lib/store.tsx:191`); ya ocurría en `main` y T2 lo mantuvo: se retira del subtítulo. (1)–(3) se
+  verificaron midiendo en vivo antes y después; (4) tiene RED unitario.
 
 ## Progreso y evidencia
 
@@ -211,11 +218,37 @@ variante de color de las transiciones que exigen nota.
   comentario del mensaje flotante se contradecía; corregidos. GREEN sobre el diff final: `pnpm
   test` 28 archivos / 371 tests; `tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check`
   limpios. Riesgo nativo: `medium`, `under_budget` (256 líneas).
+- 2026-09-27 — **T4b commiteada**: `1ff43ff` (este documento) y `1aa8fa0` (feat). Tamaño de la
+  rama sobre `main`: 644 inserciones y 194 eliminaciones en código y pruebas (838 líneas
+  autorales), más este documento.
+- 2026-09-27 — **T5, prueba en vivo.** Servidores: el 3000 lo ocupaba el `next dev` de otro
+  checkout (rama `fix/documento-real-12`); con autorización del propietario se detuvo, se levantó
+  esta rama en el 3000 y al terminar se restauró el original. Backend y Postgres ya corrían y no
+  se tocaron. Sesión de Coordinación ya activa en Chrome. Verificado en vivo: banner, encabezado,
+  créditos (3 + 4 = 7), anexo dentro de «Acciones», fila «Teléfono» solo con dato, historial;
+  error de transición (rechazo real del backend, «La transición ya no está disponible para esta
+  solicitud») mostrado como alerta dentro del diálogo, con «Cancelar» y confirmar habilitados y
+  sin duplicarse en la página; éxito con `role="status"`, diálogo cerrado, banner y historial
+  actualizados sin recargar (marca en `window` intacta). A 390 px (iframe del mismo origen, porque
+  el gestor de ventanas ignoró el cambio de tamaño) aparecieron los defectos (2) y (3) de T6; en
+  escritorio, el (1). Tras las correcciones: panel a 90 px bajo una barra de 72 px con el título
+  visible; documento de 376 px sin desborde; «Grupo» alcanzable. Con un historial de 3 eventos la
+  columna lateral ya supera el alto útil de la ventana, pero el último evento se ve al llegar al
+  final de la página: ningún contenido queda inalcanzable. Checks tras T6: `pnpm test` 28 archivos
+  / 372 tests; `tsc --noEmit`, `pnpm lint`, `pnpm build` (exit 0) y `git diff --check` limpios.
+  RED de (4): `no afirma una fecha de última actualización que el contrato no trae` (`expected <p
+  …(1)></p> to be null`).
+- Observaciones de la prueba en vivo, previas al rediseño y fuera de alcance (a decidir por el
+  propietario): filas vacías en «Datos del estudiante» cuando falta el dato («Correo» queda solo
+  con el ícono; «Código» en blanco en solicitudes públicas); la tabla de asignaturas vacía muestra
+  solo encabezados; tras un rechazo del backend la página no se refresca y sigue ofreciendo la
+  transición rechazada; todas las transiciones llevan el ícono ✓ y una como «Rechazada» sale con
+  la variante primaria (D3 conserva el criterio de `requiresNote`).
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T4b por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
-T4b. Después, T5 (prueba en vivo), que requiere un permiso aparte.
+Revisión del diff de T6 por el propietario; con su aprobación, commits `docs(odd)` y `fix` de T6.
+Después, la entrega (push y PR), que requiere una autorización aparte.
