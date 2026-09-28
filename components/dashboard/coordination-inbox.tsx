@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, ChevronLeft, ChevronRight, Clock, CornerUpLeft } from 'lucide-react'
 import { TypeBadge } from '@/components/type-badge'
@@ -119,6 +119,7 @@ function InboxRow({ entry, now }: { entry: InboxEntry; now: number }) {
  */
 export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: number }) {
   const [page, setPage] = useState(0)
+  const sectionRef = useRef<HTMLElement>(null)
 
   const entries = inbox.status === 'ready' ? inbox.entries : []
   const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE))
@@ -127,10 +128,25 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
   const end = Math.min(start + PAGE_SIZE, entries.length)
   const pageEntries = entries.slice(start, end)
 
+  /**
+   * Al cambiar de página (issue #56) la vista se quedaba al pie de la lista, como si el
+   * clic no hubiera hecho nada. Llevar el foco a la sección sirve tanto a teclado como a lector
+   * de pantalla, y el desplazamiento acompaña a quien usa el mouse.
+   */
+  function goToPage(next: number) {
+    setPage(next)
+    const section = sectionRef.current
+    if (!section) return
+    section.scrollIntoView({ block: 'start' })
+    section.focus({ preventScroll: true })
+  }
+
   return (
     <section
+      ref={sectionRef}
+      tabIndex={-1}
       aria-labelledby="coordination-inbox-heading"
-      className="flex flex-col overflow-hidden rounded-xl border border-border bg-card"
+      className="flex scroll-mt-20 flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
       <div className="flex flex-col gap-3 p-4 md:p-6">
         <h3 id="coordination-inbox-heading" className="text-xl font-bold leading-none tracking-tight">
@@ -174,13 +190,13 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
             Mostrando {start + 1}–{end} de {entries.length}
           </p>
           <div className="flex flex-col items-center gap-2 md:flex-row md:gap-3">
-            <span className="text-base text-muted-foreground">
+            <span aria-live="polite" aria-atomic="true" className="text-base text-muted-foreground">
               Página {safePage + 1} de {totalPages}
             </span>
             <div className="flex w-full gap-2 md:w-auto">
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                onClick={() => goToPage(Math.max(0, safePage - 1))}
                 disabled={safePage === 0}
                 className="inline-flex h-12 flex-1 items-center justify-center gap-1 rounded-md border border-border px-4 text-base font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-40 md:flex-none"
               >
@@ -189,7 +205,7 @@ export function CoordinationInbox({ inbox, now }: { inbox: InboxState; now: numb
               </button>
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                onClick={() => goToPage(Math.min(totalPages - 1, safePage + 1))}
                 disabled={safePage === totalPages - 1}
                 className="inline-flex h-12 flex-1 items-center justify-center gap-1 rounded-md border border-border px-4 text-base font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-40 md:flex-none"
               >

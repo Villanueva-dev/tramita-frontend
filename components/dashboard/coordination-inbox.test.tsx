@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { CoordinationInbox } from './coordination-inbox'
 import type { InboxState } from '@/lib/use-coordination-inbox'
@@ -7,6 +7,12 @@ import type { InboxEntry } from '@/lib/types'
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
+
+// jsdom no implementa scrollIntoView: sin este stub, cualquier clic en «Siguiente»/«Anterior»
+// que lo invoque lanza TypeError.
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn()
+})
 
 afterEach(() => {
   cleanup()
@@ -280,6 +286,27 @@ describe('CoordinationInbox', () => {
       fireEvent.click(scope.getByRole('button', { name: /siguiente/i }))
       expect(scope.getByText('Página 3 de 3')).toBeDefined()
       expect(scope.getByText('Mostrando 21–25 de 25')).toBeDefined()
+    })
+
+    it('al pasar de página, la bandeja vuelve a su inicio y recibe el foco', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(11), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      fireEvent.click(within(region()).getByRole('button', { name: /siguiente/i }))
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(document.activeElement).toBe(region())
+
+      fireEvent.click(within(region()).getByRole('button', { name: /anterior/i }))
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2)
+    })
+
+    it('el contador «Página X de Y» se anuncia como región viva cortés', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(11), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      const counter = within(region()).getByText(/página 1 de 2/i)
+      expect(counter.getAttribute('aria-live')).toBe('polite')
+      expect(counter.getAttribute('aria-atomic')).toBe('true')
     })
   })
 })
