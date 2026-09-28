@@ -1,4 +1,4 @@
-# Rediseño visual del detalle de una solicitud
+# Issue #85 — Rediseño visual del detalle de una solicitud
 
 ## Objetivo y problema
 
@@ -42,9 +42,10 @@ contrato no respalda. Verificado en disco y en git (`origin/main` del backend `f
   con el ícono de éxito, `page.tsx:249-253`).
 
 Fuera de alcance: cambios de backend; `components/app-shell.tsx` (lo edita otra rama en paralelo);
-la sección de documentos, que llama a rutas `/documents…` inexistentes en el backend (se tratará
-en un issue aparte); eliminar el código muerto `components/transition-dialog.tsx`; cambiar la
-variante de color de las transiciones que exigen nota.
+la sección de documentos, que llama a rutas `/documents…` inexistentes en el backend (ya la cubre
+la issue #12, «Cinco llamadas apuntan a endpoints que no existen…»); eliminar el código muerto
+`components/transition-dialog.tsx`; cambiar la variante de color de las transiciones que exigen
+nota.
 
 ## Decisiones de diseño
 
@@ -135,15 +136,16 @@ variante de color de las transiciones que exigen nota.
   del propietario y con esta rama sirviendo el puerto 3000 (el backend solo admite ese origen).
   Escrituras en la base local: dos transiciones sintéticas a «En facultad» (una concurrente por
   API, para provocar el rechazo). Evidencia abajo, en «Progreso y evidencia».
-- [ ] **T6 — Corregir lo hallado en vivo (`fix`).** Tres defectos de layout de esta rama que los
-  tests de componente no pueden ver (jsdom no calcula layout) y uno previo que T2 mantuvo: (1) el
-  panel fijo quedaba bajo la barra sticky de `AppShell` (`lg:top-4` → `lg:top-20`; T1); (2) a 390
-  px la tabla de asignaturas ocultaba la columna «Grupo» (`overflow-hidden` → `overflow-x-auto`;
-  T3); (3) a 390 px el correo del actor en el historial estiraba la página a 402 px (`min-w-0` y
-  `overflow-wrap:anywhere`; T4b); (4) «última actualización» mostraba la fecha de radicación
-  porque el contrato no trae `updatedAt` y el store lo rellena con `createdAt`
-  (`lib/store.tsx:191`); ya ocurría en `main` y T2 lo mantuvo: se retira del subtítulo. (1)–(3) se
-  verificaron midiendo en vivo antes y después; (4) tiene RED unitario.
+- [x] **T6 — Corregir lo hallado en vivo (`fix`).** Commit `61c75d6`. Tres defectos de layout de
+  esta rama que los tests de componente no pueden ver (jsdom no calcula layout) y uno previo que
+  T2 mantuvo: (1) el panel fijo quedaba bajo la barra sticky de `AppShell` (`lg:top-4` →
+  `lg:top-20`; T1); (2) a 390 px la tabla de asignaturas ocultaba la columna «Grupo»
+  (`overflow-hidden` → `overflow-x-auto`; T3); (3) a 390 px el correo del actor en el historial
+  estiraba la página a 402 px (`min-w-0` y `overflow-wrap:anywhere`; T4b); (4) «última
+  actualización» mostraba la fecha de radicación porque el contrato no trae `updatedAt` y el store
+  lo rellena con `createdAt` (`lib/store.tsx:191`); ya ocurría en `main` y T2 lo mantuvo: se
+  retira del subtítulo. (1)–(3) se verificaron midiendo en vivo antes y después; (4) tiene RED
+  unitario.
 
 ## Progreso y evidencia
 
@@ -244,11 +246,15 @@ variante de color de las transiciones que exigen nota.
   solo encabezados; tras un rechazo del backend la página no se refresca y sigue ofreciendo la
   transición rechazada; todas las transiciones llevan el ícono ✓ y una como «Rechazada» sale con
   la variante primaria (D3 conserva el criterio de `requiresNote`).
+- 2026-09-27 — **T6 commiteada**: `69b4452` (este documento) y `61c75d6` (fix). La rama queda con
+  12 commits sobre `main`; todas las tareas cerradas.
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T6 por el propietario; con su aprobación, commits `docs(odd)` y `fix` de T6.
-Después, la entrega (push y PR), que requiere una autorización aparte.
+Entrega autorizada por el propietario el 2026-09-27: issue #85 creada (no existía una
+equivalente); tras este commit, push de `feat/detalle-ui` y PR a `main` con `Closes #85`,
+`type:feature` y `size:exception`. Candidatas a issue aparte, a decidir por el propietario: las
+observaciones de la prueba en vivo. La sección de documentos ya está en #12.
