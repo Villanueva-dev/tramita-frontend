@@ -15,6 +15,10 @@ Aprovechar el ancho del banner del estado actual en escritorio y dejar de mostra
   (`PublicRequestBody.java:19`; columna `student_code VARCHAR(30)` que admite nulos en
   `V2.3.0__Persist_request_form_data.sql:8`), y los registros que lo traen deben seguir
   mostrándolo.
+- Hoy el formulario interno sí envía `studentCode` (`lib/store.tsx:314`), aunque la spec lo
+  excluye del POST por decisión de alcance (`openspec/specs/workflow-requests/spec.md:109`).
+  Si el código se alinea con la spec, solo los registros anteriores traerán código, y
+  ocultar la fila vacía sigue siendo lo correcto.
 
 ## Alcance autorizado y restricciones
 
@@ -112,7 +116,24 @@ con márgenes negativos. El propietario eligió no reestructurar.
   por tiempo (exit 124, sin salida); en una terminal normal pasa en 8 s.
 - 2026-09-28: el propietario autorizó corregir el alto extra en móvil «lo más KISS posible,
   sin hacer reingeniería»; se hizo RD-3 con una sola clase.
+- 2026-09-28: antes de publicar, a pedido del propietario, se corrió en local la secuencia
+  del CI sobre la rama. Para eso el worktree dejó de enlazar el `node_modules` del checkout
+  principal (Turbopack rechaza ese enlace) y se instaló el suyo sin red desde el lockfile.
+
+## Entrega
+
+- Issue #90 y PR #91 (`Closes #90`), publicados el 2026-09-28 con el propietario.
+- Secuencia del CI en local, sobre `301b41c`, sin `.next` previo: `pnpm lint`,
+  `pnpm exec tsc --noEmit`, `pnpm test` (387 en verde) y `pnpm build` con Turbopack,
+  aprobados.
+- CI de la PR sobre `301b41c`: `build` aprobado en 54 s.
+- El propietario mergeó #91 el 2026-09-28 (merge `5ff20a7`); #90 se cerró como completado
+  con el merge, y el CI de `main` sobre `5ff20a7` pasó. Este registro llega en una PR
+  aparte porque el merge ocurrió antes de subirlo a #91.
 
 ## Próximo paso
 
-La entrega (push de `fix/request-detail-density` y PR) queda a decisión del propietario.
+- Retirar el worktree (`git worktree remove`) cuando ya no haga falta.
+- El envío de `studentCode` desde el formulario interno (ver «Problema y por qué») no lo
+  nombra ningún issue. El problema de fondo sí lo sigue #10: el POST de `lib/store.tsx:307`
+  reimplementa el de `lib/api.ts:308`, que respeta la allowlist de seis campos de la spec.
