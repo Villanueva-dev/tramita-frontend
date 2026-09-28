@@ -48,7 +48,7 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
 - [x] **T4 — Prueba en vivo** contra el backend local (registra un sello): `/verificar` sin
   sesión no redirige; el código de un PDF descargado coincide en fecha, estado y revisión;
   `ZZZZZZZZZZZZZ` no da resultado.
-- [ ] **T5 — Revisión con agente limpio y PR** con `Closes #82`. Revisión hecha; falta la PR.
+- [x] **T5 — Revisión con agente limpio y PR** con `Closes #82`: PR #83, CI `build` en verde.
 - [x] **T6 — Hallazgos confirmados de la revisión limpia** (alcance aprobado por el propietario
   el 2026-09-27): campo de solo lectura durante la consulta (M1), tests de «otro error» en la
   API y en la página (M2), región `role="status"` montada desde el inicio (M3), envío vacío y
@@ -88,7 +88,8 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
   Pendiente con navegador: PDF real, fecha/estado/revisión en pantalla y los dos enlaces.
 - Revisión limpia (opus, sin contexto): sin CRÍTICO ni ALTO; tres MEDIO confirmados por el padre
   con comandos propios. No aplicados, con razón: día < 10 (el issue fija el dato de prueba),
-  tests de los dos enlaces (archivos nuevos para dos `Link`; los cubre la prueba en vivo),
+  tests de los dos enlaces (los cubre la prueba en vivo; corrección posterior: solo el del login
+  exige un archivo nuevo, el del menú cabe en `components/app-shell.test.tsx`, que ya existe),
   reescribir otra vez los `Verificado:` (lo que afirman se re-verificó cierto). Anotado aparte:
   el checklist `revisar-frontend-next` dice que `pnpm lint` está roto y ya no lo está.
 - T6: RED 2 fallidos (sin `role="status"`; `readOnly` falso); GREEN 47 en verde. Nueve mutantes
@@ -110,4 +111,5 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
 
 ## Próximo paso
 
-T5: abrir la PR con `Closes #82`.
+Merge de #83 (decisión del propietario). Después, la T6 de #12: retirar la vista previa que dice
+«Verificable con folio RC-…».
