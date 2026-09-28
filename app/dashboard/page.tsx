@@ -19,10 +19,9 @@ export default function DashboardPage() {
   const { requests, coordinatorName, searchRequests, searched, searchErrors } = useTramita()
   const inbox = useCoordinationInbox()
   const [now] = useState(() => Date.now())
-  // Término que viaja al backend (localización), distinto de `query`, que filtra
-  // en el cliente lo ya traído.
+  // Término que viaja al backend (localización); los filtros de abajo acotan
+  // los resultados ya traídos, sin volver a preguntarle al servidor.
   const [searchTerm, setSearchTerm] = useState('')
-  const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<RequestType | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
   const [responsibleFilter, setResponsibleFilter] = useState('all')
@@ -39,33 +38,21 @@ export default function DashboardPage() {
         if (days > Number(dateFilter)) return false
       }
 
-      if (query.trim()) {
-        const q = query.toLowerCase()
-        const hay =
-          r.studentName.toLowerCase().includes(q) ||
-          r.studentCedula.includes(q) ||
-          r.studentCode.includes(q) ||
-          r.radicado.toLowerCase().includes(q) ||
-          r.assignedTo.toLowerCase().includes(q)
-        if (!hay) return false
-      }
       return true
     })
-  }, [requests, typeFilter, statusFilter, responsibleFilter, dateFilter, query, now])
+  }, [requests, typeFilter, statusFilter, responsibleFilter, dateFilter, now])
 
   const hasActiveFilters =
     typeFilter !== 'all' ||
     statusFilter !== 'all' ||
     responsibleFilter !== 'all' ||
-    dateFilter !== 'all' ||
-    query.trim() !== ''
+    dateFilter !== 'all'
 
   function clearFilters() {
     setTypeFilter('all')
     setStatusFilter('all')
     setResponsibleFilter('all')
     setDateFilter('all')
-    setQuery('')
   }
 
   const firstName = coordinatorName.replace(/^Coord\.\s*/, '').split(' ')[0]
@@ -162,21 +149,6 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div className="flex flex-col gap-1.5 xl:col-span-1 md:col-span-2">
-                  <Label htmlFor="search" className="text-xs text-muted-foreground">
-                    Buscar
-                  </Label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      className="pl-9"
-                      placeholder="Nombre, cédula o radicado…"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="type" className="text-xs text-muted-foreground">
                     Tipo de trámite

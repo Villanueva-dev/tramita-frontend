@@ -179,6 +179,20 @@ describe('DashboardPage — buscador primero, sin tarjetas (#56)', () => {
 
     expect(screen.getByText(/filtros y búsqueda/i)).toBeDefined()
   })
+
+  // Había dos cajas «Buscar»: la principal, que consulta al backend, y otra dentro del
+  // panel de filtros que filtraba en el cliente. Confunde a una usuaria no técnica; se
+  // retira la del panel y sus cuatro controles restantes quedan solos (#56).
+  it('tras buscar, el panel de filtros no tiene una segunda caja de búsqueda', () => {
+    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
+
+    expect(screen.queryByRole('textbox', { name: 'Buscar' })).toBeNull()
+    expect(screen.getByLabelText('Cédula o nombre del estudiante')).toBeDefined()
+    expect(screen.getByLabelText(/tipo de trámite/i)).toBeDefined()
+    expect(screen.getByLabelText(/responsable/i)).toBeDefined()
+    expect(screen.getByLabelText(/estado/i)).toBeDefined()
+    expect(screen.getByLabelText(/fecha de radicación/i)).toBeDefined()
+  })
 })
 
 describe('DashboardPage', () => {
