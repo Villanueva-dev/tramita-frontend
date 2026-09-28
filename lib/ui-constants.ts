@@ -1,7 +1,7 @@
 import type {
+  InboxOrigin,
   RequestStatus,
   RequestType,
-  RequestTypeConfig,
 } from './types'
 
 export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
@@ -17,40 +17,15 @@ export const STATUS_LABELS: Record<RequestStatus, string> = {
   finalizado: 'Finalizado',
 }
 
-export const PROGRAMS = [
-  'Ingeniería de Sistemas',
-  'Administración de Empresas',
-  'Contaduría Pública',
-  'Derecho',
-  'Psicología',
-]
+/**
+ * Traduce `InboxEntry.origin` a texto legible (coordination-inbox/spec.md, «El origen se
+ * presenta en sus tres casos»). Enum cerrado del contrato de la bandeja, no del motor de
+ * trámites configurable — no se confunde con `REQUEST_TYPE_LABELS`.
+ */
+export const ORIGIN_LABELS: Record<InboxOrigin, string> = {
+  COORDINATION: 'Coordinación',
+  PUBLIC_LINK: 'Enlace público',
+}
 
-
-export const workflowConfig: RequestTypeConfig[] = [
-  {
-    id: 'adicion_creditos',
-    label: 'Adición de Créditos',
-    description:
-      'Solicitud para inscribir créditos adicionales por encima del límite regular del semestre.',
-    enabled: true,
-    stages: [
-      { id: 'radicacion', label: 'Radicación', description: 'Registro inicial de la solicitud' },
-      { id: 'revision', label: 'Revisión de Coordinación', description: 'Validación de requisitos académicos' },
-      { id: 'aprobacion', label: 'Aprobación', description: 'Decisión final del coordinador' },
-      { id: 'cierre', label: 'Cierre y Notificación', description: 'Generación de PDF y notificación al estudiante' },
-    ],
-  },
-  {
-    id: 'novedad_notas',
-    label: 'Novedad de Notas',
-    description:
-      'Solicitud de corrección o modificación de una calificación registrada.',
-    enabled: true,
-    stages: [
-      { id: 'radicacion', label: 'Radicación', description: 'Registro inicial de la novedad' },
-      { id: 'verificacion', label: 'Verificación Docente', description: 'Confirmación con el docente responsable' },
-      { id: 'aprobacion', label: 'Aprobación', description: 'Autorización del cambio de nota' },
-      { id: 'cierre', label: 'Cierre y Notificación', description: 'Generación de PDF y notificación al estudiante' },
-    ],
-  },
-]
+/** `origin: null` es una anomalía de datos declarada, no un tercer origen (contrato :255-258). */
+export const ORIGIN_UNKNOWN_LABEL = 'Origen no registrado'

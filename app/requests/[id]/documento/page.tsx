@@ -9,15 +9,12 @@ import {
   Download,
   FileText,
   Loader2,
-  Printer,
-  ShieldCheck,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { PdfDocument } from '@/components/pdf-document'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTramita } from '@/lib/store'
-import { apiFetch, problemMessage } from '@/lib/api'
+import { apiFetch, filenameFromContentDisposition, problemMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 
 export default function DocumentoPage() {
@@ -25,7 +22,7 @@ export default function DocumentoPage() {
   const { getRequest, refreshRequest } = useTramita()
   const req = getRequest(params.id)
   const [downloading, setDownloading] = useState(false)
-  const [downloaded, setDownloaded] = useState(false)
+  const [downloadedName, setDownloadedName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -37,10 +34,10 @@ export default function DocumentoPage() {
   }, [params.id, refreshRequest])
 
   useEffect(() => {
-    if (!downloaded) return
-    const t = setTimeout(() => setDownloaded(false), 3500)
+    if (!downloadedName) return
+    const t = setTimeout(() => setDownloadedName(null), 3500)
     return () => clearTimeout(t)
-  }, [downloaded])
+  }, [downloadedName])
 
   function handleDownload() {
     setDownloading(true)
@@ -53,14 +50,20 @@ export default function DocumentoPage() {
         const url = URL.createObjectURL(blob)
         const anchor = document.createElement('a')
         anchor.href = url
-        anchor.download = `constancia_${params.id}.pdf`
+        // El nombre lo fija el backend: identifica el formato institucional (DO-FR-100) y
+        // omite deliberadamente cédula y nombre. Reescribirlo acá rompía esa correspondencia.
+        const filename = filenameFromContentDisposition(
+          response.headers?.get('Content-Disposition') ?? null,
+          `documento_${params.id}.pdf`,
+        )
+        anchor.download = filename
         anchor.click()
         URL.revokeObjectURL(url)
-        setDownloaded(true)
+        setDownloadedName(filename)
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'No se pudo generar el PDF.'))
       .finally(() => {
-      setDownloading(false)
+        setDownloading(false)
       })
   }
 
@@ -84,36 +87,8 @@ export default function DocumentoPage() {
     )
   }
 
-  if (req.status !== 'finalizado') {
-    return (
-      <AppShell title="Documento">
-        <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-20 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-warning/15 text-warning">
-            <FileText className="size-7" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">
-              El documento aún no ha sido generado
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              El documento formal se genera automáticamente cuando el trámite{' '}
-              <span className="font-medium">{req.radicado}</span> se finaliza.
-              Complete el flujo de trabajo para habilitar la descarga.
-            </p>
-          </div>
-          <Link href={`/requests/${req.id}`}>
-            <Button variant="outline" className="gap-2">
-              <ArrowLeft className="size-4" />
-              Volver a la solicitud
-            </Button>
-          </Link>
-        </div>
-      </AppShell>
-    )
-  }
-
   return (
-    <AppShell title="Documento formal">
+    <AppShell title="Documento de la solicitud">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <Link
           href={`/requests/${req.id}`}
@@ -123,35 +98,29 @@ export default function DocumentoPage() {
           Volver a la solicitud
         </Link>
 
-        {/* Header banner emphasizing formal closure */}
         <Card className="border-primary/20 bg-primary/[0.03]">
           <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                <ShieldCheck className="size-5" />
+                <FileText className="size-5" />
               </span>
               <div>
                 <h2 className="font-serif text-lg font-bold tracking-tight">
-                  Documento oficial de cierre
+                  Documento de la solicitud
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Este documento constituye la constancia formal del trámite{' '}
-                  <span className="font-medium text-foreground">
-                    {req.radicado}
-                  </span>{' '}
-                  y fue notificado al estudiante.
+                  Información registrada para el trámite{' '}
+                  <span className="font-medium text-foreground">{req.radicado}</span>{' '}
+                  en su estado actual. El pie del PDF lleva el estado al emitir y un código
+                  que se consulta en{' '}
+                  <Link href="/verificar" className="font-medium text-primary hover:underline">
+                    Verificar documento
+                  </Link>
+                  .
                 </p>
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => window.print()}
-              >
-                <Printer className="size-4" />
-                Imprimir
-              </Button>
               <Button
                 className="gap-2"
                 onClick={handleDownload}
@@ -173,14 +142,12 @@ export default function DocumentoPage() {
           </CardContent>
         </Card>
 
-        {downloaded && (
+        {downloadedName && (
           <div className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
             <CheckCircle2 className="size-5 shrink-0" />
             <span>
               Documento{' '}
-              <span className="font-semibold">
-                constancia_{req.radicado}.pdf
-              </span>{' '}
+              <span className="font-semibold">{downloadedName}</span>{' '}
               descargado correctamente.
             </span>
           </div>
@@ -195,9 +162,9 @@ export default function DocumentoPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ['Radicado', req.radicado],
-            ['Estado', 'Finalizado'],
+            ['Estado', req.stateName],
             ['Estudiante', req.studentName],
-            ['Generado', formatDateTime(req.updatedAt)],
+            ['Última actualización', formatDateTime(req.updatedAt)],
           ].map(([k, v]) => (
             <div
               key={k}
@@ -207,11 +174,6 @@ export default function DocumentoPage() {
               <p className="truncate text-sm font-medium">{v}</p>
             </div>
           ))}
-        </div>
-
-        {/* Document preview */}
-        <div className="rounded-xl border border-border bg-muted/40 p-3 sm:p-8">
-          <PdfDocument request={req} />
         </div>
       </div>
     </AppShell>

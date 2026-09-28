@@ -16,11 +16,16 @@ export function parseServerDateTime(value: string): Date {
   return new Date(HAS_OFFSET.test(value) ? value : `${value}Z`)
 }
 
-/** Días transcurridos desde `value` hasta `now` (inyectable para tests deterministas). */
+/**
+ * Días transcurridos desde `value` hasta `now` (inyectable para tests deterministas).
+ * Acotado en 0: el instante del servidor puede ser posterior a `now` (congelado al
+ * montar la pantalla, o reloj del cliente atrasado), y algo que acaba de ocurrir
+ * lleva 0 días, no -1.
+ */
 export function daysSince(value: string, now: Date = new Date()): number {
   const then = parseServerDateTime(value)
   const diffMs = now.getTime() - then.getTime()
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
 }
 
 export function formatDate(iso: string) {
@@ -41,26 +46,6 @@ export function formatDateTime(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-export function addBusinessDays(iso: string, amount: number) {
-  const result = parseServerDateTime(iso)
-  if (Number.isNaN(result.getTime())) return iso
-  result.setUTCDate(result.getUTCDate() + amount)
-  return result.toISOString()
-}
-
-export function businessDaysUntil(iso: string) {
-  const due = parseServerDateTime(iso)
-  if (Number.isNaN(due.getTime())) return 0
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  due.setHours(0, 0, 0, 0)
-  return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-export function isOverdue(iso: string, status: string) {
-  return status !== 'finalizado' && businessDaysUntil(iso) < 0
 }
 
 export type StatusVariant = 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'info'

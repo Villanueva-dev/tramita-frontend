@@ -6,13 +6,15 @@ import { FilePlus2, Search, SlidersHorizontal, Timer, UserRound, X } from 'lucid
 import { AppShell } from '@/components/app-shell'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { RequestsTable } from '@/components/dashboard/requests-table'
+import { CoordinationInbox } from '@/components/dashboard/coordination-inbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useTramita } from '@/lib/store'
+import { useCoordinationInbox } from '@/lib/use-coordination-inbox'
 import { REQUEST_TYPE_LABELS, STATUS_LABELS } from '@/lib/ui-constants'
-import { businessDaysUntil, isOverdue } from '@/lib/format'
+import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 import type { RequestStatus, RequestType } from '@/lib/types'
 
 type CardFilter =
@@ -24,6 +26,7 @@ type CardFilter =
 
 export default function DashboardPage() {
   const { requests, metrics, coordinatorName, searchRequests, searched, searchErrors } = useTramita()
+  const inbox = useCoordinationInbox()
   const [now] = useState(() => Date.now())
   // Término que viaja al backend (localización), distinto de `query`, que filtra
   // en el cliente lo ya traído.
@@ -41,20 +44,18 @@ export default function DashboardPage() {
       if (cardFilter === 'pendiente' && r.status !== 'pendiente') return false
       if (
         cardFilter === 'en_proceso' &&
-        !(r.status === 'en_revision' || r.status === 'devuelto')
+        !(r.status === 'en_revision' || isReturnedForCorrection(r))
       )
         return false
+      // Espeja el contador de SummaryCards: el rechazo es final pero no completó (#35).
       if (
         cardFilter === 'completado' &&
-        !(r.status === 'aprobado' || r.status === 'finalizado')
+        !(isSuccessfullyClosed(r) || r.status === 'aprobado')
       )
         return false
       if (
         cardFilter === 'urgente' &&
-        !(
-          (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-          r.status !== 'finalizado'
-        )
+        !(r.priority === 'urgente' && !isClosed(r))
       )
         return false
 
@@ -99,13 +100,8 @@ export default function DashboardPage() {
   }
 
   const responsibleOptions = Array.from(new Set(requests.map((request) => request.assignedTo))).sort()
-  const openRequests = requests.filter((request) => request.status !== 'finalizado')
-  const overdueRequests = openRequests.filter((request) => isOverdue(request.dueDate, request.status))
-  const dueSoonRequests = openRequests.filter((request) => {
-    const days = businessDaysUntil(request.dueDate)
-    return days >= 0 && days <= 2
-  })
-  const returnedRequests = requests.filter((request) => request.status === 'devuelto')
+  const openRequests = requests.filter((request) => !isClosed(request))
+  const returnedRequests = requests.filter(isReturnedForCorrection)
   const averageOpenAge = openRequests.length === 0
     ? 0
     : Math.round(openRequests.reduce((total, request) => total + Math.max(0, now - new Date(request.createdAt).getTime()) / 86400000, 0) / openRequests.length)
@@ -119,17 +115,12 @@ export default function DashboardPage() {
             <h2 className="font-serif text-2xl font-bold tracking-tight">
               Buenos días
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tiene {requests.filter((r) => r.status === 'pendiente').length}{' '}
-              solicitudes pendientes y{' '}
-              {
-                requests.filter(
-                  (r) =>
-                    r.priority === 'urgente' && r.status !== 'finalizado',
-                ).length
-              }{' '}
-              con atención prioritaria.
-            </p>
+            {inbox.status === 'ready' && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tiene {inbox.entries.length} solicitud{inbox.entries.length === 1 ? '' : 'es'}
+                {inbox.mayHaveMore ? ' o más' : ''} esperando su acción.
+              </p>
+            )}
           </div>
           <Link href="/requests/new">
             <Button size="lg" className="h-10 gap-2">
@@ -139,10 +130,13 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* Bandeja de trabajo: qué espera la acción de la Coordinación, sin que nadie
+            busque. El orden y el recorte son del servidor (design.md, D1). */}
+        <CoordinationInbox inbox={inbox} now={now} />
+
         {/* Summary cards */}
         <SummaryCards
           requests={requests}
-          metrics={metrics}
           active={cardFilter}
           onSelect={(k) => setCardFilter(k as CardFilter)}
         />
@@ -150,8 +144,6 @@ export default function DashboardPage() {
         {/* Indicadores operativos calculados sobre las solicitudes cargadas desde el backend. */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
-            { label: 'Vencidas', value: overdueRequests.length, hint: 'Requieren acción', className: 'text-destructive' },
-            { label: 'Por vencer', value: dueSoonRequests.length, hint: 'En los próximos 2 días', className: 'text-warning-foreground' },
             { label: 'Ciclo promedio', value: metrics?.averageCycleHours == null ? `${averageOpenAge} d abiertos` : `${Math.round(metrics.averageCycleHours)} h`, hint: metrics?.averageCycleHours == null ? 'Sin cierres medidos todavía' : 'Desde radicación hasta cierre', className: 'text-primary' },
             { label: 'Devoluciones', value: metrics?.returnCount ?? returnedRequests.length, hint: metrics ? 'Históricas del timeline' : 'Activas en la bandeja', className: 'text-foreground' },
           ].map((metric) => (

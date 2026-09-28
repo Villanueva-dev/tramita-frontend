@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
 import { PUBLIC_REQUEST_FIELD_LIMITS } from '@/lib/public-request-limits'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 export interface PublicRequestFormValues {
   studentName: string
@@ -19,14 +19,38 @@ export interface PublicRequestFormValues {
   reason: string
 }
 
-interface PublicRequestSectionsProps {
-  values: PublicRequestFormValues
-  onChange: (field: keyof PublicRequestFormValues, value: string) => void
-  signatureCapture: ReactNode
-  errors: Partial<Record<keyof PublicRequestFormValues | 'signature', string>>
-  onSubmit: () => void
-  isSubmitting: boolean
+// `PublicRequestSections`, el componente de una sola página que consumía este contrato, se retiró
+// en el corte 3d: `page.tsx` compone estos grupos dentro de su propio `<form>` (design.md,
+// decisión 4). `FieldGroupProps` queda autocontenido en vez de derivar de las props de un
+// componente que ya no existe.
+type FieldChangeHandler = (field: keyof PublicRequestFormValues, value: string) => void
+type FieldErrors = Partial<Record<keyof PublicRequestFormValues | 'signature', string>>
+
+/**
+ * Fuente única de los rótulos de campo (checklist «TypeScript»/DRY): `review-summary.tsx` los
+ * importa en vez de mantener su propia copia, así un rótulo solo cambia en un lugar.
+ */
+export const FIELD_LABELS: Record<keyof PublicRequestFormValues, string> = {
+  studentName: 'Nombres completos del solicitante',
+  studentDocument: 'Número de identificación',
+  studentEmail: 'Correo electrónico',
+  studentPhone: 'Número de contacto',
+  program: 'Programa académico en el que se encuentra',
+  campus: 'Sede',
+  faculty: 'Facultad',
+  semester: 'Semestre cursado y aprobado',
+  modality: 'Modalidad',
+  reason: 'Compromisos adquiridos',
 }
+
+/**
+ * Letra de 17 px de la propuesta (PR-4) para rótulos y controles: `Label`, `Input` y `Textarea`
+ * fijan `text-sm`, así que el tamaño del `<main>` no les llega y se aplica aquí, en el punto de
+ * uso, sin tocar las primitivas que comparte la app interna. En rem, no en px: 1.0625rem son
+ * 17 px con la raíz por omisión (16 px) y escala con el tamaño de letra que el estudiante haya
+ * configurado en su navegador, cosa que un valor en px ignoraría.
+ */
+const READING_TEXT_SIZE = 'text-[1.0625rem]'
 
 function TextField({
   field,
@@ -35,33 +59,62 @@ function TextField({
   onChange,
   error,
   maxLength,
+  hint,
+  inputMode,
 }: {
   field: keyof PublicRequestFormValues
   label: string
   value: string
-  onChange: PublicRequestSectionsProps['onChange']
+  onChange: FieldChangeHandler
   error?: string
-  maxLength: number
+  maxLength?: number
+  hint?: string
+  inputMode?: ComponentProps<'input'>['inputMode']
 }) {
+  const describedBy = [hint ? `${field}-hint` : null, error ? `${field}-error` : null]
+    .filter(Boolean)
+    .join(' ') || undefined
+
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={field}>{label}</Label>
+      <Label htmlFor={field} className={READING_TEXT_SIZE}>{label}</Label>
+      {hint ? <p id={`${field}-hint`} className="text-sm text-muted-foreground">{hint}</p> : null}
       <Input
         id={field}
+        className={`h-13 ${READING_TEXT_SIZE}`}
         value={value}
         onChange={(event) => onChange(field, event.target.value)}
         maxLength={maxLength}
+        inputMode={inputMode}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${field}-error` : undefined}
+        aria-describedby={describedBy}
       />
       {error ? <p id={`${field}-error`} role="alert" className="text-sm text-destructive">{error}</p> : null}
     </div>
   )
 }
 
-export function PublicRequestSections({ values, onChange, signatureCapture, errors, onSubmit, isSubmitting }: PublicRequestSectionsProps) {
+/**
+ * Grupos de campos del asistente (design.md, decisión 1). Cada grupo renderiza exactamente los
+ * campos que `FIELD_STEP` (`steps.ts`) asigna a su paso, en el orden del papel. `values`,
+ * `onChange` y `errors` reciben el contrato completo, igual que `PublicRequestSectionsProps`,
+ * para que un mismo grupo pueda componerse aquí (todo en una pasada) o, más adelante, dentro de
+ * un paso del asistente sin cambiar su firma.
+ */
+export interface FieldGroupProps {
+  values: PublicRequestFormValues
+  onChange: FieldChangeHandler
+  errors: FieldErrors
+}
+
+/**
+ * Franja fija de «Lugar y fecha» y «Tipo de solicitud»: no tiene campos propios y, en el
+ * asistente, se muestra por encima de la barra de progreso en todos los pasos (spec
+ * «Reproducción del formato con repliegue declarado»).
+ */
+export function PublicRequestFixedStrip() {
   return (
-    <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSubmit() }} noValidate>
+    <>
       <Card>
         <CardHeader>
           <CardTitle>Lugar y fecha</CardTitle>
@@ -75,87 +128,150 @@ export function PublicRequestSections({ values, onChange, signatureCapture, erro
           <CardDescription>Matrícula créditos adicionales</CardDescription>
         </CardHeader>
       </Card>
+    </>
+  )
+}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Datos del solicitante</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <TextField
-              field="studentName"
-              label="Nombres completos del solicitante"
-              value={values.studentName}
-              onChange={onChange}
-              error={errors.studentName}
-              maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentName}
-            />
-          </div>
-          <TextField field="studentDocument" label="Número de identificación" value={values.studentDocument} onChange={onChange} error={errors.studentDocument} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentDocument} />
-          <TextField field="studentEmail" label="Correo electrónico" value={values.studentEmail} onChange={onChange} error={errors.studentEmail} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentEmail} />
-          <TextField field="studentPhone" label="Número de contacto" value={values.studentPhone} onChange={onChange} error={errors.studentPhone} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentPhone} />
-          <TextField field="program" label="Programa académico en el que se encuentra" value={values.program} onChange={onChange} error={errors.program} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.program} />
-          <TextField field="campus" label="Sede" value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} />
-          <TextField field="faculty" label="Facultad" value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} />
-          <TextField field="semester" label="Semestre cursado y aprobado" value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} />
-          <TextField field="modality" label="Modalidad" value={values.modality} onChange={onChange} error={errors.modality} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.modality} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Motivo de la solicitud</CardTitle>
-          <CardDescription>Describa el motivo en los compromisos adquiridos.</CardDescription>
-        </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Compromisos adquiridos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Label htmlFor="reason">Compromisos adquiridos</Label>
-          <Textarea
-            id="reason"
-            value={values.reason}
-            onChange={(event) => onChange('reason', event.target.value)}
-            maxLength={PUBLIC_REQUEST_FIELD_LIMITS.reason}
-            aria-invalid={Boolean(errors.reason)}
-            aria-describedby={errors.reason ? 'reason-error' : undefined}
-            className="mt-1.5"
-          />
-          {errors.reason ? <p id="reason-error" role="alert" className="text-sm text-destructive">{errors.reason}</p> : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Firma del solicitante</CardTitle>
-          <CardDescription>Trace su firma en el recuadro o cargue una imagen como alternativa accesible.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <figure aria-labelledby="signature-label">
-            {signatureCapture}
-            <figcaption id="signature-label" className="sr-only">
-              Firma del solicitante
-            </figcaption>
-          </figure>
-          {errors.signature ? <p id="signature-error" role="alert" className="mt-2 text-sm text-destructive">{errors.signature}</p> : null}
-        </CardContent>
-      </Card>
+/**
+ * Los cuatro campos del paso «Sus datos» (`FIELD_STEP.applicant`). Sin tarjeta propia: hoy
+ * comparte una sola tarjeta «Datos del solicitante» con los campos académicos; quien componga
+ * este grupo decide el encabezado que lo envuelve.
+ */
+export function ApplicantFields({ values, onChange, errors }: FieldGroupProps) {
+  return (
+    <>
+      <div className="sm:col-span-2">
+        <TextField
+          field="studentName"
+          label={FIELD_LABELS.studentName}
+          value={values.studentName}
+          onChange={onChange}
+          error={errors.studentName}
+          maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentName}
+          hint="Por ejemplo: Nombre Apellido Apellido"
+        />
+      </div>
       {/*
-        h-11 son los 44 px de objetivo táctil que invoca design.md:75, por encima de los 36 px
-        que trae la variante `lg`: esta pantalla se diligencia desde el teléfono. En móvil ocupa
-        el ancho completo y desde `sm` se ajusta al contenido.
+        Cédula y teléfono no llevan maxLength: el navegador recortaría el texto pegado,
+        separadores incluidos, antes de que la página filtre los dígitos. Su tope lo aplica
+        la validación de la página.
       */}
-      <Button
-        type="submit"
-        size="lg"
-        disabled={isSubmitting}
-        className="h-11 w-full sm:w-auto sm:self-end"
-      >
-        {isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud'}
-      </Button>
-    </form>
+      <TextField field="studentDocument" label={FIELD_LABELS.studentDocument} value={values.studentDocument} onChange={onChange} error={errors.studentDocument} hint="Solo números, sin puntos ni espacios." inputMode="numeric" />
+      <TextField field="studentEmail" label={FIELD_LABELS.studentEmail} value={values.studentEmail} onChange={onChange} error={errors.studentEmail} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.studentEmail} hint="Por ejemplo: nombre@dominio.com" />
+      <TextField field="studentPhone" label={FIELD_LABELS.studentPhone} value={values.studentPhone} onChange={onChange} error={errors.studentPhone} hint="10 dígitos, sin espacios." inputMode="numeric" />
+    </>
+  )
+}
+
+/**
+ * Los cinco campos del paso «Datos académicos» (`FIELD_STEP.academic`). Sin tarjeta propia, por
+ * la misma razón que `ApplicantFields`.
+ */
+export function AcademicFields({ values, onChange, errors, programCatalog }: FieldGroupProps & {
+  programCatalog: {
+    status: 'loading' | 'ready' | 'error'
+    programs: string[]
+    retry: () => void
+  }
+}) {
+  const programDescribedBy = [
+    'program-hint',
+    programCatalog.status !== 'ready' ? 'program-catalog-status' : null,
+    errors.program ? 'program-error' : null,
+  ].filter(Boolean).join(' ') || undefined
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="program" className={READING_TEXT_SIZE}>{FIELD_LABELS.program}</Label>
+        <p id="program-hint" className="text-sm text-muted-foreground">Seleccione un programa del catálogo.</p>
+        <Select
+          id="program"
+          value={values.program}
+          onChange={(event) => onChange('program', event.target.value)}
+          disabled={programCatalog.status !== 'ready'}
+          required
+          aria-invalid={Boolean(errors.program)}
+          aria-describedby={programDescribedBy}
+          className={`h-13 ${READING_TEXT_SIZE}`}
+        >
+          <option value="" disabled>
+            {programCatalog.status === 'loading' ? 'Cargando programas…' : 'Seleccione un programa'}
+          </option>
+          {programCatalog.status === 'ready'
+            ? programCatalog.programs.map((program) => <option key={program} value={program}>{program}</option>)
+            : null}
+        </Select>
+        {programCatalog.status === 'loading' ? (
+          <p id="program-catalog-status" className="text-sm text-muted-foreground">Cargando el catálogo de programas.</p>
+        ) : null}
+        {programCatalog.status === 'error' ? (
+          <div id="program-catalog-status" className="flex items-center gap-2">
+            <p role="alert" className="text-sm text-destructive">No pudimos cargar el catálogo de programas. Inténtelo de nuevo.</p>
+            <button type="button" className="text-sm underline" onClick={programCatalog.retry}>Reintentar</button>
+          </div>
+        ) : null}
+        {errors.program ? <p id="program-error" role="alert" className="text-sm text-destructive">{errors.program}</p> : null}
+      </div>
+      <TextField field="campus" label={FIELD_LABELS.campus} value={values.campus} onChange={onChange} error={errors.campus} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.campus} hint="Por ejemplo: Cali" />
+      <TextField field="faculty" label={FIELD_LABELS.faculty} value={values.faculty} onChange={onChange} error={errors.faculty} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.faculty} hint="Por ejemplo: Ingenierías" />
+      <TextField field="semester" label={FIELD_LABELS.semester} value={values.semester} onChange={onChange} error={errors.semester} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.semester} hint="Por ejemplo: Sexto" />
+      <TextField field="modality" label={FIELD_LABELS.modality} value={values.modality} onChange={onChange} error={errors.modality} maxLength={PUBLIC_REQUEST_FIELD_LIMITS.modality} hint="Por ejemplo: Distancia" />
+    </>
+  )
+}
+
+/**
+ * El único campo del paso «Motivo de la solicitud» (`FIELD_STEP.reason`): «Compromisos
+ * adquiridos». Sin tarjeta propia, como `ApplicantFields`/`AcademicFields` — en el asistente
+ * (Slice 4), el encabezado del paso lo pone `StepPanel`; una tarjeta con su propio título
+ * duplicaría ese encabezado (design.md, decisión 1).
+ */
+export function ReasonFields({ values, onChange, errors }: FieldGroupProps) {
+  // El contador no es una región viva (design.md, decisión 8): se lee al enfocar o revisar el
+  // campo, igual que el hint; no interrumpe al estudiante mientras escribe.
+  const describedBy = ['reason-hint', 'reason-counter', errors.reason ? 'reason-error' : null]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <>
+      <Label htmlFor="reason" className={READING_TEXT_SIZE}>{FIELD_LABELS.reason}</Label>
+      <p id="reason-hint" className="text-sm text-muted-foreground">
+        Por ejemplo: Presentar los trabajos pendientes antes de finalizar el semestre.
+      </p>
+      <Textarea
+        id="reason"
+        value={values.reason}
+        onChange={(event) => onChange('reason', event.target.value)}
+        maxLength={PUBLIC_REQUEST_FIELD_LIMITS.reason}
+        aria-invalid={Boolean(errors.reason)}
+        aria-describedby={describedBy}
+        className={`mt-1.5 ${READING_TEXT_SIZE}`}
+      />
+      <p id="reason-counter" className="text-sm text-muted-foreground">
+        {values.reason.length} de {PUBLIC_REQUEST_FIELD_LIMITS.reason} caracteres
+      </p>
+      {errors.reason ? <p id="reason-error" role="alert" className="text-sm text-destructive">{errors.reason}</p> : null}
+    </>
+  )
+}
+
+/**
+ * El único campo del paso «Firma» (`FIELD_STEP.signature`). Sin tarjeta propia, por la misma
+ * razón que `ReasonFields`. `signatureCapture` sigue siendo un `ReactNode` inyectado por
+ * `page.tsx` (hoy `<CanvasFirma>`); este grupo no conoce el lienzo, solo lo aloja.
+ */
+export function SignatureFields({ signatureCapture, error }: { signatureCapture: ReactNode; error?: string }) {
+  return (
+    <>
+      <figure aria-labelledby="signature-label">
+        {signatureCapture}
+        <figcaption id="signature-label" className="sr-only">
+          Firma del solicitante
+        </figcaption>
+      </figure>
+      {error ? <p id="signature-error" role="alert" className="mt-2 text-sm text-destructive">{error}</p> : null}
+    </>
   )
 }

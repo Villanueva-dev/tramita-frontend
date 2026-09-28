@@ -6,25 +6,26 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   FilePlus2,
-  Settings,
   LogOut,
   Menu,
   X,
   Bell,
   Search,
   MessageCircleQuestion,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { useTramita } from '@/lib/store'
+import { isClosed } from '@/lib/request-state'
 import { useAuth } from '@/lib/auth-store'
 
 const NAV = [
   { href: '/dashboard', label: 'Bandeja de trabajo', icon: LayoutDashboard },
   { href: '/requests/new', label: 'Nueva solicitud', icon: FilePlus2 },
-  { href: '/settings', label: 'Configuración', icon: Settings },
   { href: '/assistant', label: 'Asistente académico', icon: MessageCircleQuestion },
+  { href: '/verificar', label: 'Verificar documento', icon: ShieldCheck },
 ]
 
 export function AppShell({
@@ -49,7 +50,7 @@ export function AppShell({
   }, [authStatus, isAuthenticated, router])
 
   const urgentCount = requests.filter(
-    (r) => r.priority === 'urgente' && r.status !== 'finalizado',
+    (r) => r.priority === 'urgente' && !isClosed(r),
   ).length
 
   async function handleLogout() {

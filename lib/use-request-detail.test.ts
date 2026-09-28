@@ -12,11 +12,11 @@ const REQUEST: Request = {
   id: 'req-1',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   studentName: 'Ana Pérez',
-  studentDocument: '1017234567',
-  currentState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+  studentDocument: '1000000001',
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   availableTransitions: [
     {
-      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       responsible: 'COORDINACION',
       requiresNote: false,
     },
@@ -28,7 +28,7 @@ const TIMELINE: TimelineEntry[] = [
   {
     id: 1,
     fromState: null,
-    toState: { code: 'REGISTRADA', name: 'Registrada', isFinal: false },
+    toState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
     actorEmail: 'coord@uniremington.edu.co',
     responsible: null,
     note: null,
@@ -103,13 +103,13 @@ describe('useRequestDetail', () => {
   it('reload() vuelve a consultar y refleja el estado nuevo', async () => {
     const avanzada: Request = {
       ...REQUEST,
-      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
     }
     let current = REQUEST
     const spy = stubFetch(() => json(200, current))
 
     const { result } = renderHook(() => useRequestDetail('req-1'))
-    await waitFor(() => expect(result.current.request?.currentState.code).toBe('REGISTRADA'))
+    await waitFor(() => expect(result.current.request?.currentState.code).toBe('EN_COORDINACION'))
 
     current = avanzada
     act(() => result.current.reload())

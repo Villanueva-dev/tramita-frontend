@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import RequestDetailPage from './page'
+import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
@@ -8,7 +9,12 @@ const useTramita = vi.hoisted(() => vi.fn())
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
-vi.mock('@/lib/store', () => ({ useTramita }))
+// `importOriginal` conserva `baseRequest`: el caso #9(b) lo usa para construir una
+// solicitud cuya `definition` y `type` no pueden contradecirse dentro de la prueba.
+vi.mock('@/lib/store', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/store')>()),
+  useTramita,
+}))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
   useSearchParams: () => ({ get: () => null }),
@@ -19,26 +25,27 @@ const request: AcademicRequest = {
   radicado: 'request-1',
   type: 'adicion_creditos',
   status: 'pendiente',
-  stateName: 'Registrada',
+  stateName: 'En coordinación (revisión)',
+  currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
   priority: 'normal',
   createdAt: '2026-09-01T12:00:00',
   updatedAt: '2026-09-01T12:00:00',
-  dueDate: '2026-09-10T12:00:00',
   studentCode: '123456',
   studentCedula: '1000000000',
   studentName: 'Ana Pérez',
   studentEmail: 'ana@example.com',
+  origin: null,
+  studentPhone: null,
   program: 'Ingeniería de Sistemas',
   semester: '7',
   subjects: [],
   reason: 'Solicitud académica',
-  attachments: [],
   timeline: [],
-  currentStage: 'radicacion',
   assignedTo: 'FACULTAD',
+  definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
   availableTransitions: [
     {
-      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       responsible: 'FACULTAD',
       requiresNote: false,
     },
@@ -48,7 +55,24 @@ const request: AcademicRequest = {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.useRealTimers()
 })
+
+// Relativo a `Date.now()`, con una hora de margen extra hacia el pasado (design.md, «Trampas
+// de estas pruebas»): el detalle usa `now = useState(() => Date.now())`, no inyectable desde
+// el test, así que la antigüedad se ancla al reloj real. Sin offset: como serializa el backend.
+function daysAgoIso(days: number): string {
+  const then = new Date(Date.now() - days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000)
+  return then.toISOString().slice(0, 19)
+}
+
+function mockTramita(overrides: { getRequest: () => AcademicRequest }) {
+  useTramita.mockReturnValue({
+    getRequest: overrides.getRequest,
+    refreshRequest: vi.fn().mockResolvedValue(undefined),
+    transition: vi.fn(),
+  })
+}
 
 function setup() {
   const transition = vi.fn().mockResolvedValue(undefined)
@@ -56,31 +80,731 @@ function setup() {
     getRequest: () => request,
     refreshRequest: vi.fn().mockResolvedValue(undefined),
     transition,
-    registerDocumentApproval: vi.fn(),
-    workflowConfig: [],
   })
   render(<RequestDetailPage />)
   return transition
 }
 
 describe('RequestDetailPage', () => {
+  it('muestra el enlace al documento para ADICION_CREDITOS en EN_COORDINACION', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const documentLink = screen.getByRole('link', { name: 'Ver documento PDF' })
+    expect(documentLink.getAttribute('href')).toBe('/requests/request-1/documento')
+  })
+
   it('carga el detalle desde el store', async () => {
     setup()
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
-    // El estado se muestra con el nombre del motor de workflow, no con la
-    // etiqueta genérica de la categoría interna.
-    expect(screen.getByText('Registrada')).toBeDefined()
+    // El estado se muestra con el nombre del motor de workflow, no con la etiqueta genérica
+    // de la categoría interna. Desde T2 aparece una sola vez, en el banner de estado
+    // (`CurrentStateBlock`): el encabezado ya no repite el nombre vía `StatusBadge`.
+    expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined()
+  })
+
+  // T2 (rediseno-detalle-solicitud.md): el nombre del estudiante pasa a ser el encabezado
+  // visual del detalle. Es `h2` y no `h1` porque `AppShell` ya renderiza el `h1` con el
+  // título de la página (`components/app-shell.tsx:185-187`), fuera de alcance de esta tarea.
+  it('el nombre del estudiante es el encabezado h2 del detalle', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Ana Pérez' })).toBeDefined()
+  })
+
+  // Guarda, no RED propio: hoy la fila «Nombre» de «Datos del estudiante» ya es la única
+  // aparición visible de `studentName` (los usos en `mailto:`/`wa.me` van dentro de atributos
+  // `href`, no como texto del DOM). Tras T2 sigue habiendo una sola aparición: la fila
+  // «Nombre» se retira y el nombre pasa al `h2`.
+  it('el nombre del estudiante aparece una sola vez en el detalle (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('Ana Pérez')).toHaveLength(1)
+  })
+
+  // T2: el radicado y la fecha de radicación se muestran en una sola línea bajo el nombre del
+  // estudiante. Regex robusta al formato local de `formatDate` (es-CO): solo se afirma el texto
+  // fijo alrededor de la fecha, no su formato exacto.
+  it('muestra el radicado y la fecha de radicación bajo el nombre', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText(/^Solicitud request-1 · radicada el .+$/)).toBeDefined()
+  })
+
+  // T5 (prueba en vivo): el contrato del detalle no trae `updatedAt` (RequestResponse), y el
+  // store lo rellena con `createdAt` (lib/store.tsx:191). Mostrar «última actualización»
+  // afirmaba la fecha de radicación como si fuera la del último cambio, aun después de registrar
+  // una transición. La fecha real del último cambio ya está en el historial.
+  it('no afirma una fecha de última actualización que el contrato no trae', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText(/última actualización/i)).toBeNull()
+  })
+
+  // T2: con datos reales, `stateName` sale de `currentState.name` (`lib/store.tsx:188`), así
+  // que ambos coinciden — a diferencia del fixture de #9a, que conserva un `stateName`
+  // desactualizado y por eso no detectaba la duplicación. El encabezado ya no debe repetir el
+  // nombre del estado que muestra el banner (`CurrentStateBlock`): se retira `StatusBadge`.
+  it('el encabezado no repite el nombre del estado que ya muestra el banner', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('En coordinación (revisión)')).toHaveLength(1)
+  })
+
+  // T2: el detalle cuelga del `h1` de `AppShell` (mockeado en estas pruebas), así que ningún
+  // encabezado puede saltar un nivel respecto del anterior. El banner de estado va antes del
+  // nombre del estudiante (`h2`): si su rótulo fuera `h3`, la jerarquía quedaría invertida.
+  it('los encabezados del detalle no saltan niveles', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const levels = screen
+      .getAllByRole('heading')
+      .map((heading) => Number(heading.getAttribute('aria-level') ?? heading.tagName.slice(1)))
+    let previous = 1
+    for (const level of levels) {
+      expect(level).toBeLessThanOrEqual(previous + 1)
+      previous = level
+    }
   })
 
   it('abre el diálogo para la transición que entrega el backend', async () => {
     setup()
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined())
+    // T1: el botón de transición vive en el panel lateral «Acciones», ya no en el encabezado.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('button', { name: 'En facultad' })).toBeDefined()
+
     fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
 
     expect(screen.getByRole('dialog')).toBeDefined()
     expect(screen.getByText(/registrar transición a en facultad/i)).toBeDefined()
+  })
+
+  it('permite corregir una solicitud devuelta y envía los datos editados al store', async () => {
+    const returned: AcademicRequest = {
+      ...request,
+      status: 'devuelto',
+      stateName: 'Devuelta para corrección',
+      currentState: { code: 'DEVUELTA', name: 'Devuelta para corrección', isFinal: false, isInitial: false },
+      subjects: [{ code: 'MAT-1', name: 'Matemáticas', credits: 3, group: 'A' }],
+      availableTransitions: [],
+    }
+    const updateRequest = vi.fn().mockResolvedValue(undefined)
+    useTramita.mockReturnValue({
+      getRequest: () => returned,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition: vi.fn(),
+      updateRequest,
+    })
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'Corregir datos y notas' })
+    fireEvent.click(screen.getByRole('button', { name: 'Corregir datos y notas' }))
+    fireEvent.change(screen.getByLabelText('Créditos'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar corrección' }))
+
+    await waitFor(() => expect(updateRequest).toHaveBeenCalledWith('request-1', expect.objectContaining({
+      subjects: [expect.objectContaining({ code: 'MAT-1', credits: 4 })],
+    })))
+  })
+
+  // Bug (T4a, odd/tasks/rediseno-detalle-solicitud.md): `ActionDialog` no esperaba la promesa de
+  // `onConfirm` y `runAction` mandaba el error solo al toast sin cerrar el diálogo, así que
+  // quedaba trabado con «Confirmar»/«Cancelar» deshabilitados y el mensaje visible solo detrás
+  // del fondo del modal.
+  it('si la transición falla, el diálogo sigue abierto y muestra el error dentro de sí mismo', async () => {
+    const transition = vi.fn().mockRejectedValue(new Error('El backend rechazó la transición.'))
+    useTramita.mockReturnValue({
+      getRequest: () => request,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition,
+    })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert.textContent).toContain('El backend rechazó la transición.')
+    // El diálogo sigue siendo el mismo (no se cerró y volvió a abrir): sigue montado.
+    expect(screen.getByRole('dialog')).toBeDefined()
+    // El mensaje no se duplica en el toast, detrás del fondo del modal.
+    expect(screen.getAllByText('El backend rechazó la transición.')).toHaveLength(1)
+    const confirmButton = within(dialog).getByRole('button', { name: 'En facultad' })
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancelar' })
+    expect(confirmButton.hasAttribute('disabled')).toBe(false)
+    expect(cancelButton.hasAttribute('disabled')).toBe(false)
+  })
+
+  // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). El
+  // sistema solo puede afirmar cuánto lleva esperando un trámite, nunca si ese tiempo es
+  // excesivo. Mata al mutante "badge Vencida" si alguien lo restaura.
+  it('no muestra vencimiento en un trámite abierto con radicación antigua', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText(/Vencida/i)).toBeNull()
+    expect(screen.queryByText('Vencimiento')).toBeNull()
+  })
+
+  // #9(b): una definición que el cliente no reconoce no se presenta como adición de
+  // créditos en ningún lugar del detalle: ni el rótulo, ni la columna de asignaturas, ni
+  // el ícono decorativo del badge.
+  it('un código de definición desconocido no se presenta como adición de créditos (#9b)', async () => {
+    const desconocida = baseRequest({
+      id: 'request-2',
+      definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+      studentName: 'Estudiante Piloto',
+      studentDocument: '9999999999',
+      currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+      subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+      createdAt: '2026-09-01T12:00:00',
+      availableTransitions: [],
+    })
+    useTramita.mockReturnValue({
+      getRequest: () => desconocida,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition: vi.fn(),
+    })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Estudiante Piloto')).toBeDefined())
+
+    expect(screen.getAllByText('Trámite piloto').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/adición de créditos/i)).toBeNull()
+    expect(screen.queryByText('Créditos')).toBeNull()
+    expect(screen.queryByTestId('type-badge-icon-adicion')).toBeNull()
+    expect(screen.getByTestId('type-badge-icon-neutral')).toBeDefined()
+  })
+
+  // Mutante P1/P2: la antigüedad del estado sale de la ÚLTIMA entrada del timeline, nunca de
+  // `createdAt`. `createdAt` hace 60 días y la última transición hace 1 día deben mostrar
+  // «Lleva 1 día», no «Lleva 60 días».
+  it('la antigüedad del estado sale de la última entrada del timeline, no de createdAt (mutante P1/P2)', async () => {
+    const antiguaConTransicionReciente: AcademicRequest = {
+      ...request,
+      id: 'request-3',
+      createdAt: daysAgoIso(60),
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'APROBADA_FACULTAD', name: 'Aprobada por facultad', isFinal: false, isInitial: false },
+          responsible: 'FACULTAD',
+          requiresNote: false,
+        },
+      ],
+      timeline: [
+        { id: 't1', date: daysAgoIso(60), actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
+        { id: 't2', date: daysAgoIso(1), actor: 'Coordinación de prueba', action: 'Transición a En facultad', fromStatus: 'pendiente', toStatus: 'en_revision' },
+      ],
+    }
+    mockTramita({ getRequest: () => antiguaConTransicionReciente })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Lleva 1 día')).toBeDefined()
+    expect(screen.queryByText('Lleva 60 días')).toBeNull()
+  })
+
+  it('un estado final muestra «Trámite cerrado» y sin fila de antigüedad', async () => {
+    const cerrado: AcademicRequest = {
+      ...request,
+      id: 'request-4',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+      timeline: [
+        { id: 't1', date: daysAgoIso(10), actor: 'Sistema Trámita', action: 'Solicitud radicada', toStatus: 'pendiente' },
+      ],
+    }
+    mockTramita({ getRequest: () => cerrado })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Trámite cerrado')).toBeDefined()
+    expect(screen.queryByText(/Lleva/)).toBeNull()
+  })
+
+  it('ofrece correo y WhatsApp para un cierre público con datos de contacto válidos', async () => {
+    const cerradaPublica: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => cerradaPublica })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const message = 'Hola Ana Pérez.\r\nSu trámite «Adición de créditos» quedó en estado: Finalizada.'
+    const emailLink = screen.getByRole('link', { name: 'Enviar correo al estudiante' })
+    const whatsappLink = screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })
+
+    // T1: los avisos manuales viven en el panel lateral «Acciones», junto a las transiciones.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+
+    expect(emailLink.getAttribute('href')).toBe(
+      `mailto:ana@example.com?subject=${encodeURIComponent('Su proceso ha sido completado')}&body=${encodeURIComponent(message)}`,
+    )
+    expect(emailLink.getAttribute('href')).toContain('%0D%0A')
+    expect(whatsappLink.getAttribute('href')).toBe(
+      `https://wa.me/573001234567?text=${encodeURIComponent(message)}`,
+    )
+    // WhatsApp Web abre en otra pestaña para no reemplazar el detalle; `mailto:` no lo necesita.
+    expect(whatsappLink.getAttribute('target')).toBe('_blank')
+    expect(whatsappLink.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(emailLink.getAttribute('target')).toBeNull()
+    // SC-003: ninguno de los dos enlaces expone el documento, el programa ni el motivo.
+    for (const link of [emailLink, whatsappLink]) {
+      for (const privateValue of [cerradaPublica.studentCedula, cerradaPublica.program, cerradaPublica.reason]) {
+        expect(link.getAttribute('href')).not.toContain(encodeURIComponent(privateValue))
+      }
+    }
+  })
+
+  it('ofrece el aviso manual también para un rechazo final', async () => {
+    const rechazadaPublica: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => rechazadaPublica })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined())
+
+    expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' }).getAttribute('href')).toContain(
+      encodeURIComponent('quedó en estado: Rechazada.'),
+    )
+    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+  })
+
+  it('no ofrece el aviso para estados intermedios, coordinación ni origen desconocido', async () => {
+    const cases: AcademicRequest[] = [
+      {
+        ...request,
+        origin: 'PUBLIC_LINK',
+        studentPhone: '3001234567',
+      },
+      {
+        ...request,
+        origin: 'COORDINATION',
+        studentPhone: '3001234567',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      },
+      {
+        ...request,
+        origin: null,
+        studentPhone: '3001234567',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+      },
+    ]
+
+    for (const candidate of cases) {
+      mockTramita({ getRequest: () => candidate })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+      expect(screen.queryByRole('link', { name: 'Enviar correo al estudiante' })).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeNull()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
+
+  it('solo ofrece cada canal cuando su dato de contacto es válido', async () => {
+    const conTelefonoFijo: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '6012345678',
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => conTelefonoFijo })
+    const { unmount } = render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined())
+    expect(screen.queryByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeNull()
+    unmount()
+    cleanup()
+    vi.clearAllMocks()
+
+    const sinCorreo: AcademicRequest = { ...conTelefonoFijo, studentEmail: '', studentPhone: '3001234567' }
+    mockTramita({ getRequest: () => sinCorreo })
+    render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.queryByRole('link', { name: 'Enviar correo al estudiante' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+  })
+
+  it('muestra el aviso sin recargar tras una transición a estado final', async () => {
+    let currentRequest: AcademicRequest = {
+      ...request,
+      origin: 'PUBLIC_LINK',
+      studentPhone: '3001234567',
+      availableTransitions: [
+        {
+          targetState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+          responsible: 'REGISTRO',
+          requiresNote: false,
+        },
+      ],
+    }
+    const transition = vi.fn().mockImplementation(async (): Promise<void> => {
+      currentRequest = {
+        ...currentRequest,
+        status: 'finalizado',
+        stateName: 'Finalizada',
+        currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+        availableTransitions: [],
+      }
+    })
+    useTramita.mockReturnValue({
+      getRequest: () => currentRequest,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition,
+    })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'Finalizada' })
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizada' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Finalizada' }))
+
+    // Sin relojes falsos: T4a retira la espera artificial de 700 ms, así que se espera el
+    // resultado real de la transición y de que el diálogo cierre y la página se actualice.
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', ''))
+    expect(await screen.findByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(await screen.findByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+  })
+
+  // «Ahora depende de» es el único punto que responde a quién depende el trámite: la fila
+  // «Asignado a» de la tarjeta «Resumen» daba una segunda respuesta, que podía contradecir la
+  // primera cuando los responsables divergían.
+  it('no muestra una fila «Asignado a»: el bloque de estado es la única respuesta a quién depende', async () => {
+    mockTramita({ getRequest: () => request })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Asignado a')).toBeNull()
+  })
+
+  // #9(a): dos estados intermedios de la misma definición se distinguen en pantalla, cada uno
+  // con su propio `currentState.name` y su propio responsable, sin agruparlos bajo una etapa
+  // compartida (el stepper, que sí los agrupaba, se retira en esta unidad).
+  it('dos estados intermedios se distinguen: cada uno con su propio nombre y responsable (#9a)', async () => {
+    const enFacultad: AcademicRequest = {
+      ...request,
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'APROBADA_FACULTAD', name: 'Aprobada por facultad', isFinal: false, isInitial: false },
+          responsible: 'FACULTAD',
+          requiresNote: false,
+        },
+      ],
+    }
+    mockTramita({ getRequest: () => enFacultad })
+    const { unmount } = render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.getByText('En facultad')).toBeDefined()
+    expect(screen.getByText('FACULTAD')).toBeDefined()
+    unmount()
+    cleanup()
+    vi.clearAllMocks()
+
+    const enRegistroNacional: AcademicRequest = {
+      ...request,
+      currentState: { code: 'EN_REGISTRO_NACIONAL', name: 'En registro nacional', isFinal: false, isInitial: false },
+      availableTransitions: [
+        {
+          targetState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+          responsible: 'REGISTRO',
+          requiresNote: false,
+        },
+      ],
+    }
+    mockTramita({ getRequest: () => enRegistroNacional })
+    render(<RequestDetailPage />)
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    expect(screen.getByText('En registro nacional')).toBeDefined()
+    expect(screen.getByText('REGISTRO')).toBeDefined()
+    expect(screen.queryByText('En facultad')).toBeNull()
+  })
+
+  // El sistema nunca sabe si el anexo se adjuntó (FR-012): el aviso solo recuerda qué llevar
+  // y de dónde sale. D1 (odd/tasks/rediseno-detalle-solicitud.md): el requisito canónico es
+  // «cerca de las acciones de transición» (spec.md:292, escenario :355-359); el orden relativo
+  // al enlace del PDF era la forma de cumplirlo con el layout viejo (un solo encabezado). Con
+  // el panel lateral, «cerca» significa dentro de la misma región «Acciones» — se abandona la
+  // aproximación por posición de DOM y se afirma directamente la contención.
+  it('muestra el requisito de anexo dentro del panel de acciones, sin afirmar que se adjuntó', async () => {
+    const conAnexo: AcademicRequest = {
+      ...request,
+      annexRequirement: {
+        documentName: 'Documento de prueba',
+        sourceHint: 'Lo entrega el estudiante',
+      },
+    }
+    mockTramita({ getRequest: () => conAnexo })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    const annexNotice = within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })
+
+    expect(annexNotice.textContent).toContain('Documento de prueba')
+    expect(annexNotice.textContent).toContain('Lo entrega el estudiante')
+    expect(annexNotice.textContent).not.toMatch(/adjuntad[oa]|se adjuntó|recibid[oa]/i)
+
+    expect(annexNotice.matches('[role="alert"]')).toBe(false)
+    expect(annexNotice.hasAttribute('aria-live')).toBe(false)
+    expect(annexNotice.querySelector('[role="alert"], [aria-live]')).toBeNull()
+  })
+
+  // El backend omite la clave cuando el trámite no exige anexo.
+  it('sin la clave annexRequirement, no hay aviso ni contenedor vacío', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('region', { name: 'Anexo requerido' })).toBeNull()
+  })
+
+  // T1 (rediseno-detalle-solicitud.md): un estado final no tiene transiciones (:233), pero el
+  // aviso de anexo sigue siendo obligatorio en cualquier estado (spec.md:292-294). La región
+  // «Acciones» debe existir solo por el aviso, sin ofrecer ningún botón de transición.
+  it('en un estado final con anexo, la región Acciones existe con el aviso y sin botones de transición', async () => {
+    const cerradoConAnexo: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+      annexRequirement: {
+        documentName: 'Documento de prueba',
+        sourceHint: 'Lo entrega el estudiante',
+      },
+    }
+    mockTramita({ getRequest: () => cerradoConAnexo })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })).toBeDefined()
+    expect(within(actionsPanel).queryAllByRole('button')).toHaveLength(0)
+  })
+
+  // T1: sin transiciones, sin anexo y sin enlaces de aviso (origin: null, como en el fixture
+  // base), no queda ningún contenedor vacío en el panel lateral: la región no se renderiza.
+  it('sin transiciones, anexo ni enlaces de aviso, la región Acciones no se renderiza', async () => {
+    const cerradoSinAvisos: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => cerradoSinAvisos })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('region', { name: 'Acciones' })).toBeNull()
+  })
+
+  // T3 (rediseno-detalle-solicitud.md): `studentPhone` es `string | null` en el contrato (una
+  // clave ausente llega como `null`, lib/store.tsx:210). La fila «Teléfono» de «Datos del
+  // estudiante» solo existe cuando el dato llega.
+  it('muestra la fila «Teléfono» cuando studentPhone llega con un valor', async () => {
+    const conTelefono: AcademicRequest = { ...request, studentPhone: '3001234567' }
+    mockTramita({ getRequest: () => conTelefono })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Teléfono')).toBeDefined()
+    expect(screen.getByText('3001234567')).toBeDefined()
+  })
+
+  // Guarda, no RED propio: el fixture base ya declara `studentPhone: null` y el resto de la
+  // suite lo usa sin que aparezca la fila; se afirma explícitamente una vez.
+  it('no muestra la fila «Teléfono» cuando studentPhone es null (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Teléfono')).toBeNull()
+  })
+
+  // Guarda, no RED propio: el formulario público ya no envía `studentCode`, pero el backend lo
+  // conserva como opcional y los registros que lo traen deben seguir mostrándolo.
+  it('muestra la fila «Código» cuando el registro conserva un código de estudiante (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const studentCard = screen.getByText('Datos del estudiante').closest<HTMLElement>('[data-slot="card"]')
+    if (!studentCard) throw new Error('No se encontró la tarjeta de datos del estudiante')
+
+    expect(within(studentCard).getByText('Código')).toBeDefined()
+    expect(within(studentCard).getByText('123456')).toBeDefined()
+  })
+
+  it.each(['', '   '])('no muestra la fila «Código» cuando studentCode es %j', async (studentCode) => {
+    mockTramita({ getRequest: () => ({ ...request, studentCode }) })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const studentCard = screen.getByText('Datos del estudiante').closest<HTMLElement>('[data-slot="card"]')
+    if (!studentCard) throw new Error('No se encontró la tarjeta de datos del estudiante')
+
+    expect(within(studentCard).queryByText('Código')).toBeNull()
+  })
+
+  // T3: «Lo que se solicita» reemplaza a «Información del trámite» (mismo ícono, sin cambio
+  // de contrato).
+  it('la sección de asignaturas se titula «Lo que se solicita»', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Lo que se solicita')).toBeDefined()
+    expect(screen.queryByText('Información del trámite')).toBeNull()
+  })
+
+  // T3: la tarjeta «Créditos solicitados» suma `subjects[].credits` (3 + 2 = 5). Se marca con
+  // `dl`/`dt`/`dd` para que sea testeable por rol («term»/«definition»), acotado con `within`
+  // porque «Datos del estudiante» ya declara sus propios `dt`/`dd` por cada fila.
+  it('«Créditos solicitados» suma los créditos de las asignaturas en adición de créditos', async () => {
+    const conAsignaturas: AcademicRequest = {
+      ...request,
+      subjects: [
+        { code: 'MAT-101', name: 'Cálculo I', credits: 3 },
+        { code: 'FIS-201', name: 'Física I', credits: 2 },
+      ],
+    }
+    mockTramita({ getRequest: () => conAsignaturas })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const summary = screen.getByText('Créditos solicitados').closest('dl') as HTMLElement
+    expect(within(summary).getByRole('term').textContent).toBe('Créditos solicitados')
+    expect(within(summary).getByRole('definition').textContent).toBe('5')
+  })
+
+  // Guardas (hoy ya pasan sin la tarjeta implementada): novedad de notas, una definición
+  // desconocida (#9b, `type: null`) y adición sin asignaturas no deben insinuar un total de
+  // créditos.
+  it('no muestra «Créditos solicitados» en novedad de notas, definición desconocida ni adición sin asignaturas (guardas)', async () => {
+    const casos: AcademicRequest[] = [
+      {
+        ...request,
+        type: 'novedad_notas',
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+        subjects: [{ code: 'MAT-101', name: 'Cálculo I', credits: 3, currentGrade: '3.0', proposedGrade: '4.0' }],
+      },
+      baseRequest({
+        id: 'request-5',
+        definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+        studentName: 'Estudiante Piloto',
+        studentDocument: '9999999999',
+        currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+        subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+        createdAt: '2026-09-01T12:00:00',
+        availableTransitions: [],
+      }),
+      { ...request, subjects: [] },
+    ]
+
+    for (const caso of casos) {
+      mockTramita({ getRequest: () => caso })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText(caso.studentName)).toBeDefined())
+      expect(screen.queryByText('Créditos solicitados')).toBeNull()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
+
+  // T4b (rediseno-detalle-solicitud.md): antes, el mensaje flotante siempre llevaba el ícono de
+  // éxito (`CheckCircle2`) y ningún rol accesible, así que un lector de pantalla no distinguía
+  // un error de un éxito. El mensaje de éxito se anuncia como `role="status"`.
+  it('el mensaje de éxito de una transición se anuncia con role="status"', async () => {
+    const transition = setup()
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'EN_FACULTAD', ''))
+    const status = await screen.findByRole('status')
+    expect(status.textContent).toContain('Solicitud registrada en estado En facultad.')
+  })
+
+  // T4b: la tarjeta «Resumen» solo repetía el tipo de trámite, que el encabezado ya muestra
+  // (`TypeBadge`, T2). Se retira del panel lateral.
+  it('la tarjeta «Resumen» ya no existe', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Resumen')).toBeNull()
+  })
+
+  // Issue #12, criterio 1: el backend no recibe adjuntos (Request.java:39-40, FR-010) ni
+  // captura firmas de aprobadores (FR-011). La tarjeta se retira, no se deshabilita.
+  it('no muestra la tarjeta «Documentos adjuntos» ni ofrece «Registrar firma»', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryAllByText(/documentos adjuntos/i)).toHaveLength(0)
+    // Guarda: «Registrar firma» solo aparecía junto a un adjunto, y ningún fixture los tiene.
+    expect(screen.queryByRole('button', { name: 'Registrar firma' })).toBeNull()
   })
 })

@@ -9,8 +9,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
-import type { AcademicRequest, RequestMetrics } from '@/lib/types'
-import { isOverdue } from '@/lib/format'
+import type { AcademicRequest } from '@/lib/types'
+import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
 
 interface CardDef {
   key: string
@@ -24,26 +24,23 @@ interface CardDef {
 
 export function SummaryCards({
   requests,
-  metrics,
   active,
   onSelect,
 }: {
   requests: AcademicRequest[]
-  metrics: RequestMetrics | null
   active: string
   onSelect: (key: string) => void
 }) {
-  const pending = metrics?.byCurrentState.REGISTRADA ?? requests.filter((r) => r.status === 'pendiente').length
-  const inProgress = metrics
-    ? metrics.total - pending - metrics.completed
-    : requests.filter((r) => r.status === 'en_revision' || r.status === 'devuelto').length
-  const completed = metrics?.completed ?? requests.filter(
-    (r) => r.status === 'aprobado' || r.status === 'finalizado',
+  const pending = requests.filter((r) => r.status === 'pendiente').length
+  const inProgress = requests.filter(
+    (r) => r.status === 'en_revision' || isReturnedForCorrection(r),
+  ).length
+  // Un rechazo es final, pero no cuenta como cierre exitoso.
+  const completed = requests.filter(
+    (r) => isSuccessfullyClosed(r) || r.status === 'aprobado',
   ).length
   const urgent = requests.filter(
-    (r) =>
-      (r.priority === 'urgente' || isOverdue(r.dueDate, r.status)) &&
-      r.status !== 'finalizado',
+    (r) => r.priority === 'urgente' && !isClosed(r),
   ).length
 
   const cards: CardDef[] = [
@@ -76,7 +73,7 @@ export function SummaryCards({
     },
     {
       key: 'urgente',
-      label: 'Urgentes / vencidas',
+      label: 'Urgentes',
       value: urgent,
       hint: 'Atención prioritaria',
       icon: AlertTriangle,

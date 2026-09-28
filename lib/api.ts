@@ -8,8 +8,10 @@
 // - Errores en application/problem+json (RFC 9457, que obsoleta a la 7807): { title, status, detail? }.
 
 import type {
+  InboxEntry,
   PublicReceipt,
   PublicRequestBody,
+  PublicSeal,
   Request,
   RequestMetrics,
   RequestSummary,
@@ -250,15 +252,79 @@ export async function fetchRequestMetrics(): Promise<RequestMetrics> {
 // sola causa de 422 (los datos inválidos por Bean Validation salen 400). Nunca
 // se inspecciona el texto de `detail` para adivinar el campo.
 
-/** Catálogo de trámites vigentes (US1) — insumo del selector de registro. */
+/**
+ * Catálogo de trámites vigentes (US1) — insumo del selector de registro.
+ *
+ * La 007 amplía `/workflow-definitions` para que cada definición traiga sus `states`
+ * (`WorkflowDefinitionDetailResponse`, contrato :263-282). Esta función sigue tipando
+ * `WorkflowDefinition[]` a propósito: `states` no se agrega acá porque ese mismo tipo
+ * también tipa la definición anidada en `Request`, `RequestSummary` e `InboxEntry`,
+ * donde el backend NO envía `states` — agregarlo ahí afirmaría un campo que nunca llega.
+ * Nada en esta change lee `states[]` (el inicio sale de `currentState.isInitial`, D3 de
+ * `design.md`); el día que una pantalla lo necesite, se tipa con su propio tipo.
+ */
 export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   const res = await apiFetch('/workflow-definitions')
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as WorkflowDefinition[]
 }
 
+/** Programa disponible para el formulario público; el catálogo no requiere sesión. */
+export interface PublicProgram {
+  name: string
+}
+
+export async function listPublicPrograms(): Promise<PublicProgram[]> {
+  const res = await apiFetch('/public/programs')
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicProgram[]
+}
+
+/**
+ * Consulta pública del sello de un documento emitido (006). `404` es una respuesta, no
+ * una falla — mismo criterio con que `getMe` trata el 401: «no hay sello» se representa
+ * como `null`, no se lanza como error.
+ */
+export async function getPublicSeal(code: string): Promise<PublicSeal | null> {
+  const res = await apiFetch(`/public/seals/${encodeURIComponent(code)}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as PublicSeal
+}
+
+/**
+ * Bandeja de trabajo de un responsable (007, contrato :35-119): las solicitudes que
+ * esperan su acción, en el orden que decide el servidor (de la que más espera a la que
+ * menos). `limit` es requerido en la firma a propósito: el contrato exige que quien llama
+ * decida cuánto pide (:92-95), así que no hay un default silencioso en el cliente.
+ */
+export async function getInbox(responsible: string, limit: number): Promise<InboxEntry[]> {
+  const res = await apiFetch(
+    `/requests/inbox?responsible=${encodeURIComponent(responsible)}&limit=${limit}`,
+  )
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as InboxEntry[]
+}
+
 /** Campo del formulario al que se ata el 422 de `createRequest` (definición inexistente). */
 export const CREATE_REQUEST_422_FIELD = 'definitionCode'
+
+/**
+ * Nombre del archivo que el backend declara en `Content-Disposition`, con reserva.
+ *
+ * El nombre no es decorativo: `DO-FR-100-{id}.pdf` identifica el formato institucional que
+ * circula para firmarse, y lo fija el backend (`RequestController#getDocument`) junto con la
+ * decisión de no incluir cédula ni nombre del estudiante. Reescribirlo en el cliente rompe esa
+ * correspondencia y además duplica una decisión que ya está tomada del otro lado.
+ *
+ * Un nombre con separadores de ruta se descarta: viaja al disco de quien descarga y permitiría
+ * escribir fuera de la carpeta de descargas.
+ */
+export function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  const name = header?.match(/filename="?([^";]+)"?/i)?.[1]?.trim()
+  if (!name || name.includes('/') || name.includes('\\')) return fallback
+  return name
+}
 
 export interface CreateRequestBody {
   definitionCode: string

@@ -14,10 +14,16 @@ export interface WorkflowDefinition {
   version: number
 }
 
-/** openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. */
+/**
+ * openapi.yaml State (:202-208). Sin `responsible`: ese vive en la transición. `isInitial`
+ * lo agrega la feature 007 (Tramita/specs/007-coordination-inbox/contracts/openapi.yaml,
+ * StateResponse :284-306): responde «¿es el inicio?» con dato propio del contrato, sin
+ * reconocer códigos de estado en el cliente.
+ */
 export interface State {
   code: string
   name: string
+  isInitial: boolean
   isFinal: boolean
 }
 
@@ -72,39 +78,16 @@ export interface PublicReceipt {
   message: string
 }
 
+/** openapi.yaml PublicSealResponse (contrato 006, :243-274): datos de emisión, nunca datos personales. */
+export interface PublicSeal {
+  status: 'ISSUED'
+  issuedAt: string
+  stateName: string
+  revision: number
+}
+
 export type RequestType = 'adicion_creditos' | 'novedad_notas'
 export type RequestStatus = 'pendiente' | 'en_revision' | 'devuelto' | 'aprobado' | 'finalizado'
-export type SignatureType = 'DIGITAL' | 'ESCANEADA'
-
-export interface AttachmentApproval {
-  id: number
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  documentSha256: string
-  recordedByEmail: string
-  note?: string
-  signedAt: string
-  timestampedAt: string
-}
-
-export interface DocumentApprovalInput {
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  signedAt: string
-  note?: string
-}
-
-export interface Attachment {
-  id: string
-  name: string
-  size: string
-  type: string
-  sha256?: string
-  approvals: AttachmentApproval[]
-  file?: File
-}
 
 export interface SubjectInfo {
   code: string
@@ -113,14 +96,6 @@ export interface SubjectInfo {
   group?: string
   currentGrade?: string
   proposedGrade?: string
-}
-
-export interface RequestTypeConfig {
-  id: RequestType
-  label: string
-  description: string
-  enabled: boolean
-  stages: { id: string; label: string; description: string }[]
 }
 
 export interface TimelineEvent {
@@ -133,10 +108,30 @@ export interface TimelineEvent {
   comment?: string
 }
 
+/**
+ * Documento que el trámite exige anexar según su configuración (feature 009 del backend).
+ * Es un requisito, no un registro: no afirma que el anexo se haya adjuntado.
+ */
+export interface AnnexRequirement {
+  documentName: string
+  sourceHint: string
+}
+
 export interface AcademicRequest {
   id: string
   radicado: string
-  type: RequestType
+  /**
+   * La definición tal como la envía el motor. Es lo que se muestra como tipo de trámite en
+   * cualquier lugar de la pantalla (D2): badge, fila «Tipo de trámite», PDF.
+   */
+  definition: WorkflowDefinition
+  /**
+   * Clasificación para ramificar: columnas de asignaturas, párrafo del PDF, filtro del
+   * tablero y semántica del estado. `null` es una definición que el cliente no reconoce, y
+   * nunca se trata como adición de créditos (#9 b). Un ternario binario sobre este campo
+   * compila igual con `null` y cae en la rama de adición: escribir siempre las tres ramas.
+   */
+  type: RequestType | null
   status: RequestStatus
   /**
    * Nombre del estado tal como lo define el motor de workflow y lo envía el
@@ -144,24 +139,58 @@ export interface AcademicRequest {
    * filtrar y colorear, pero no puede distinguir dos estados finales distintos
    * (RECHAZADA y FINALIZADA) ni los seis intermedios que colapsa.
    */
-  stateName?: string
+  stateName: string
+  /**
+   * El estado tal como lo envía el motor. `stateName` sigue siendo lo que se muestra, pero
+   * el nombre no permite razonar: las preguntas sobre el trámite (¿cerrado?, ¿devuelto?,
+   * ¿terminó bien?) se responden con los predicados de `lib/request-state.ts`, que necesitan
+   * el código y `isFinal`. Descartarlos acá fue la razón de que todo colgara de `status`.
+   */
+  currentState: State
   priority: 'normal' | 'urgente'
   createdAt: string
   updatedAt: string
-  dueDate: string
   studentCode: string
   studentCedula: string
   studentName: string
   studentEmail: string
+  /** Origen del trámite; la ausencia en el contrato se normaliza a `null`. */
+  origin: InboxOrigin | null
+  /** Teléfono del estudiante; la ausencia en el contrato se normaliza a `null`. */
+  studentPhone: string | null
   program: string
+  /** Ausente cuando el trámite no exige anexo. */
+  annexRequirement?: AnnexRequirement
   semester: string
   subjects: SubjectInfo[]
   reason: string
-  attachments: Attachment[]
   timeline: TimelineEvent[]
-  currentStage: string
   assignedTo: string
   availableTransitions?: AvailableTransition[]
+}
+
+/**
+ * openapi.yaml InboxEntryResponse.origin (:247-261). Enum cerrado del contrato de la
+ * bandeja, no del motor de trámites configurable: no se junta con `RequestType`.
+ */
+export type InboxOrigin = 'COORDINATION' | 'PUBLIC_LINK'
+
+/**
+ * openapi.yaml InboxEntryResponse (:196-261). Sin número de documento: es el invariante
+ * del endpoint (:64-66), no un descuido de este tipo.
+ */
+export interface InboxEntry {
+  id: string
+  definition: WorkflowDefinition
+  studentName: string
+  currentState: State
+  /** Radicación, con el offset de la sede (:212-223). */
+  createdAt: string
+  /** Desde cuándo espera: última transición o radicación, con offset (:224-241). */
+  waitingSince: string
+  pendingResponsible: string
+  /** `null` es una anomalía de datos declarada, no un tercer origen: viaja nulo, nunca ausente (:255-258). */
+  origin: InboxOrigin | null
 }
 
 export interface RequestMetrics {
@@ -171,12 +200,6 @@ export interface RequestMetrics {
   completed: number
   averageCycleHours: number | null
   returnCount: number
-}
-
-export interface WorkflowStageConfig {
-  id: string
-  label: string
-  description: string
 }
 
 /** openapi.yaml TimelineEntry (:248-270). `id` es int64 (number), no string. */

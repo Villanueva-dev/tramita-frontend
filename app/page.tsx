@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
@@ -180,6 +181,13 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <p className="mt-4 text-sm text-muted-foreground">
+            ¿Recibió un documento de Trámita?{' '}
+            <Link href="/verificar" className="text-primary hover:underline">
+              Verifíquelo aquí
+            </Link>
+          </p>
 
           <p className="mt-6 rounded-lg bg-muted px-3 py-2.5 text-center text-xs text-muted-foreground">
             Entorno de demostración. Presione{' '}

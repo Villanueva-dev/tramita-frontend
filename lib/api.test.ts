@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   ApiError,
+  filenameFromContentDisposition,
   parseCookie,
   parseProblem,
   listWorkflowDefinitions,
@@ -14,10 +15,13 @@ import {
   askAssistant,
   fetchRequestMetrics,
   submitPublicRequest,
+  getInbox,
+  listPublicPrograms,
+  getPublicSeal,
 } from './api'
-import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition } from './types'
+import type { Request, RequestSummary, TimelineEntry, WorkflowDefinition, InboxEntry } from './types'
 import type { CreateRequestBody } from './api'
-import type { PublicRequestBody, PublicReceipt } from './types'
+import type { PublicRequestBody, PublicReceipt, PublicSeal } from './types'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -191,14 +195,59 @@ describe('listWorkflowDefinitions', () => {
   })
 })
 
+describe('listPublicPrograms', () => {
+  it('requests the unauthenticated public program catalog and returns its names without reordering', async () => {
+    const programs = [{ name: 'Zoología' }, { name: 'Administración de Empresas' }]
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, programs))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listPublicPrograms()).resolves.toEqual(programs)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/public/programs',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+})
+
+describe('getPublicSeal', () => {
+  it('pide el sello con el código codificado en la ruta y devuelve el cuerpo con 200', async () => {
+    const seal: PublicSeal = {
+      status: 'ISSUED',
+      issuedAt: '2026-09-17T10:30:00-05:00',
+      stateName: 'En revisión de Coordinación',
+      revision: 2,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, seal))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getPublicSeal('A B/C')).resolves.toEqual(seal)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/public/seals/A%20B%2FC',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('resuelve null con 404 (mismo criterio que getMe con 401: no es una falla)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(404, 'Not Found')))
+
+    await expect(getPublicSeal('ZZZZZZZZZZZZZ')).resolves.toBeNull()
+  })
+
+  it('rechaza con ApiError ante cualquier otro error: una falla no se confunde con «no hay sello»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(500, 'Error interno del servidor')))
+
+    await expect(getPublicSeal('ABC123')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
 describe('createRequest', () => {
   it('envía POST /api/requests con los datos de identificación y devuelve la solicitud creada', async () => {
     const created: Request = {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
-      studentDocument: '1017234567',
-      currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+      studentDocument: '1000000001',
+      currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',
     }
@@ -361,8 +410,8 @@ describe('searchRequests', () => {
         id: 'uuid-1',
         definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
         studentName: 'Ana María Pérez',
-        studentDocument: '1017234567',
-        currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+        studentDocument: '1000000001',
+        currentState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
         createdAt: '2026-08-14T15:00:00Z',
       },
     ]
@@ -393,10 +442,10 @@ describe('getRequest', () => {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana María Pérez',
-      studentDocument: '1017234567',
-      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      studentDocument: '1000000001',
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       availableTransitions: [
-        { targetState: { code: 'APROBADO', name: 'Aprobado', isFinal: true }, responsible: 'FACULTAD', requiresNote: false },
+        { targetState: { code: 'APROBADO', name: 'Aprobado', isFinal: true, isInitial: false }, responsible: 'FACULTAD', requiresNote: false },
       ],
       createdAt: '2026-08-14T15:00:00Z',
     }
@@ -425,7 +474,7 @@ describe('getRequestTimeline', () => {
       {
         id: 1,
         fromState: null,
-        toState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false },
+        toState: { code: 'REGISTRADO', name: 'Registrado', isFinal: false, isInitial: true },
         actorEmail: 'coordinacion@example.edu.co',
         // La entrada de registro no trae responsable ni nota. El backend las
         // manda como `null` explícito, no ausentes: omitirlas aquí hacía que
@@ -454,8 +503,8 @@ describe('advanceRequest', () => {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
       studentName: 'Ana',
-      studentDocument: '1017234567',
-      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false },
+      studentDocument: '123',
+      currentState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false },
       availableTransitions: [],
       createdAt: '2026-08-14T15:00:00Z',
     }
@@ -497,5 +546,90 @@ describe('advanceRequest', () => {
     )
 
     await expect(advanceRequest('uuid-1', 'EN_FACULTAD')).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+/**
+ * El backend nombra el archivo en `Content-Disposition`
+ * (`attachment; filename="DO-FR-100-{id}.pdf"`), y ese nombre no es decorativo: identifica
+ * el formato institucional que circula para firmarse. La pantalla lo descartaba y guardaba
+ * `constancia_{id}.pdf`, un nombre que ese formato no tiene.
+ */
+describe('getInbox', () => {
+  it('pide GET /api/requests/inbox con responsible y limit explícitos y devuelve el arreglo tal cual', async () => {
+    const entries: InboxEntry[] = [
+      {
+        id: 'entry-1',
+        definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+        studentName: 'Estudiante de prueba 1',
+        currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
+        createdAt: '2026-08-20T15:00:00-05:00',
+        waitingSince: '2026-09-20T15:00:00-05:00',
+        pendingResponsible: 'COORDINACION',
+        origin: 'PUBLIC_LINK',
+      },
+    ]
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, entries))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await getInbox('COORDINACION', 50)
+
+    expect(result).toEqual(entries)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/requests/inbox?responsible=COORDINACION&limit=50',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('devuelve lista vacía sin lanzar ante una respuesta 200 vacía', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, [])))
+
+    const result = await getInbox('COORDINACION', 50)
+
+    expect(result).toEqual([])
+  })
+
+  it('lanza ApiError con status 401 sin sesión', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
+
+    await expect(getInbox('COORDINACION', 50)).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('lanza ApiError con status 400 cuando responsible o limit son inválidos', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(problemResponse(400, 'Bad Request', 'limit fuera de rango')),
+    )
+
+    await expect(getInbox('COORDINACION', 50)).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+describe('filenameFromContentDisposition', () => {
+  const FB = 'descarga.pdf'
+
+  it('toma el nombre que declara el backend', () => {
+    expect(filenameFromContentDisposition(
+      'attachment; filename="DO-FR-100-abc.pdf"', FB)).toBe('DO-FR-100-abc.pdf')
+  })
+
+  it('acepta el nombre sin comillas', () => {
+    expect(filenameFromContentDisposition('attachment; filename=DO-FR-100-abc.pdf', FB))
+      .toBe('DO-FR-100-abc.pdf')
+  })
+
+  // Sin cabecera no hay nombre que respetar: la descarga no puede quedarse sin nombre.
+  it('cae al nombre de reserva cuando no hay cabecera', () => {
+    expect(filenameFromContentDisposition(null, FB)).toBe(FB)
+  })
+
+  it('cae al nombre de reserva cuando la cabecera no trae filename', () => {
+    expect(filenameFromContentDisposition('attachment', FB)).toBe(FB)
+  })
+
+  // Guarda de seguridad: el nombre viaja al disco de quien descarga. Un separador de rutas
+  // permitiría escribir fuera de la carpeta de descargas.
+  it('descarta un nombre con separadores de ruta', () => {
+    expect(filenameFromContentDisposition('attachment; filename="../../x.pdf"', FB)).toBe(FB)
   })
 })

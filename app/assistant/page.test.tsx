@@ -31,10 +31,12 @@ describe('AssistantPage', () => {
 
     await screen.findByText('El trámite puede tardar entre una semana y dos meses.')
 
-    expect(screen.getByRole('button', { name: '¿Qué actor interviene después?' })).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: '¿Cuánto tiempo puede tardar el trámite?' }))
+    const followUps = screen.getAllByRole('button', { name: /^¿/ })
+    expect(followUps).toHaveLength(3)
+    const selectedQuestion = followUps[0].textContent ?? ''
+    fireEvent.click(followUps[0])
     expect((screen.getByLabelText('Pregunta para el asistente') as HTMLTextAreaElement).value)
-      .toBe('¿Cuánto tiempo puede tardar el trámite?')
+      .toBe(selectedQuestion)
   })
 
   it('reinicia la conversación local sin consultar el backend', async () => {

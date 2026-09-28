@@ -40,9 +40,15 @@ no renderiza sin sesión.
 
 ### Requirement: Reproducción del formato con repliegue declarado
 
-El sistema **MUST** presentar los bloques del formato en el orden del papel: lugar y fecha, tipo
-de solicitud, datos del solicitante, motivo, compromisos adquiridos y firma; y **MUST** conservar
-los rótulos oficiales de los campos que el estudiante diligencia.
+El sistema **MUST** presentar los bloques del formato en el orden del papel —lugar y fecha, tipo
+de solicitud, datos del solicitante, motivo, compromisos adquiridos y firma— **a lo largo de los
+pasos del asistente**, y no de arriba a abajo en una sola página, y **MUST** conservar los
+rótulos oficiales de los campos que el estudiante diligencia.
+
+«Lugar y fecha» y «Tipo de solicitud» **MUST** presentarse como una franja fija por encima de la
+barra de progreso, visible en todos los pasos; no forman parte de ningún paso individual.
+«Motivo de la solicitud» **MUST** titular el paso que agrupa «Compromisos adquiridos»,
+conservando el bloque del papel sin agregar un campo propio.
 
 El sistema **MUST** afirmar el tipo de solicitud como dato —«Matrícula créditos adicionales»— y
 **MUST NOT** presentar las otras tres casillas de tipo del formato: existían para que la
@@ -52,19 +58,35 @@ El sistema **MUST NOT** presentar las trece casillas de motivos del formato. Per
 tipos de solicitud y no a la adición de créditos, y la Coordinación confirmó que ese campo casi
 no se diligencia (2026-09-16). El motivo se captura como texto libre.
 
+(Previously: el orden se recorría de arriba a abajo en una sola página, sin franja fija ni un
+paso titulado «Motivo de la solicitud».)
+
 #### Scenario: Orden y rótulos de los bloques
 
-- GIVEN el formulario renderizado
-- WHEN se recorre su contenido de arriba a abajo
+- GIVEN el asistente renderizado, con sus cinco pasos
+- WHEN se recorren los pasos en orden, de «Sus datos» a «Revisar y enviar»
 - THEN los bloques aparecen en el orden del formato oficial
 - AND los rótulos de los campos diligenciables coinciden con los de la plantilla v2024
 
 #### Scenario: No hay casillas de tipo de solicitud ni de motivos
 
-- GIVEN el formulario renderizado
+- GIVEN el asistente renderizado
 - WHEN se buscan casillas de tipo de solicitud distintas a la afirmada, o casillas de motivo
 - THEN no existe ninguna
-- AND el tipo de solicitud aparece afirmado como «Matrícula créditos adicionales»
+- AND el tipo de solicitud aparece afirmado como «Matrícula créditos adicionales», en la franja
+  fija sobre la barra de progreso
+
+#### Scenario: Lugar, fecha y tipo de solicitud son visibles en todos los pasos
+
+- GIVEN el asistente renderizado
+- WHEN se navega de un paso a otro con «Continuar» o «Volver»
+- THEN la franja con «Lugar y fecha» y «Tipo de solicitud» permanece visible
+
+#### Scenario: El paso 3 se titula Motivo de la solicitud
+
+- GIVEN el asistente renderizado
+- WHEN se llega al paso que agrupa «Compromisos adquiridos»
+- THEN su título es «Motivo de la solicitud»
 
 ### Requirement: Todos los campos son obligatorios
 
@@ -74,11 +96,41 @@ El sistema **MUST** exigir los once campos del contrato público antes de emitir
 vacío.** La verificación de vacío **MUST** aplicarse después de `trim()`, de modo que un valor
 compuesto solo por espacios no cuente como diligenciado.
 
+Antes de validar y enviar, el sistema **MUST** normalizar cada campo de una sola línea: elimina
+espacios al inicio y al final y reemplaza cada secuencia de espacios internos por uno solo.
+`program`, que procede del catálogo, y `reason` («Compromisos adquiridos») **MUST NOT**
+normalizarse: `trim()` se usa únicamente para determinar si `reason` está vacío y ambos valores
+se conservan exactamente al revisar y enviar.
+
+El sistema **MUST** exigir esta obligatoriedad **por paso**: «Continuar» **MUST NOT** avanzar al
+siguiente paso si algún campo del paso visible está vacío, excede su límite o es inválido. El
+sistema **MUST** exigirla también **una segunda vez sobre los once campos**, inmediatamente antes
+de emitir la petición desde el paso de revisión, para cubrir un valor que hubiera cambiado tras
+validarse por paso.
+
 El sistema **MUST** respetar los límites de longitud del contrato: `studentName` ≤120,
-`studentDocument` ≤20, `studentEmail` ≤255, `studentPhone` ≤30, `program` ≤120, `campus` ≤120,
-`faculty` ≤120, `modality` ≤50, `semester` ≤50, `reason` ≤2000.
+`studentDocument` ≤20, `studentEmail` ≤255, `studentPhone` exactamente 10 dígitos, `program`
+≤120, `campus` ≤120, `faculty` ≤120, `modality` ≤50, `semester` ≤50, `reason` ≤2000.
+`studentPhone` deja de ser un tope de longitud como los demás: la feature 008 del backend lo
+enmienda a exactamente diez dígitos (`^[0-9]{10}$`, FR-009 de la 008), y diez dígitos también
+cumplen la regla anterior de la 004 (cualquier texto de hasta 30 caracteres), así que el
+formulario puede adoptarla antes que el backend.
+
+`studentDocument` y `studentPhone` **MUST** aceptar solo dígitos y **MUST** descartar
+cualquier otro carácter al teclearlo o pegarlo. `studentDocument` conserva su tope de 20 y
+viaja como texto. Esta es una regla de UX decidida el 2026-09-25: el backend no la exige para
+`studentDocument`.
+
+El sistema **MUST** considerar `studentEmail` inválido, y en consecuencia **MUST NOT** dejar
+avanzar «Continuar» del paso que lo contiene, cuando no representa una dirección completa con
+la forma `local@dominio.sufijo` (por ejemplo, un valor sin `@`, `nombre@` o `nombre@dominio`).
+El sufijo es obligatorio, pero el sistema **MUST NOT** restringir el proveedor ni exigir un
+dominio institucional.
 
 Esta validación es **de UX**: el backend sigue siendo la autoridad.
+
+(Previously: la obligatoriedad se exigía una sola vez, al enviar, sin distinguir por paso ni
+bloquear «Continuar»; no existía una regla explícita para un correo sin `@` o sin dominio.)
 
 #### Scenario: Un campo vacío impide el envío
 
@@ -93,6 +145,19 @@ Esta validación es **de UX**: el backend sigue siendo la autoridad.
 - WHEN se intenta enviar
 - THEN el campo se marca como inválido y no se emite la petición
 
+#### Scenario: Los campos de una línea se normalizan
+
+- GIVEN un campo de una línea con espacios al inicio, al final o repetidos entre palabras
+- WHEN el estudiante continúa hasta la revisión y envía la solicitud
+- THEN el control, el resumen y el cuerpo muestran el valor sin espacios exteriores
+- AND cada secuencia de espacios interiores se reemplaza por un solo espacio
+
+#### Scenario: Compromisos adquiridos conserva su formato
+
+- GIVEN `reason` con espacios repetidos y saltos de línea
+- WHEN el estudiante revisa y envía la solicitud
+- THEN el valor se conserva exactamente como fue escrito
+
 #### Scenario: Un campo que excede su límite impide el envío
 
 - GIVEN `reason` con más de 2000 caracteres
@@ -104,6 +169,75 @@ Esta validación es **de UX**: el backend sigue siendo la autoridad.
 - GIVEN un valor que pasa la validación del cliente
 - WHEN el backend lo rechaza igualmente
 - THEN el sistema muestra el error devuelto, sin asumir que el envío fue válido
+
+#### Scenario: Pegar un número con separadores deja solo los dígitos
+
+- GIVEN el formulario renderizado
+- WHEN el estudiante teclea o pega un valor con puntos, guiones o espacios en `studentDocument`
+  o en `studentPhone`
+- THEN el campo conserva solo los dígitos de ese valor
+
+#### Scenario: Un teléfono sin diez dígitos impide el envío
+
+- GIVEN `studentPhone` con menos o más de diez dígitos
+- WHEN se intenta enviar
+- THEN el campo se marca como inválido y no se emite la petición
+
+#### Scenario: Continuar no avanza con un campo inválido en el paso visible
+
+- GIVEN un campo obligatorio vacío, fuera de límite o inválido en el paso visible
+- WHEN el estudiante pulsa «Continuar»
+- THEN el paso visible no cambia
+- AND el campo se marca como inválido
+- AND el foco pasa al primer campo inválido del paso visible
+
+#### Scenario: Un correo incompleto impide continuar
+
+- GIVEN `studentEmail` con un valor sin `@`, sin dominio o sin sufijo del dominio
+- WHEN el estudiante pulsa «Continuar» en el paso que lo contiene
+- THEN el paso visible no cambia
+- AND el campo se marca como inválido
+
+#### Scenario: El correo no exige un proveedor institucional
+
+- GIVEN `studentEmail` con una dirección completa de un proveedor personal o institucional
+- WHEN el estudiante pulsa «Continuar» en el paso que lo contiene
+- THEN el asistente acepta el valor y permite avanzar
+
+### Requirement: El programa académico procede del catálogo público
+
+El sistema **MUST** obtener el catálogo mediante `GET /api/public/programs`, sin asumir su
+orden ni preseleccionar uno de sus valores. Cada respuesta contiene objetos con `name`; el campo
+`program` **MUST** ser un selector nativo requerido, no texto libre, y conservar el nombre
+seleccionado en el resumen y el cuerpo público.
+
+Mientras el catálogo carga, el selector **MUST** estar bloqueado y explicar que está cargando. Si
+la carga falla, el selector **MUST** permanecer bloqueado, explicar el error y ofrecer
+«Reintentar»; nunca vuelve a texto libre. Reintentar **MUST NOT** perder los demás valores del
+formulario. La carga se cancela lógicamente al desmontar la pantalla para que una respuesta vieja
+no modifique su estado.
+
+#### Scenario: El selector se llena sin preselección
+
+- GIVEN la pantalla pública abierta
+- WHEN el catálogo público responde con programas en cualquier orden
+- THEN cada `name` aparece como opción del selector nativo
+- AND ningún programa queda seleccionado hasta que el estudiante elige uno
+
+#### Scenario: La carga del catálogo se informa y bloquea el campo
+
+- GIVEN el catálogo público aún pendiente
+- WHEN el estudiante llega al campo de programa
+- THEN el selector requerido está deshabilitado y explica que el catálogo está cargando
+
+#### Scenario: Una falla permite reintentar sin texto libre
+
+- GIVEN que la consulta del catálogo falla
+- WHEN el estudiante observa el campo de programa
+- THEN el selector sigue bloqueado, se informa la falla y aparece «Reintentar»
+- AND no se presenta un control de texto libre
+- WHEN el estudiante reintenta y la consulta tiene éxito
+- THEN las opciones se habilitan sin perder los demás valores diligenciados
 
 ### Requirement: El trámite viaja en la ruta, no en el cuerpo
 
@@ -161,6 +295,8 @@ existencia de una URL de datos **MUST NOT** usarse como prueba de que el estudia
 
 El sistema **MUST NOT** afirmar que la firma tiene valor probatorio o validez legal.
 
+(Previously: no existía un escenario que cubriera la navegación entre pasos del asistente.)
+
 #### Scenario: La firma trazada viaja como URL de datos
 
 - GIVEN el estudiante traza su firma en el recuadro
@@ -194,6 +330,13 @@ El sistema **MUST NOT** afirmar que la firma tiene valor probatorio o validez le
 - WHEN se revisa su texto
 - THEN ninguna frase afirma que la firma tiene valor probatorio o validez legal
 
+#### Scenario: La firma sobrevive a la navegación entre pasos
+
+- GIVEN el estudiante traza su firma en el paso «Firma»
+- WHEN navega a otro paso con «Continuar» o «Volver», y regresa al paso «Firma»
+- THEN el trazo sigue visible en el recuadro
+- AND al enviar la solicitud, `signature` contiene la misma URL de datos trazada
+
 ### Requirement: Acuse de recibo sin identificador
 
 Al recibir la confirmación del backend, el sistema **MUST** reemplazar el formulario por un acuse
@@ -225,10 +368,16 @@ El sistema **MUST** interpretar los errores como `application/problem+json` (RFC
 | Código | Tratamiento |
 |---|---|
 | `404` | Mensaje accionable que **MUST NOT** distinguir entre «el trámite no existe» y «no admite captura pública» |
-| `413` | Mensaje que orienta a limpiar la firma y volver a trazarla |
+| `413` | «La firma es demasiado pesada. Bórrela y fírmela de nuevo.», con un atajo «Ir a la firma» |
 | `422` | Error atado a cada campo que nombre el `problem+json`, distinguiendo faltantes de inválidos |
 | `429` | Mensaje con el tiempo de espera, reusando el manejo de `Retry-After` existente |
 | otros | Aviso general del formulario |
+
+Un `422` **MUST** llevar al estudiante al primer paso, en orden, que tenga un campo con error,
+con el foco en el primer campo con error de ese paso, y **MUST** marcar en la barra de progreso
+todos los pasos que tengan al menos un campo con error, sin perder el mensaje de ninguno de los
+campos señalados. `404`, `413` y `429` **MUST** mostrarse en el paso de revisión, sin mover al
+estudiante a otro paso.
 
 En todos los casos el sistema **MUST** conservar los datos ya diligenciados.
 
@@ -246,18 +395,24 @@ Para el `422`, el `problem+json` trae dos arreglos de nombres de campo —`missi
 - **MUST** mostrar un aviso general del formulario cuando ningún nombre recibido corresponda a un
   control, en lugar de dejar el envío sin explicación.
 
+(Previously: el mensaje del `413` orientaba a limpiar la firma sin ofrecer un atajo; ningún caso
+indicaba a qué paso, o a cuál pantalla del asistente, debía llevar al estudiante.)
+
 #### Scenario: El enlace no está habilitado
 
 - GIVEN el backend responde `404`
 - WHEN se procesa la respuesta
-- THEN se muestra un mensaje accionable que no revela si el trámite existe
+- THEN se muestra un mensaje accionable que no revela si el trámite existe, en el paso de
+  revisión
 - AND los datos diligenciados se conservan
 
 #### Scenario: El cuerpo excede el tope
 
 - GIVEN el backend responde `413`
 - WHEN se procesa la respuesta
-- THEN el mensaje orienta a limpiar la firma y trazarla de nuevo
+- THEN el mensaje dice «La firma es demasiado pesada. Bórrela y fírmela de nuevo.», en el paso de
+  revisión
+- AND se ofrece un atajo «Ir a la firma»
 
 #### Scenario: El backend rechaza campos faltantes e inválidos
 
@@ -284,5 +439,95 @@ Para el `422`, el `problem+json` trae dos arreglos de nombres de campo —`missi
 
 - GIVEN el backend responde `429` con `Retry-After`
 - WHEN se procesa la respuesta
-- THEN el mensaje indica cuántos segundos esperar
+- THEN el mensaje indica cuántos segundos esperar, en el paso de revisión
 - AND los datos diligenciados se conservan
+
+#### Scenario: Un 422 lleva al primer paso con errores y marca la barra de progreso
+
+- GIVEN el backend responde `422` con campos con error repartidos en dos pasos distintos
+- WHEN se procesa la respuesta
+- THEN el asistente muestra el primer paso, en orden, que tiene un campo con error
+- AND el foco se mueve al primer campo con error de ese paso
+- AND la barra de progreso marca todos los pasos con al menos un campo con error
+- AND cada campo señalado conserva su propio mensaje
+
+### Requirement: Diligenciamiento por pasos
+
+El sistema **MUST** presentar el formulario como un asistente de cinco pasos: «Sus datos»,
+«Datos académicos», «Motivo de la solicitud», «Firma» y «Revisar y enviar». Los cinco pasos
+**MUST** estar montados desde el primer render; en cada momento, **MUST** haber exactamente uno
+visible.
+
+«Continuar» **MUST** validar únicamente los campos del paso visible. Si alguno falla, **MUST NOT**
+avanzar y **MUST** mover el foco al primer campo inválido del paso, en el orden en que aparecen;
+si todos son válidos, **MUST** avanzar al paso siguiente. «Volver» **MUST** conservar lo escrito
+en todos los pasos, incluidos los que ya se dejaron atrás.
+
+La barra de progreso **MUST** indicar el paso activo y **MUST NOT** ofrecer saltar a otro paso:
+sus elementos **MUST NOT** responder a una interacción del estudiante.
+
+El paso «Revisar y enviar» **MUST** mostrar un resumen por bloque de lo diligenciado en los pasos
+anteriores, con un botón «Cambiar» por bloque. Al pulsar «Cambiar», el sistema **MUST** llevar al
+estudiante al paso de ese bloque; desde ahí, **MUST** recorrer los pasos siguientes de uno en uno
+con «Continuar», validando cada uno, hasta volver al paso de revisión.
+
+El sistema **MUST** mover el foco al encabezado del paso visible en cada cambio de paso, incluida
+la llegada al paso de revisión, salvo en el salto de un `422`, que lo lleva al primer campo con
+error. Si el paso no tiene ningún campo inválido que pueda recibir el foco —el caso de la firma,
+cuyo lienzo no es enfocable—, el foco **MUST** ir al encabezado del paso. El elemento que recibe el
+foco **MUST** quedar a la vista.
+
+El sistema **MUST NOT** emitir ninguna petición al backend antes de que el estudiante pulse
+«Enviar solicitud» en el paso de revisión.
+
+#### Scenario: Un paso a la vez, con los cinco montados
+
+- GIVEN el asistente renderizado
+- WHEN se inspecciona su árbol de componentes
+- THEN los cinco pasos existen en el árbol
+- AND exactamente uno de ellos es visible
+
+#### Scenario: Continuar avanza al siguiente paso cuando el paso es válido
+
+- GIVEN todos los campos obligatorios del paso visible diligenciados y válidos
+- WHEN el estudiante pulsa «Continuar»
+- THEN el asistente muestra el siguiente paso
+
+#### Scenario: Volver conserva lo escrito
+
+- GIVEN un valor diligenciado en el paso actual
+- WHEN el estudiante pulsa «Volver» y luego regresa al mismo paso
+- THEN el valor sigue diligenciado
+
+#### Scenario: La barra de progreso no permite saltar de paso
+
+- GIVEN el asistente renderizado en un paso distinto del primero
+- WHEN se interactúa con un elemento de la barra de progreso
+- THEN el paso visible no cambia
+
+#### Scenario: Cambiar un bloque recorre los pasos siguientes
+
+- GIVEN el estudiante en el paso de revisión, tras diligenciar los cinco pasos
+- WHEN pulsa «Cambiar» en el bloque de un paso anterior al último, y luego «Continuar» en cada
+  paso hasta volver a la revisión
+- THEN el asistente pasa por cada paso siguiente en orden, validándolo
+- AND termina de nuevo en el paso de revisión
+
+#### Scenario: El foco se mueve al encabezado en cada cambio de paso
+
+- GIVEN el asistente renderizado
+- WHEN el estudiante cambia de paso con «Continuar», «Volver» o «Cambiar»
+- THEN el foco queda en el encabezado del paso que se muestra
+
+#### Scenario: Una firma faltante lleva el foco al encabezado del paso «Firma»
+
+- GIVEN el paso «Firma» visible y sin firma
+- WHEN el estudiante pulsa «Continuar»
+- THEN el paso visible no cambia
+- AND el foco queda en el encabezado del paso «Firma»
+
+#### Scenario: No se emite ninguna petición antes de enviar en la revisión
+
+- GIVEN el estudiante diligenció los cinco pasos y llegó a la revisión
+- WHEN navega por los pasos anteriores sin pulsar «Enviar solicitud»
+- THEN no se emite ninguna petición al backend

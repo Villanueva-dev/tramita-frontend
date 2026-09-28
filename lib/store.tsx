@@ -12,19 +12,15 @@ import {
 
 import { apiFetch, fetchRequestMetrics, problemMessage, searchRequests as fetchRequestsByTerm, updateRequest as saveRequest } from './api'
 import { apiErrorMessages } from './api-errors'
+import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
-import { addBusinessDays } from './format'
-import { workflowConfig as defaultWorkflowConfig } from './ui-constants'
 import type {
   AcademicRequest,
-  Attachment,
-  AttachmentApproval,
-  DocumentApprovalInput,
+  AnnexRequirement,
+  InboxOrigin,
   RequestStatus,
   RequestMetrics,
   RequestType,
-  RequestTypeConfig,
-  SignatureType,
   SubjectInfo,
   TimelineEvent,
 } from './types'
@@ -36,15 +32,25 @@ export interface NewRequestInput {
   studentCedula: string
   studentName: string
   studentEmail: string
+  /** Se omite si no se eligió programa: el backend rechaza `""`. */
+  program?: string
+  semester: string
+  subjects: SubjectInfo[]
+  reason: string
+}
+
+export interface UpdateRequestInput {
+  studentName: string
+  studentCedula: string
+  studentCode: string
   program: string
   semester: string
   subjects: SubjectInfo[]
   reason: string
-  attachments: Attachment[]
 }
 
 interface ApiDefinition { code: string; name: string; version: number }
-interface ApiState { code: string; name: string; isFinal: boolean }
+interface ApiState { code: string; name: string; isInitial: boolean; isFinal: boolean }
 interface ApiTransition { targetState: ApiState; responsible: string; requiresNote: boolean }
 interface ApiSubject {
   code: string
@@ -61,7 +67,10 @@ interface ApiRequest {
   studentDocument: string
   studentCode?: string | null
   studentEmail?: string | null
+  origin?: InboxOrigin | null
+  studentPhone?: string | null
   program?: string | null
+  annexRequirement?: AnnexRequirement | null
   semester?: string | null
   reason?: string | null
   priority?: 'normal' | 'urgente' | null
@@ -79,25 +88,6 @@ interface ApiTimelineEntry {
   note: string | null
   occurredAt: string
 }
-interface ApiDocument {
-  id: string
-  originalName: string
-  contentType: string
-  size: number
-  sha256: string
-}
-interface ApiDocumentApproval {
-  id: number
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  documentSha256: string
-  recordedByEmail: string
-  note: string | null
-  signedAt: string
-  timestampedAt: string
-}
-
 interface TramitaContextValue {
   isAuthenticated: boolean
   coordinatorName: string
@@ -108,27 +98,13 @@ interface TramitaContextValue {
   /** True cuando la última búsqueda se completó: distingue «aún no buscó» de «sin coincidencias». */
   searched: boolean
   searchErrors: string[]
-  workflowConfig: RequestTypeConfig[]
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   getRequest: (id: string) => AcademicRequest | undefined
   refreshRequest: (id: string) => Promise<void>
   createRequest: (input: NewRequestInput) => Promise<AcademicRequest>
-  transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
   updateRequest: (id: string, input: UpdateRequestInput) => Promise<void>
-  uploadDocument: (requestId: string, file: File) => Promise<Attachment>
-  registerDocumentApproval: (requestId: string, documentId: string, input: DocumentApprovalInput) => Promise<AttachmentApproval>
-  updateWorkflowConfig: (config: RequestTypeConfig[]) => void
-}
-
-export interface UpdateRequestInput {
-  studentName: string
-  studentCedula: string
-  studentCode: string
-  program: string
-  semester: string
-  reason: string
-  subjects: SubjectInfo[]
+  transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
 }
 
 const TramitaContext = createContext<TramitaContextValue | null>(null)
@@ -136,41 +112,70 @@ const TramitaContext = createContext<TramitaContextValue | null>(null)
 // El mínimo lo fija el contrato del backend (@Size(min = 2) en RequestController).
 const MIN_SEARCH_LENGTH = 2
 
-const typeFromCode = (code: string): RequestType => code === 'NOVEDAD_NOTAS' ? 'novedad_notas' : 'adicion_creditos'
+/**
+ * Único lugar del cliente que reconoce códigos de definición (D2). Allowlist, no un
+ * ternario con respaldo: una definición que el cliente no reconoce da `null`, nunca
+ * `'adicion_creditos'` por defecto (#9 b, mutante 4).
+ */
+const typeFromCode = (code: string): RequestType | null =>
+  code === 'ADICION_CREDITOS' ? 'adicion_creditos'
+    : code === 'NOVEDAD_NOTAS' ? 'novedad_notas'
+      : null
 const typeToCode = (type: RequestType) => type === 'novedad_notas' ? 'NOVEDAD_NOTAS' : 'ADICION_CREDITOS'
 
-function statusFromState(state: ApiState): RequestStatus {
-  if (state.code.includes('DEVUELTA') || state.code.includes('RECHAZADA')) return 'devuelto'
-  if (state.isFinal) return 'finalizado'
-  if (state.code === 'REGISTRADA') return 'pendiente'
+// `status` es vocabulario de PRESENTACIÓN: agrupa para colorear el badge y poblar el
+// filtro. Las decisiones no se toman con él —para eso están los predicados de
+// `request-state`, que responden una pregunta cada uno—, así que colapsar aquí es
+// aceptable mientras nadie derive de este valor si un trámite está cerrado o devuelto.
+function statusFromState(state: ApiState, type: RequestType | null): RequestStatus {
+  const request = { currentState: state, type }
+  if (isClosed(request)) return 'finalizado'
+  if (isInitialState(request)) return 'pendiente'
+  if (isReturnedForCorrection(request)) return 'devuelto'
+  // Heurística residual, solo para la etiqueta: `APROBADA_FACULTAD` no es un estado final
+  // ni cambia ninguna decisión. Si algún día decide algo, le toca su propio predicado.
   if (state.code.includes('APROBADA') || state.code === 'APROBADO') return 'aprobado'
   return 'en_revision'
 }
 
-function stageFromState(state: ApiState, type: RequestType) {
-  if (state.code === 'REGISTRADA') return 'radicacion'
-  if (state.isFinal) return 'cierre'
-  return type === 'novedad_notas' ? 'verificacion' : 'revision'
-}
+/** Asignatura tal como la acepta `POST /api/requests`: sin créditos cuando no aplican. */
+type ApiSubjectBody = Omit<SubjectInfo, 'credits'> & { credits?: number }
 
-function deriveDueDate(createdAt: string): string {
-  // El SLA provisional del proceso es de hasta 6 días hábiles, sin depender de prioridad.
-  return addBusinessDays(createdAt, 6)
+/**
+ * Traduce las asignaturas del formulario al vocabulario del contrato.
+ *
+ * `credits: 0` es el centinela de «vacío» del FORMULARIO —`emptySubject()` lo inicializa
+ * así y el input controlado lo lee como `s.credits || ''`—, pero el backend declara
+ * `@Min(1)` en `SubjectRequestBody`: para él «sin créditos» es la clave AUSENTE, no un
+ * cero. Traducir entre ambos vocabularios es trabajo de esta capa, igual que `typeToCode`.
+ *
+ * Sin esto la novedad de notas era IRRADICABLE: su formulario no pide créditos, así que
+ * el cuerpo salía con `credits: 0` y el POST respondía 400 siempre. El 400 llegaba como
+ * «Invalid request content.», sin nombrar el campo, de modo que en pantalla no había
+ * ninguna pista de la causa.
+ *
+ * No se condiciona por tipo de trámite a propósito: la adición valida que los créditos
+ * existan antes de enviar (`page.tsx`, «Requerido»), así que un cero solo puede venir de
+ * un formulario que no los pide. Si mañana otro trámite tampoco los pide, ya funciona.
+ */
+export function subjectsForApi(subjects: SubjectInfo[]): ApiSubjectBody[] {
+  return subjects.map(({ credits, ...rest }) => (credits ? { ...rest, credits } : rest))
 }
 
 export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
   const type = typeFromCode(apiRequest.definition.code)
-  const status = statusFromState(apiRequest.currentState)
+  const status = statusFromState(apiRequest.currentState, type)
   const priority = apiRequest.priority ?? 'normal'
   return {
     id: apiRequest.id,
     radicado: apiRequest.id,
+    definition: apiRequest.definition,
     type,
     status,
     stateName: apiRequest.currentState.name,
+    currentState: apiRequest.currentState,
     createdAt: apiRequest.createdAt,
     updatedAt: apiRequest.createdAt,
-    dueDate: deriveDueDate(apiRequest.createdAt),
     studentCedula: apiRequest.studentDocument,
     studentName: apiRequest.studentName,
     subjects: apiRequest.subjects?.map((subject) => ({
@@ -182,14 +187,16 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
       proposedGrade: subject.proposedGrade ?? undefined,
     })) ?? [],
     reason: apiRequest.reason ?? '',
-    attachments: [],
     timeline: [],
-    currentStage: stageFromState(apiRequest.currentState, type),
     assignedTo: apiRequest.availableTransitions?.[0]?.responsible ?? '',
     // Estos valores ya vienen persistidos desde V2.3.0.
     studentCode: apiRequest.studentCode ?? '',
     studentEmail: apiRequest.studentEmail ?? '',
+    origin: apiRequest.origin ?? null,
+    studentPhone: apiRequest.studentPhone ?? null,
     program: apiRequest.program ?? '',
+    // El backend omite la clave cuando no aplica; un `null` se trata igual que la ausencia.
+    annexRequirement: apiRequest.annexRequirement ?? undefined,
     semester: apiRequest.semester ?? '',
     priority,
     availableTransitions: apiRequest.availableTransitions,
@@ -204,67 +211,33 @@ function applyTimeline(request: AcademicRequest, entries: ApiTimelineEntry[]): A
       date: entry.occurredAt,
       actor: entry.actorEmail,
       action: entry.fromState ? `Transición a ${entry.toState.name}` : 'Solicitud radicada',
-      fromStatus: entry.fromState ? statusFromState(entry.fromState) : undefined,
-      toStatus: statusFromState(entry.toState),
+      fromStatus: entry.fromState ? statusFromState(entry.fromState, request.type) : undefined,
+      toStatus: statusFromState(entry.toState, request.type),
       comment: entry.note ?? undefined,
     })),
   }
 }
 
-function mapApproval(approval: ApiDocumentApproval): AttachmentApproval {
-  return {
-    id: approval.id,
-    signerName: approval.signerName,
-    signerRole: approval.signerRole,
-    signatureType: approval.signatureType,
-    documentSha256: approval.documentSha256,
-    recordedByEmail: approval.recordedByEmail,
-    note: approval.note ?? undefined,
-    signedAt: approval.signedAt,
-    timestampedAt: approval.timestampedAt,
-  }
-}
-
-async function loadAttachment(requestId: string, document: ApiDocument): Promise<Attachment> {
-  const approvalsResponse = await apiFetch(`/requests/${requestId}/documents/${document.id}/approvals`)
-  const approvals = approvalsResponse.ok
-    ? (await approvalsResponse.json() as ApiDocumentApproval[]).map(mapApproval)
-    : []
-  return {
-    id: document.id,
-    name: document.originalName,
-    size: `${Math.ceil(document.size / 1024)} KB`,
-    type: document.contentType,
-    sha256: document.sha256,
-    approvals,
-  }
-}
-
+// Issue #12, criterio 1: el backend no recibe adjuntos (Request.java:39-40, FR-010) ni
+// captura firmas de aprobadores (spec 006, FR-011), así que no expone
+// `/requests/{id}/documents` ni sus `/approvals`. `loadRequest` solo pide el detalle y su
+// timeline.
 async function loadRequest(id: string): Promise<AcademicRequest> {
-  const [requestResponse, timelineResponse, documentsResponse] = await Promise.all([
+  const [requestResponse, timelineResponse] = await Promise.all([
     apiFetch(`/requests/${id}`),
     apiFetch(`/requests/${id}/timeline`),
-    apiFetch(`/requests/${id}/documents`),
   ])
   if (!requestResponse.ok) throw new Error(await problemMessage(requestResponse, 'No se pudo cargar la solicitud'))
   const request = baseRequest(await requestResponse.json() as ApiRequest)
-  const withTimeline = timelineResponse.ok
+  return timelineResponse.ok
     ? applyTimeline(request, await timelineResponse.json() as ApiTimelineEntry[])
     : request
-  if (!documentsResponse.ok) return withTimeline
-  const documents = await documentsResponse.json() as ApiDocument[]
-  return {
-    ...withTimeline,
-    // Cada adjunto trae su traza de aprobaciones desde el backend real.
-    attachments: await Promise.all(documents.map((document) => loadAttachment(id, document))),
-  }
 }
 
 export function TramitaProvider({ children }: { children: ReactNode }) {
   const { status: authStatus, user, login: authLogin, logout: authLogout } = useAuth()
   const [requests, setRequests] = useState<AcademicRequest[]>([])
   const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
-  const [workflowConfig, setWorkflowConfig] = useState(defaultWorkflowConfig)
 
   const [searched, setSearched] = useState(false)
   const [searchErrors, setSearchErrors] = useState<string[]>([])
@@ -319,7 +292,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // El catálogo real evita que el formulario dependa de tipos hardcodeados.
     if (!isAuthenticated) return
     let ignore = false
     fetchRequestMetrics()
@@ -329,25 +301,10 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         if (!ignore) setMetrics(null)
       })
-    apiFetch('/workflow-definitions').then(async (response) => {
-      if (!response.ok) return
-      const definitions = await response.json() as ApiDefinition[]
-      if (ignore) return
-      setWorkflowConfig((current) => definitions.map((definition) =>
-        current.find((item) => item.id === typeFromCode(definition.code)) ?? {
-          id: typeFromCode(definition.code),
-          label: definition.name,
-          description: definition.name,
-          enabled: true,
-          stages: [],
-        },
-      ))
-    })
     return () => {
       ignore = true
     }
   }, [isAuthenticated])
-
   const login = useCallback(async (email: string, password: string) => {
     await authLogin(email, password)
   }, [authLogin])
@@ -372,59 +329,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const updateRequest = useCallback(async (id: string, input: UpdateRequestInput) => {
-    const updated = await saveRequest(id, {
-      studentName: input.studentName,
-      studentDocument: input.studentCedula,
-      studentCode: input.studentCode,
-      program: input.program,
-      semester: input.semester,
-      reason: input.reason,
-      subjects: input.subjects.map((subject) => ({
-        code: subject.code,
-        name: subject.name,
-        credits: subject.credits,
-        group: subject.group,
-        currentGrade: subject.currentGrade,
-        proposedGrade: subject.proposedGrade,
-      })),
-    })
-    const refreshed = await loadRequest(id)
-    const mapped = refreshed ?? baseRequest(updated)
-    setRequests((current) => current.map((request) => request.id === id ? mapped : request))
-  }, [])
-
-  const uploadDocument = useCallback(async (requestId: string, file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    const response = await apiFetch(`/requests/${requestId}/documents`, { method: 'POST', body: form })
-    if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo adjuntar el documento'))
-    const document = await response.json() as ApiDocument
-    return {
-      id: document.id,
-      name: document.originalName,
-      size: `${Math.ceil(document.size / 1024)} KB`,
-      type: document.contentType,
-      sha256: document.sha256,
-      approvals: [],
-    }
-  }, [])
-
-  const registerDocumentApproval = useCallback(async (requestId: string, documentId: string, input: DocumentApprovalInput) => {
-    const response = await apiFetch(`/requests/${requestId}/documents/${documentId}/approvals`, {
-      method: 'POST',
-      body: JSON.stringify({
-        ...input,
-        note: input.note?.trim() || undefined,
-      }),
-    })
-    if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo registrar la aprobación documental'))
-    const approval = mapApproval(await response.json() as ApiDocumentApproval)
-    // Después de persistir, el detalle se recarga para reflejar la traza documental real.
-    await refreshRequest(requestId)
-    return approval
-  }, [refreshRequest])
-
   const createRequest = useCallback(async (input: NewRequestInput) => {
     const response = await apiFetch('/requests', {
       method: 'POST',
@@ -432,27 +336,37 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
         definitionCode: typeToCode(input.type),
         studentName: input.studentName,
         studentDocument: input.studentCedula,
-        // El formulario completo se envía al backend; solo los adjuntos siguen diferidos.
         studentCode: input.studentCode,
         studentEmail: input.studentEmail,
         program: input.program,
         semester: input.semester,
         reason: input.reason,
         priority: input.priority,
-        subjects: input.subjects,
+        subjects: subjectsForApi(input.subjects),
       }),
     })
     if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo registrar la solicitud'))
-    const created = await loadRequest((await response.json() as ApiRequest).id)
-    // Los adjuntos se suben después de crear la solicitud y reciben su ID de PostgreSQL.
-    const uploadedAttachments = await Promise.all(
-      input.attachments.filter((attachment) => attachment.file).map((attachment) =>
-        uploadDocument(created.id, attachment.file!)),
-    )
-    const complete = { ...created, attachments: uploadedAttachments }
-    setRequests((previous) => [complete, ...previous.filter((request) => request.id !== complete.id)])
-    return complete
-  }, [uploadDocument])
+    // Se arma con la respuesta del propio POST, sin recargar: después del 201 no queda
+    // ninguna otra llamada que pueda convertir este resultado en error. El detalle ya
+    // recarga al montarse (app/requests/[id]/page.tsx).
+    const created = baseRequest(await response.json() as ApiRequest)
+    setRequests((previous) => [created, ...previous.filter((request) => request.id !== created.id)])
+    return created
+  }, [])
+
+  const updateRequest = useCallback(async (id: string, input: UpdateRequestInput) => {
+    await saveRequest(id, {
+      studentName: input.studentName,
+      studentDocument: input.studentCedula,
+      studentCode: input.studentCode,
+      program: input.program || undefined,
+      semester: input.semester,
+      reason: input.reason,
+      subjects: subjectsForApi(input.subjects),
+    })
+    const refreshed = await loadRequest(id)
+    setRequests((previous) => previous.map((request) => request.id === id ? refreshed : request))
+  }, [])
 
   const transition = useCallback(async (id: string, targetStateCode: string, comment?: string) => {
     const request = getRequest(id)
@@ -480,11 +394,9 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
       semester: item.semester,
       subjects: item.subjects,
       reason: item.reason,
-      dueDate: item.dueDate,
     } : item))
   }, [getRequest])
 
-  const updateWorkflowConfig = useCallback((config: RequestTypeConfig[]) => setWorkflowConfig(config), [])
   const visibleRequests = useMemo(
     () => isAuthenticated ? requests : [],
     [isAuthenticated, requests],
@@ -501,18 +413,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     searchRequests,
     searched,
     searchErrors,
-    workflowConfig,
     login,
     logout,
     getRequest,
     refreshRequest,
     createRequest,
-    transition,
-    uploadDocument,
-    registerDocumentApproval,
-    updateWorkflowConfig,
     updateRequest,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, workflowConfig, login, logout, getRequest, refreshRequest, createRequest, transition, updateRequest, uploadDocument, registerDocumentApproval, updateWorkflowConfig])
+    transition,
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, updateRequest, transition])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 

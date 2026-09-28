@@ -14,7 +14,7 @@ describe('CanvasFirma', () => {
     render(<CanvasFirma onChange={onChange} />)
 
     expect(onChange).toHaveBeenCalledWith({ dataUrl: '', hayFirma: false })
-    expect(screen.getByRole('button', { name: 'Limpiar firma' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' }).hasAttribute('disabled')).toBe(true)
   })
 
   it('does not treat a blank PNG as a signature', () => {
@@ -173,11 +173,11 @@ describe('CanvasFirma', () => {
     fireEvent.pointerDown(canvas, { clientX: 20, clientY: 10, pointerId: 4 })
     fireEvent.pointerMove(canvas, { clientX: 40, clientY: 10, pointerId: 4 })
     fireEvent.pointerUp(canvas, { pointerId: 4 })
-    fireEvent.click(screen.getByRole('button', { name: 'Limpiar firma' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' }))
 
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, canvas.width, canvas.height)
     expect(onChange).toHaveBeenLastCalledWith({ dataUrl: '', hayFirma: false })
-    expect(screen.getByRole('button', { name: 'Limpiar firma' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' }).hasAttribute('disabled')).toBe(true)
     expect(canvas.style.touchAction).toBe('none')
   })
 
@@ -227,11 +227,44 @@ describe('CanvasFirma', () => {
     expect(screen.getByText('Imagen de firma cargada: firma.png')).toBeDefined()
     expect(onChange).toHaveBeenLastCalledWith({ dataUrl: 'data:image/png;base64,UPLOADED', hayFirma: true })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Limpiar firma' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar y firmar de nuevo' }))
 
     expect(input.value).toBe('')
     expect(screen.queryByText('Imagen de firma cargada: firma.png')).toBeNull()
     expect(onChange).toHaveBeenLastCalledWith({ dataUrl: '', hayFirma: false })
+  })
+
+  it('grows the canvas to a 200 px drawing surface and a matching 52 px+ display height', () => {
+    render(<CanvasFirma onChange={vi.fn()} />)
+    const canvas = screen.getByLabelText('Área para dibujar la firma') as HTMLCanvasElement
+
+    // El atributo `height` fija el lienzo de dibujo real (design.md, decisión 8: 160 → 200 px),
+    // no solo su apariencia; `h-50` es la misma clase Tailwind que ya se verifica para los
+    // botones (jsdom no calcula layout, así que la altura visible se lee de la clase declarada).
+    expect(canvas.getAttribute('height')).toBe('200')
+    expect(canvas.className).toContain('h-50')
+  })
+
+  it('overlays the signing guide and hint as non-drawn, inert elements over the canvas', () => {
+    render(<CanvasFirma onChange={vi.fn()} />)
+
+    const hint = screen.getByText('Firme aquí con el dedo o con el mouse')
+    // `aria-hidden` y `pointerEvents: none` son el contrato real: un lector de pantalla lo
+    // ignora y un dedo o el mouse lo atraviesan hasta el canvas — no se comprueba una clase
+    // cosmética, sino el comportamiento de accesibilidad e interacción declarado.
+    expect(hint.getAttribute('aria-hidden')).toBe('true')
+    expect(hint.style.pointerEvents).toBe('none')
+    expect(hint.tagName).not.toBe('CANVAS')
+  })
+
+  it('explains in visible text, linked via aria-describedby, when Borrar y firmar de nuevo is disabled', () => {
+    render(<CanvasFirma onChange={vi.fn()} />)
+
+    const button = screen.getByRole('button', { name: 'Borrar y firmar de nuevo' })
+    const describedById = button.getAttribute('aria-describedby')
+    expect(describedById).toBeTruthy()
+    const explanation = document.getElementById(describedById as string)
+    expect(explanation?.textContent).toBe('Se habilita cuando haya una firma.')
   })
 })
 

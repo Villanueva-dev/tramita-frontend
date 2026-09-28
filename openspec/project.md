@@ -98,37 +98,59 @@ y el front todavía no tiene el concepto.
 **El dato operativo central es «ahora de quién depende»**: el trabajo real de la coordinación es
 perseguir el trámite, así que el responsable del paso actual vale más que el «cuánto falta».
 
-## ⛔ ESTA SECCIÓN VENCIÓ EL 2026-08-28 — la Fase B está CERRADA y MERGEADA
+## Estado actual — 2026-09-26
 
-`main == origin/main == 0b1a275` (merge de la PR #1), divergencia `0 0`. **`lib/mock-data.ts` y
-`lib/store.tsx` YA NO EXISTEN** (re-verificado el 2026-09-07), y `lib/types.ts` son los tipos del
-contrato real, no los union types literales. Lo de abajo vale como **el porqué del trabajo hecho**,
-nunca como estado ni como trabajo pendiente.
+`main` está en `bf096f8` (merge de la PR #79, 2026-09-26). La Fase B y los changes
+`formulario-do-fr-100-creditos-adicionales` y `formulario-publico-por-pasos` son históricos.
 
-**El trabajo que viene AHORA es otro**: la pantalla que reproduce el formato oficial `DO-FR-100`
-de créditos adicionales — change OpenSpec `formulario-do-fr-100-creditos-adicionales`, cuyo
-insumo completo está en `openspec/changes/formulario-do-fr-100-creditos-adicionales/BRIEF.md`.
-Ruta nueva que **convive** con `app/requests/new/page.tsx` (intocable), backend sin cambios.
+No hay change activo. `catalogo-programas-y-anexo` quedó archivado en
+[`changes/archive/2026-09-26-catalogo-programas-y-anexo/`](changes/archive/2026-09-26-catalogo-programas-y-anexo/archive-report.md):
+el formulario interno elige el programa del catálogo público y el detalle anuncia el requisito de
+anexo (PRs #78 y #79; #74 cerrado), y la spec `workflow-requests` incorpora sus dos requisitos
+modificados. Pendientes fuera del cambio: el veto abierto sobre el texto del aviso de anexo, los
+seguimientos no bloqueantes de #76, y #10, #50 y #52.
+
+Antes, `formulario-publico-por-pasos` quedó archivado en
+[`changes/archive/2026-09-26-formulario-publico-por-pasos/`](changes/archive/2026-09-26-formulario-publico-por-pasos/archive-report.md):
+el formulario público es un asistente de cinco pasos con su pulido visual (PRs #65–#68, #70 y
+#72; #58 y #27 cerrados), y la spec `do-fr-100-form` incorpora sus cuatro requisitos modificados
+y el nuevo «Diligenciamiento por pasos». Pendientes fuera del cambio: confirmar la firma con el
+dedo en un celular; #19 y #33 (lienzo al rotar, captura de puntero) siguen abiertos; tres
+decisiones de PR-4 marcadas para veto en su `apply-progress.md`.
+
+## Fase B — contexto histórico (cerrada y mergeada el 2026-08-28)
+
+Al cierre de la Fase B, `main == origin/main == 0b1a275` (merge de la PR #1), divergencia `0 0`.
+**`lib/mock-data.ts` ya no existe**; `lib/store.tsx` se conserva y adapta la API real. `lib/types.ts`
+combina interfaces alineadas con el contrato con los aliases literales heredados `RequestType` y
+`RequestStatus`. Lo de abajo vale como **el porqué del trabajo hecho**, nunca como estado ni como
+trabajo pendiente.
+
+El trabajo posterior entonces era la pantalla que reproduce el formato oficial `DO-FR-100` de
+créditos adicionales — change OpenSpec `formulario-do-fr-100-creditos-adicionales`, cuyo insumo
+completo está archivado en
+`openspec/changes/archive/2026-09-18-formulario-do-fr-100-creditos-adicionales/BRIEF.md`. La
+ruta debía convivir con `app/requests/new/page.tsx` (intocable), sin cambios de backend.
 
 ## El trabajo que vino — Fase B (contexto histórico, no ejecutar desde acá)
 
-Hoy el front corre 100% sobre mocks: `lib/mock-data.ts` + `lib/store.tsx`. La Fase B es conectar
-contra el motor de workflow real del backend.
+Al inicio de la Fase B, el front corría 100% sobre mocks: `lib/mock-data.ts` + `lib/store.tsx`.
+La Fase B consistió en conectarlo contra el motor de workflow real del backend.
 
-**Brecha 1 — el modelo del cliente es incompatible con el motor.** `lib/types.ts` congela
+**Brecha 1 — el modelo del cliente era incompatible con el motor.** `lib/types.ts` congelaba
 `RequestStatus`/`RequestType` en union types literales (`'pendiente' | 'en_revision' | …`),
-mientras el motor trata trámites y cadenas de estados como **datos configurables en base de
-datos**. El backend prueba su genericidad con `rg` → 0 ocurrencias hardcodeadas; el front la
-vuelve a congelar en TypeScript. No es "conectar el fetch": hay que rediseñar el modelo cliente.
+mientras el motor trataba trámites y cadenas de estados como **datos configurables en base de
+datos**. El backend probaba su genericidad con `rg` → 0 ocurrencias hardcodeadas; el front la
+volvía a congelar en TypeScript. No era "conectar el fetch": había que rediseñar el modelo cliente.
 
-**Brecha 2 — el stepper: RESUELTA, se descarta.** `components/workflow-stepper.tsx` exige la
-cadena completa de etapas, que no es derivable del contrato actual **ni lo sería agregando un
-endpoint**: el grafo de estados es cíclico (las devoluciones son aristas hacia atrás) y
-`workflow_state` no tiene columna de orden, ni ninguna otra por la que reconstruirlo — su PK es
-un UUID aleatorio y no hay timestamp. Decisión: **el componente sale de la Fase B**, también
+**Brecha 2 — el stepper: RESUELTA, se descartó.** `components/workflow-stepper.tsx` exigía la
+cadena completa de etapas, que no era derivable del contrato de entonces **ni lo habría sido
+agregando un endpoint**: el grafo de estados era cíclico (las devoluciones son aristas hacia atrás)
+y `workflow_state` no tenía columna de orden, ni ninguna otra por la que reconstruirlo — su PK
+era un UUID aleatorio y no había timestamp. Decisión: **el componente salió de la Fase B**, también
 porque con devoluciones un "paso 3 de 6" promete un avance que el proceso no garantiza.
 
-**Lo que va en su lugar** (todo con fuente real en el contrato de la `002`):
+**Reemplazo planificado en el diseño** (todo con fuente real en el contrato de la `002`):
 
 1. Estado actual con su responsable — de `currentState` y del `responsible` de la transición.
 2. «Lleva N días esperando» — derivado del `occurredAt` de la última entrada del timeline.
@@ -138,13 +160,13 @@ porque con devoluciones un "paso 3 de 6" promete un avance que el proceso no gar
 4. Timeline con el par actor / en-nombre-de (`actorEmail` + `responsible`).
 
 **Diferido a la `003`, como un paquete coherente**: columna de orden (`display_order`) + endpoint
-de definición completa + recordatorios, prioridades y vencimientos por tiempo en un estado. Son
-la misma clase de cosa — configuración por trámite del lado del servidor — y por eso entran
-juntos. Los campos `priority` y `dueDate` que el mock V0 ya tiene **no se borran por absurdos: se
-difieren**, porque anticipan justamente esa necesidad.
+de definición completa + recordatorios, prioridades y vencimientos por tiempo en un estado. Eran
+la misma clase de cosa — configuración por trámite del lado del servidor — y por eso se difirieron
+juntos. Los campos `priority` y `dueDate` que el mock V0 tenía **no se borraron por absurdos: se
+difirieron**, porque anticipaban justamente esa necesidad.
 
-**Frontera a sostener en la defensa**: mostrar «lleva 12 días» es presentación; decidir que 12
-días es «tarde» es regla de negocio y va en configuración, no en el navegador.
+**Frontera de diseño**: mostrar «lleva 12 días» se consideró presentación; decidir que 12 días
+es «tarde» era regla de negocio y debía ir en configuración, no en el navegador.
 
 Este archivo documenta el contexto; **no autoriza a `sdd-init` a planificar ni ejecutar** ese
 trabajo — eso es tarea de `sdd-explore` / `sdd-propose` sobre un `change` nuevo.
