@@ -27,7 +27,13 @@ Tres PRs secuenciales contra `main`, uno por criterio de cierre (decidido el 202
 
 - **PR-1** (criterio 2): radicar ya no crea duplicados. Rama `fix/radicar-sin-duplicados-12`.
 - **PR-2** (criterio 1): fuera las llamadas a endpoints inexistentes.
-- **PR-3** (criterios 3 y 4): documento real en vez del simulado. Lleva `Closes #12`.
+- **PR-3** (criterios 3 y 4): documento real en vez del simulado.
+
+**Cambio de orden (2026-09-28).** La PR-3 va antes que la PR-2 y lleva `Relacionado: #12`; el
+`Closes #12` pasa a la PR-2, porque el criterio 1 depende de la T4 y la T4 reescribe el mismo
+archivo que el rediseño del detalle (`feat/detalle-ui`, en curso en otra sesión). La T5 queda
+anulada por el comentario del propietario del 2026-09-27 en #12: el asistente vuelve con la
+feature 010 del backend.
 
 Fuera de alcance: el defecto de `apiFetch` que serializa `FormData` como JSON (#10 §2.2), la
 idempotencia del registro en el backend (Tramita#30) y los datos de prueba locales.
@@ -67,7 +73,7 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
     llamarse «Justificación».
   - Comprobación: pruebas enfocadas en verde, `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm lint`.
 
-- [ ] **T3 — Cerrar la unidad de trabajo**
+- [x] **T3 — Cerrar la unidad de trabajo** (PR #55, mergeada el 2026-09-23)
   - Revisar el diff, repetir una comprobación como padre y crear un commit convencional.
   - Abrir el PR con «Relacionado: #12» y la nota sobre #10 §2.2.
 
@@ -75,12 +81,32 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
 
 - [ ] **T4** — Retirar `GET /documents`, la descarga por id, las aprobaciones y la tarjeta
   «Documentos adjuntos» del detalle, con los tipos que queden sin uso.
-- [ ] **T5** — Retirar `app/assistant/page.tsx` y su entrada en `components/app-shell.tsx`.
+- ~~**T5** — Retirar `app/assistant/page.tsx` y su entrada en `components/app-shell.tsx`.~~
+  Anulada el 2026-09-27 (comentario del propietario en #12).
 
-### PR-3 — Documento real en vez del simulado (se detalla al empezar)
+### PR-3 — Documento real en vez del simulado (rama `fix/documento-real-12`, desde `0f99c23`)
 
-- [ ] **T6** — Retirar `PdfDocument` y el botón «Imprimir»; corregir los textos falsos de
-  `app/requests/[id]/documento/page.tsx` (`:121`, `:169`).
+- [x] **T6** — Retirar `PdfDocument` y el botón «Imprimir»; corregir los textos falsos de
+  `app/requests/[id]/documento/page.tsx`. Líneas re-verificadas el 2026-09-28 sobre `0f99c23`:
+  - `components/pdf-document.tsx` (169 líneas): «DOCUMENTO OFICIAL» (`:31`) y «Se autoriza»
+    (`:91`, `:99`) con cualquier estado final, rechazo incluido; «Verificable con folio RC-…»
+    (`:8`, `:162-163`), un folio que `/verificar` rechaza por formato; fabrica un documento de
+    novedad de notas que el backend no emite.
+  - «Imprimir» (`:133-140`) imprime la pantalla con la simulación, no el PDF real.
+  - Aviso de descarga (`:166-170`): muestra `constancia_{radicado}.pdf`, pero el archivo se guarda
+    con el nombre del `Content-Disposition` (`DO-FR-100-<id>.pdf`). Era la `:169` original.
+  - Evidencia nueva: con estado final dice «Documento oficial de cierre» (`:114`) y «constituye la
+    constancia formal del trámite» (`:119`). El PDF real es el DO-FR-100 «Solicitud de excepción
+    de matrícula», y el backend descartó esa constancia a propósito (`DoFr100Renderer.java:44-47`).
+  - La `:121` original («y fue notificado al estudiante») ya la retiró `678ece2` (#59).
+  - Decisión del criterio 3: sin vista previa; la página queda con la descarga y los metadatos,
+    y se imprime el PDF real. Descartado embeber el PDF: cada `GET /requests/{id}/document`
+    registra un sello (`DocumentServiceImpl.java:140`), así que cada visita inflaría el historial
+    de emisiones. Descartado mover la descarga al detalle: más alcance sin ganancia.
+  - Ruta: un escritor delegado (disparador: página y pruebas, dos archivos no triviales). TDD
+    estricto, runner `pnpm test`. Garantías: un rechazo no se presenta como documento oficial ni
+    ofrece «Imprimir»; el aviso nombra el archivo guardado; la página enlaza a `/verificar`. Se
+    borra la prueba `#9b` (`page.test.tsx:98`), porque lo que protegía vivía en `PdfDocument`.
 - [ ] **T7** — Comprobar en vivo la descarga real, con permiso previo (registra un sello).
 
 ## Criterios de aceptación (de #12)
@@ -122,3 +148,20 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
   prueba). El detalle cargó dos veces porque Strict Mode ejecuta los efectos dos veces en
   desarrollo (activo por defecto con el App Router, `reactStrictMode.md` de Next); cada carga
   todavía pide `GET /documents` (404), que retira PR-2.
+- 2026-09-28, antes de la PR-3: `main` en `0f99c23` (con #83, `/verificar`), worktree limpio,
+  suite 29 archivos y 365 pruebas en verde. RDD `off` por `clone_local`. La otra sesión
+  (`feat/detalle-ui`) no toca `documento/page.tsx`, `pdf-document.tsx` ni este documento.
+- T6 (escritor delegado; diff revisado por el padre y aprobado por el propietario):
+  - RED: `pnpm exec vitest run 'app/requests/[id]/documento/page.test.tsx'` → 3 fallidas. T-A
+    encontró «Se autoriza» (vista previa) en un rechazo; T-B no encontró el enlace «Verificar
+    documento»; el test de descarga no encontró `DO-FR-100-request-1.pdf` en el aviso, que decía
+    `constancia_RAD-2026-001.pdf`.
+  - GREEN: 3 de 3. `pnpm test`: 29 archivos, 364 pruebas (365 menos la `#9b` borrada), repetido
+    por el padre; `tsc`, `pnpm lint`, `pnpm build` y `git diff --check` limpios.
+  - Mutantes (escritor; el del aviso repetido por el padre): «Imprimir» de vuelta, título «Documento
+    oficial de cierre», nombre fijo `constancia_…` y enlace a `/verificar` quitado. Los cuatro
+    mueren; restauración con `cp` y `cmp` idéntico.
+  - Referencias a lo borrado: solo en registros históricos (`odd/tasks/documento-disponible-en-curso-38.md`
+    y cambios archivados de openspec). Ninguna spec viva de `openspec/specs/` exige la vista previa.
+  - Commit `4280671` (`fix(documento): la página del documento deja de afirmar lo que el PDF no es`),
+    3 archivos, +41 −261.
