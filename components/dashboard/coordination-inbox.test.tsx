@@ -55,6 +55,10 @@ function region() {
   return screen.getByRole('region', { name: /bandeja de trabajo/i })
 }
 
+function resultsRegion() {
+  return screen.getByRole('region', { name: /resultados de la búsqueda/i })
+}
+
 describe('CoordinationInbox', () => {
   it('cargando: no muestra filas ni error', () => {
     const inbox: InboxState = { status: 'loading' }
@@ -307,6 +311,35 @@ describe('CoordinationInbox', () => {
       const counter = within(region()).getByText(/página 1 de 2/i)
       expect(counter.getAttribute('aria-live')).toBe('polite')
       expect(counter.getAttribute('aria-atomic')).toBe('true')
+    })
+  })
+
+  describe('variante resultados', () => {
+    it('con variant="results" la región se llama «Resultados de la búsqueda», no «Bandeja de trabajo»', () => {
+      const inbox: InboxState = { status: 'ready', entries: [entry()], mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} variant="results" />)
+
+      expect(resultsRegion()).toBeDefined()
+      expect(screen.queryByRole('region', { name: /bandeja de trabajo/i })).toBeNull()
+    })
+
+    it('bandeja vacía en resultados: «Sin coincidencias para lo buscado.»', () => {
+      const inbox: InboxState = { status: 'ready', entries: [], mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} variant="results" />)
+
+      expect(within(resultsRegion()).getByText('Sin coincidencias para lo buscado.')).toBeDefined()
+    })
+
+    it('una fila de resultados dice «Radicada hace N días», no «Esperando»', () => {
+      const inbox: InboxState = {
+        status: 'ready',
+        entries: [entry({ waitingSince: daysAgo(3) })],
+        mayHaveMore: false,
+      }
+      render(<CoordinationInbox inbox={inbox} now={NOW} variant="results" />)
+
+      expect(within(resultsRegion()).getByText(/radicada hace 3 días/i)).toBeDefined()
+      expect(within(resultsRegion()).queryByText(/esperando/i)).toBeNull()
     })
   })
 })

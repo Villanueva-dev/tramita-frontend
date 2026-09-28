@@ -64,6 +64,7 @@ interface TramitaMock {
   searchRequests?: (term: string) => void
   searched: boolean
   searchErrors: string[]
+  clearSearch?: () => void
 }
 
 /**
@@ -83,6 +84,7 @@ function renderDashboard({
     metrics: null,
     coordinatorName: 'coord@example.com',
     searchRequests: vi.fn(),
+    clearSearch: vi.fn(),
     ...tramita,
   })
   useCoordinationInbox.mockReturnValue(inbox)
@@ -342,6 +344,82 @@ describe('DashboardPage — bandeja de trabajo de la Coordinación', () => {
     })
 
     expect(screen.queryByText(/esperando su acción/i)).toBeNull()
+  })
+})
+
+// lista-unica-resultados: una sola lista en pantalla, en el formato de la bandeja. La
+// tabla sin paginar (`RequestsTable`) se retira.
+describe('DashboardPage — una sola lista (lista-unica-resultados)', () => {
+  it('tras buscar, solo hay una lista: los resultados, en el formato de la bandeja', () => {
+    renderDashboard({ tramita: { requests: [request], searched: true, searchErrors: [] } })
+
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getByRole('region', { name: /resultados de la búsqueda/i })).toBeDefined()
+    expect(screen.queryByRole('region', { name: /bandeja de trabajo/i })).toBeNull()
+  })
+
+  it('sin buscar, la única lista es la bandeja', () => {
+    renderDashboard({ tramita: { requests: [], searched: false, searchErrors: [] } })
+
+    expect(screen.getByRole('region', { name: /bandeja de trabajo/i })).toBeDefined()
+    expect(screen.queryByRole('region', { name: /resultados de la búsqueda/i })).toBeNull()
+  })
+
+  it('«Volver a la bandeja» limpia la búsqueda', () => {
+    const clearSearch = vi.fn()
+    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [], clearSearch } })
+
+    fireEvent.click(screen.getByRole('button', { name: /volver a la bandeja/i }))
+
+    expect(clearSearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('con un filtro activo se explica cuántas coinciden', () => {
+    const otraDefinicion = baseRequest({
+      id: 'request-2',
+      definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+      studentName: 'Carlos Ruiz',
+      studentDocument: '2000000000',
+      currentState: { code: 'EN_COORDINACION', name: 'En coordinación (revisión)', isFinal: false, isInitial: true },
+      createdAt: '2026-09-01T12:00:00',
+    })
+    renderDashboard({
+      tramita: { requests: [request, otraDefinicion], searched: true, searchErrors: [] },
+    })
+
+    expect(screen.queryByText(/coinciden con los filtros/i)).toBeNull()
+
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    expect(screen.getByText(/1 de 2 coinciden con los filtros/i)).toBeDefined()
+  })
+
+  // Un filtro nuevo es una lista nueva: si la usuaria estaba en la página 2, ver «Página 2»
+  // de otro conjunto la desorienta (visto en la prueba en vivo del 2026-09-28).
+  it('al cambiar un filtro, los resultados vuelven a la página 1', () => {
+    Element.prototype.scrollIntoView = vi.fn() // jsdom no lo implementa; «Siguiente» lo invoca
+    const doce = Array.from({ length: 12 }, (_, i) =>
+      baseRequest({
+        id: `request-${i}`,
+        definition: request.definition,
+        studentName: `Estudiante ${i}`,
+        studentDocument: `10000000${i}`,
+        currentState: request.currentState,
+        createdAt: '2026-09-01T12:00:00',
+      }),
+    )
+    renderDashboard({ tramita: { requests: doce, searched: true, searchErrors: [] } })
+
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }))
+    expect(screen.getByText('Página 2 de 2')).toBeDefined()
+
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    expect(screen.getByText('Página 1 de 2')).toBeDefined()
   })
 })
 
