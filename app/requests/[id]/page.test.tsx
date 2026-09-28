@@ -5,6 +5,10 @@ import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
+// T4b: la descarga de un adjunto llama a `apiFetch` directo desde `page.tsx` (no pasa por el
+// store). Se mockea aparte, con `importOriginal`, para no tocar `problemMessage` (se necesita
+// real: lee `response.json()` para construir el mensaje del error).
+const apiFetchMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -14,6 +18,10 @@ vi.mock('@/components/app-shell', () => ({
 vi.mock('@/lib/store', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/store')>()),
   useTramita,
+}))
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiFetch: apiFetchMock,
 }))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
@@ -709,5 +717,59 @@ describe('RequestDetailPage', () => {
       cleanup()
       vi.clearAllMocks()
     }
+  })
+
+  // T4b (rediseno-detalle-solicitud.md): antes, el mensaje flotante siempre llevaba el ícono de
+  // éxito (`CheckCircle2`) y ningún rol accesible, así que un lector de pantalla no distinguía
+  // un error de un éxito. El mensaje de éxito se anuncia como `role="status"`.
+  it('el mensaje de éxito de una transición se anuncia con role="status"', async () => {
+    const transition = setup()
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'EN_FACULTAD', ''))
+    const status = await screen.findByRole('status')
+    expect(status.textContent).toContain('Solicitud registrada en estado En facultad.')
+  })
+
+  // T4b: un error de descarga (hoy inalcanzable en la práctica porque la sección de documentos
+  // llega vacía, pero el código lo maneja) usaba el mismo mensaje flotante que el éxito, con el
+  // mismo ícono. Debe anunciarse aparte, como `role="alert"`, y nunca como `role="status"`.
+  it('un error de descarga se anuncia con role="alert" y nunca como role="status"', async () => {
+    const conAdjunto: AcademicRequest = {
+      ...request,
+      attachments: [
+        { id: 'doc-1', name: 'Certificado.pdf', size: '120 KB', type: 'application/pdf', approvals: [] },
+      ],
+    }
+    mockTramita({ getRequest: () => conAdjunto })
+    apiFetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ detail: 'No se pudo descargar el archivo de prueba.' }),
+    } as Response)
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('No se pudo descargar el archivo de prueba.')
+    // Ningún `role="status"` debe llevar el mensaje de error: son roles ARIA distintos y
+    // anunciarlo como éxito sería el mismo defecto que se corrige en esta tarea.
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  // T4b: la tarjeta «Resumen» solo repetía el tipo de trámite, que el encabezado ya muestra
+  // (`TypeBadge`, T2). Se retira del panel lateral.
+  it('la tarjeta «Resumen» ya no existe', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Resumen')).toBeNull()
   })
 })

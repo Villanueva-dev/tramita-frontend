@@ -7,10 +7,12 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  CircleAlert,
   CornerUpLeft,
   Download,
   FileText,
   GraduationCap,
+  History,
   Mail,
   MessageCircle,
   Paperclip,
@@ -28,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -59,6 +62,11 @@ function normalizeApprovalDate(value: string) {
   return value.length === 16 ? `${value}:00` : value
 }
 
+// T4b (rediseno-detalle-solicitud.md): antes era un `string` y el render siempre usaba el
+// ícono y el estilo de éxito, así que un error de descarga se anunciaba como si hubiera
+// funcionado. El tipo distingue el caso para elegir rol ARIA, ícono y tono en el render.
+type ResultMessage = { kind: 'success' | 'error'; text: string }
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -73,7 +81,7 @@ export default function RequestDetailPage() {
   const searchParams = useSearchParams()
   const { getRequest, refreshRequest, transition, registerDocumentApproval } = useTramita()
   const [dialog, setDialog] = useState<ActionConfig | null>(null)
-  const [toast, setToast] = useState<string>('')
+  const [resultMessage, setResultMessage] = useState<ResultMessage | null>(null)
   const [loading, setLoading] = useState(true)
   const [now] = useState(() => Date.now())
   const [approvalDrafts, setApprovalDrafts] = useState<Record<string, DocumentApprovalInput>>({})
@@ -95,10 +103,10 @@ export default function RequestDetailPage() {
   const [showCreated, setShowCreated] = useState(justCreated)
 
   useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(''), 3500)
+    if (!resultMessage) return
+    const t = setTimeout(() => setResultMessage(null), 3500)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [resultMessage])
 
   if (loading) {
     return (
@@ -145,7 +153,10 @@ export default function RequestDetailPage() {
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'No se pudo descargar el archivo.')
+      setResultMessage({
+        kind: 'error',
+        text: error instanceof Error ? error.message : 'No se pudo descargar el archivo.',
+      })
     }
   }
 
@@ -156,7 +167,7 @@ export default function RequestDetailPage() {
     // dentro de sí mismo y mantiene sus botones activos para reintentar (T4a,
     // odd/tasks/rediseno-detalle-solicitud.md).
     await transition(requestId, dialog.targetStateCode, comment)
-    setToast(`Solicitud registrada en estado ${dialog.confirmLabel}.`)
+    setResultMessage({ kind: 'success', text: `Solicitud registrada en estado ${dialog.confirmLabel}.` })
     setDialog(null)
   }
 
@@ -196,7 +207,7 @@ export default function RequestDetailPage() {
         [documentId]: { ...DEFAULT_APPROVAL_DRAFT, signedAt: approvalDateValue() },
       }))
       setOpenApprovalId(null)
-      setToast('Aprobación documental registrada.')
+      setResultMessage({ kind: 'success', text: 'Aprobación documental registrada.' })
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : 'No se pudo registrar la aprobación documental.')
     } finally {
@@ -256,10 +267,26 @@ export default function RequestDetailPage() {
             </button>
           </div>
         )}
-        {toast && (
-          <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background shadow-lg">
-            <CheckCircle2 className="size-4" />
-            {toast}
+        {/* D5 (rediseno-detalle-solicitud.md): posición flotante conservada; se corrige la
+            semántica — antes todo mensaje llevaba el ícono de éxito y ningún rol ARIA, así que
+            un error de descarga parecía un éxito. Éxito: `role="status"`. Error: `role="alert"`,
+            tono destructivo e ícono de alerta. */}
+        {resultMessage && resultMessage.kind === 'success' && (
+          <div
+            role="status"
+            className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-base font-medium text-background shadow-lg"
+          >
+            <CheckCircle2 className="size-4 shrink-0" />
+            {resultMessage.text}
+          </div>
+        )}
+        {resultMessage && resultMessage.kind === 'error' && (
+          <div
+            role="alert"
+            className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-destructive px-4 py-2.5 text-base font-medium text-destructive-foreground shadow-lg"
+          >
+            <CircleAlert className="size-4 shrink-0" />
+            {resultMessage.text}
           </div>
         )}
 
@@ -654,23 +681,17 @@ export default function RequestDetailPage() {
               </section>
             )}
 
+            {/* «Resumen» se retira (T4b): solo repetía el tipo de trámite, que el encabezado ya
+                muestra con `TypeBadge` (T2). */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Resumen</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="flex flex-col gap-3">
-                  <InfoRow
-                    label="Tipo de trámite"
-                    value={req.definition.name}
-                  />
-                </dl>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Historial y auditoría</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <History className="size-5 text-primary" />
+                  Historial
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Lo registrado en este trámite, del más reciente al más antiguo.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <WorkflowTimeline events={req.timeline} />
