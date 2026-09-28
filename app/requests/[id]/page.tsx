@@ -151,10 +151,14 @@ export default function RequestDetailPage() {
     Boolean(emailHref) ||
     Boolean(whatsappHref)
   const totalCredits = req.subjects.reduce((sum, subject) => sum + subject.credits, 0)
+  // Las solicitudes del formulario público no traen asignaturas (#98): el estudiante las
+  // escribe en «Compromisos adquiridos», que llega como `reason` y se lee en «Motivo /
+  // justificación». Sin asignaturas no se dibuja la tabla, cualquiera sea el tipo.
+  const hasSubjects = req.subjects.length > 0
   // «Créditos solicitados» solo tiene sentido en adición de créditos y solo cuando hay
   // asignaturas que sumar: una definición desconocida (`type: null`, #9b) o una solicitud sin
   // asignaturas no debe insinuar un total.
-  const showCreditsSummary = req.type === 'adicion_creditos' && req.subjects.length > 0
+  const showCreditsSummary = req.type === 'adicion_creditos' && hasSubjects
 
   return (
     <AppShell title="Detalle de solicitud">
@@ -300,56 +304,58 @@ export default function RequestDetailPage() {
                 {/* `overflow-x-auto`, no `overflow-hidden`: a 17px la tabla no cabe en un
                     celular (~390px) y ocultar el desborde escondía la última columna; así se
                     desplaza dentro de su recuadro sin perder datos. */}
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-left text-[17px]">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50 text-base text-muted-foreground">
-                        <th className="px-3 py-2 font-semibold">Código</th>
-                        <th className="px-3 py-2 font-semibold">Asignatura</th>
-                        {/* Tres vías, no un ternario binario (D2): `type: null` es una
-                            definición que el cliente no reconoce y no tiene columnas propias
-                            que mostrar — ni «Créditos», que reabriría el #9(b). */}
-                        {req.type === 'novedad_notas' ? (
-                          <>
-                            <th className="px-3 py-2 font-semibold">Actual</th>
-                            <th className="px-3 py-2 font-semibold">Propuesta</th>
-                          </>
-                        ) : req.type === 'adicion_creditos' ? (
-                          <>
-                            <th className="px-3 py-2 font-semibold">Créditos</th>
-                            <th className="px-3 py-2 font-semibold">Grupo</th>
-                          </>
-                        ) : null}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {req.subjects.map((s, i) => (
-                        <tr
-                          key={i}
-                          className="border-b border-border/60 last:border-0"
-                        >
-                          <td className="px-3 py-2 font-medium">{s.code}</td>
-                          <td className="px-3 py-2">{s.name}</td>
+                {hasSubjects && (
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-left text-[17px]">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/50 text-base text-muted-foreground">
+                          <th className="px-3 py-2 font-semibold">Código</th>
+                          <th className="px-3 py-2 font-semibold">Asignatura</th>
+                          {/* Tres vías, no un ternario binario (D2): `type: null` es una
+                              definición que el cliente no reconoce y no tiene columnas propias
+                              que mostrar — ni «Créditos», que reabriría el #9(b). */}
                           {req.type === 'novedad_notas' ? (
                             <>
-                              <td className="px-3 py-2 text-destructive">
-                                {s.currentGrade}
-                              </td>
-                              <td className="px-3 py-2 font-medium text-success">
-                                {s.proposedGrade}
-                              </td>
+                              <th className="px-3 py-2 font-semibold">Actual</th>
+                              <th className="px-3 py-2 font-semibold">Propuesta</th>
                             </>
                           ) : req.type === 'adicion_creditos' ? (
                             <>
-                              <td className="px-3 py-2">{s.credits}</td>
-                              <td className="px-3 py-2">{s.group || '—'}</td>
+                              <th className="px-3 py-2 font-semibold">Créditos</th>
+                              <th className="px-3 py-2 font-semibold">Grupo</th>
                             </>
                           ) : null}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {req.subjects.map((s, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-border/60 last:border-0"
+                          >
+                            <td className="px-3 py-2 font-medium">{s.code}</td>
+                            <td className="px-3 py-2">{s.name}</td>
+                            {req.type === 'novedad_notas' ? (
+                              <>
+                                <td className="px-3 py-2 text-destructive">
+                                  {s.currentGrade}
+                                </td>
+                                <td className="px-3 py-2 font-medium text-success">
+                                  {s.proposedGrade}
+                                </td>
+                              </>
+                            ) : req.type === 'adicion_creditos' ? (
+                              <>
+                                <td className="px-3 py-2">{s.credits}</td>
+                                <td className="px-3 py-2">{s.group || '—'}</td>
+                              </>
+                            ) : null}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-1">
                   <p className="text-base font-medium text-muted-foreground">
