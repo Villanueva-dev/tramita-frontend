@@ -585,4 +585,97 @@ describe('RequestDetailPage', () => {
 
     expect(screen.queryByRole('region', { name: 'Acciones' })).toBeNull()
   })
+
+  // T3 (rediseno-detalle-solicitud.md): `studentPhone` es `string | null` en el contrato (una
+  // clave ausente llega como `null`, lib/store.tsx:210). La fila «Teléfono» de «Datos del
+  // estudiante» solo existe cuando el dato llega.
+  it('muestra la fila «Teléfono» cuando studentPhone llega con un valor', async () => {
+    const conTelefono: AcademicRequest = { ...request, studentPhone: '3001234567' }
+    mockTramita({ getRequest: () => conTelefono })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Teléfono')).toBeDefined()
+    expect(screen.getByText('3001234567')).toBeDefined()
+  })
+
+  // Guarda, no RED propio: el fixture base ya declara `studentPhone: null` y el resto de la
+  // suite lo usa sin que aparezca la fila; se afirma explícitamente una vez.
+  it('no muestra la fila «Teléfono» cuando studentPhone es null (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText('Teléfono')).toBeNull()
+  })
+
+  // T3: «Lo que se solicita» reemplaza a «Información del trámite» (mismo ícono, sin cambio
+  // de contrato).
+  it('la sección de asignaturas se titula «Lo que se solicita»', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByText('Lo que se solicita')).toBeDefined()
+    expect(screen.queryByText('Información del trámite')).toBeNull()
+  })
+
+  // T3: la tarjeta «Créditos solicitados» suma `subjects[].credits` (3 + 2 = 5). Se marca con
+  // `dl`/`dt`/`dd` para que sea testeable por rol («term»/«definition»), acotado con `within`
+  // porque «Datos del estudiante» ya declara sus propios `dt`/`dd` por cada fila.
+  it('«Créditos solicitados» suma los créditos de las asignaturas en adición de créditos', async () => {
+    const conAsignaturas: AcademicRequest = {
+      ...request,
+      subjects: [
+        { code: 'MAT-101', name: 'Cálculo I', credits: 3 },
+        { code: 'FIS-201', name: 'Física I', credits: 2 },
+      ],
+    }
+    mockTramita({ getRequest: () => conAsignaturas })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const summary = screen.getByText('Créditos solicitados').closest('dl') as HTMLElement
+    expect(within(summary).getByRole('term').textContent).toBe('Créditos solicitados')
+    expect(within(summary).getByRole('definition').textContent).toBe('5')
+  })
+
+  // Guardas (hoy ya pasan sin la tarjeta implementada): novedad de notas, una definición
+  // desconocida (#9b, `type: null`) y adición sin asignaturas no deben insinuar un total de
+  // créditos.
+  it('no muestra «Créditos solicitados» en novedad de notas, definición desconocida ni adición sin asignaturas (guardas)', async () => {
+    const casos: AcademicRequest[] = [
+      {
+        ...request,
+        type: 'novedad_notas',
+        definition: { code: 'NOVEDAD_NOTAS', name: 'Novedad de notas', version: 1 },
+        subjects: [{ code: 'MAT-101', name: 'Cálculo I', credits: 3, currentGrade: '3.0', proposedGrade: '4.0' }],
+      },
+      baseRequest({
+        id: 'request-5',
+        definition: { code: 'CODIGO_QUE_NO_EXISTE', name: 'Trámite piloto', version: 1 },
+        studentName: 'Estudiante Piloto',
+        studentDocument: '9999999999',
+        currentState: { code: 'ESTADO_INICIAL', name: 'Estado inicial', isFinal: false, isInitial: true },
+        subjects: [{ code: 'PL-100', name: 'Materia piloto', credits: 3, group: null, currentGrade: null, proposedGrade: null }],
+        createdAt: '2026-09-01T12:00:00',
+        availableTransitions: [],
+      }),
+      { ...request, subjects: [] },
+    ]
+
+    for (const caso of casos) {
+      mockTramita({ getRequest: () => caso })
+      const { unmount } = render(<RequestDetailPage />)
+      await waitFor(() => expect(screen.getByText(caso.studentName)).toBeDefined())
+      expect(screen.queryByText('Créditos solicitados')).toBeNull()
+      unmount()
+      cleanup()
+      vi.clearAllMocks()
+    }
+  })
 })

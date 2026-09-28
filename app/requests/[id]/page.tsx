@@ -62,8 +62,8 @@ function normalizeApprovalDate(value: string) {
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{value}</dd>
+      <dt className="text-base text-muted-foreground">{label}</dt>
+      <dd className="text-[17px] font-medium">{value}</dd>
     </div>
   )
 }
@@ -235,6 +235,11 @@ export default function RequestDetailPage() {
     Boolean(req.annexRequirement) ||
     Boolean(emailHref) ||
     Boolean(whatsappHref)
+  const totalCredits = req.subjects.reduce((sum, subject) => sum + subject.credits, 0)
+  // «Créditos solicitados» solo tiene sentido en adición de créditos y solo cuando hay
+  // asignaturas que sumar: una definición desconocida (`type: null`, #9b) o una solicitud sin
+  // asignaturas no debe insinuar un total.
+  const showCreditsSummary = req.type === 'adicion_creditos' && req.subjects.length > 0
 
   return (
     <AppShell title="Detalle de solicitud">
@@ -318,13 +323,13 @@ export default function RequestDetailPage() {
             {/* Student data */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <User className="size-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <User className="size-5 text-primary" />
                   Datos del estudiante
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
                   <InfoRow label="Código" value={req.studentCode} />
                   <InfoRow label="Cédula" value={req.studentCedula} />
                   <InfoRow label="Programa" value={req.program} />
@@ -332,12 +337,21 @@ export default function RequestDetailPage() {
                   <InfoRow
                     label="Correo"
                     value={
-                      <span className="inline-flex items-center gap-1 text-primary">
-                        <Mail className="size-3.5" />
-                        <span className="truncate">{req.studentEmail}</span>
+                      <span className="inline-flex items-start gap-1 text-primary">
+                        <Mail className="mt-0.5 size-3.5 shrink-0" />
+                        {/* Un correo no tiene espacios donde partirse: sin
+                            `overflow-wrap:anywhere` desborda la columna, y elidirlo con puntos
+                            suspensivos ocultaría parte del dato. */}
+                        <span className="break-words [overflow-wrap:anywhere]">
+                          {req.studentEmail}
+                        </span>
                       </span>
                     }
                   />
+                  {/* `studentPhone` es opcional en el contrato: una clave ausente llega como
+                      `null` (lib/store.tsx:210). El chequeo de verdad descarta además una cadena
+                      vacía, así que la fila solo aparece cuando hay un número que mostrar. */}
+                  {req.studentPhone && <InfoRow label="Teléfono" value={req.studentPhone} />}
                 </dl>
               </CardContent>
             </Card>
@@ -345,16 +359,23 @@ export default function RequestDetailPage() {
             {/* Request info */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <GraduationCap className="size-4 text-primary" />
-                  Información del trámite
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <GraduationCap className="size-5 text-primary" />
+                  Lo que se solicita
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
+                {showCreditsSummary && (
+                  <dl className="rounded-xl bg-primary/5 px-4 py-3">
+                    <dt className="text-base text-muted-foreground">Créditos solicitados</dt>
+                    <dd className="text-[26px] font-bold text-primary">{totalCredits}</dd>
+                  </dl>
+                )}
+
                 <div className="overflow-hidden rounded-lg border border-border">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full text-left text-[17px]">
                     <thead>
-                      <tr className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
+                      <tr className="border-b border-border bg-muted/50 text-base text-muted-foreground">
                         <th className="px-3 py-2 font-semibold">Código</th>
                         <th className="px-3 py-2 font-semibold">Asignatura</th>
                         {/* Tres vías, no un ternario binario (D2): `type: null` es una
@@ -403,10 +424,10 @@ export default function RequestDetailPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <p className="text-xs font-medium text-muted-foreground">
+                  <p className="text-base font-medium text-muted-foreground">
                     Motivo / justificación
                   </p>
-                  <p className="text-pretty text-sm leading-relaxed">
+                  <p className="text-pretty text-[17px] leading-relaxed">
                     {req.reason}
                   </p>
                 </div>
@@ -416,8 +437,8 @@ export default function RequestDetailPage() {
             {/* Attachments */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Paperclip className="size-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <Paperclip className="size-5 text-primary" />
                   Documentos adjuntos
                 </CardTitle>
               </CardHeader>
