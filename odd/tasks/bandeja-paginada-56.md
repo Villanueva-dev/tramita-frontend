@@ -77,7 +77,7 @@ resultados de búsqueda; `components/app-shell.tsx`.
   controles de paginación; el orden del servidor se conserva; `mayHaveMore` se calcula con 200;
   cada fila es un enlace a `/requests/{id}`; una adición devuelta lleva la marca de devuelta y una
   en revisión no. GREEN: paginación y filas con el formato A.
-- [ ] **T2 — Tablero: buscador primero, sin tarjetas ni indicadores.** Archivos:
+- [x] **T2 — Tablero: buscador primero, sin tarjetas ni indicadores.** Commit `b3c1b1e`. Archivos:
   `app/dashboard/page.tsx`, `page.test.tsx`, `page.integration.test.tsx`; se borran
   `components/dashboard/summary-cards.tsx` y su test. RED: el buscador precede a la bandeja; no
   hay tarjetas ni indicadores; los filtros no aparecen antes de buscar y sí después. GREEN: el
@@ -104,6 +104,24 @@ resultados de búsqueda; `components/app-shell.tsx`.
   (error/rechazo). Verificación: `pnpm lint` OK · `pnpm exec tsc --noEmit` OK · `pnpm test` 29
   archivos / 394 tests en verde · `pnpm build` OK · `git diff --check` OK.
 
+- 2026-09-28 — **T2 hecha, commit `b3c1b1e`**, tras la aprobación del diff por el propietario. Ruta:
+  delegada (escritor). RED antes de implementar (`pnpm exec vitest run
+  app/dashboard/page.test.tsx`): 3 de 4 tests nuevos fallaban (el buscador no precedía a la
+  bandeja; «Pendientes» presente; el panel de filtros se renderizaba sin haber buscado). El
+  cuarto («los filtros aparecen después de buscar») pasaba ya y se conserva como la otra mitad de
+  la garantía D4. Se retiró «excluye los rechazos al filtrar por Completadas»: la regla de #35
+  vive en `isSuccessfullyClosed` y la cubre `lib/request-state.test.ts:70-80`. Se borraron
+  `summary-cards.tsx` y su test. Revisión del orquestador: sin correcciones. Verificación:
+  `pnpm lint` OK · `pnpm exec tsc --noEmit` OK · `pnpm test` 28 archivos / 392 tests en verde ·
+  `pnpm build` OK · `git diff --check` OK · sin referencias a `SummaryCards`.
+- Tamaño acumulado: T1 +306/−90 y T2 +196/−458, unas 1050 líneas autorales contando borrados
+  (el pronóstico era 400–550: no contaba el reindentado de `page.tsx` ni los 234 de
+  `summary-cards`). No justifica partir la PR; si la CI lo exige, se pide `size:exception`.
+
+- 2026-09-28 — **T3 en espera por decisión del propietario**: hay otra prueba en vivo en curso
+  en el navegador compartido. No se usa Chrome hasta su aviso.
+
 ## Siguiente paso
 
-T2, delegada a un escritor; su diff lo revisa el propietario antes del commit.
+T3 (prueba en vivo en escritorio y a 390 px) cuando el propietario libere el navegador; después,
+push y PR con autorización separada.
