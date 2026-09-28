@@ -103,10 +103,76 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
     // El estado se muestra con el nombre del motor de workflow, no con la etiqueta genérica
-    // de la categoría interna. Aparece dos veces: la insignia del encabezado y el bloque de
-    // estado actual (`CurrentStateBlock`).
+    // de la categoría interna. Desde T2 aparece una sola vez, en el banner de estado
+    // (`CurrentStateBlock`): el encabezado ya no repite el nombre vía `StatusBadge`.
     expect(screen.getAllByText('En coordinación (revisión)').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined()
+  })
+
+  // T2 (rediseno-detalle-solicitud.md): el nombre del estudiante pasa a ser el encabezado
+  // visual del detalle. Es `h2` y no `h1` porque `AppShell` ya renderiza el `h1` con el
+  // título de la página (`components/app-shell.tsx:185-187`), fuera de alcance de esta tarea.
+  it('el nombre del estudiante es el encabezado h2 del detalle', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Ana Pérez' })).toBeDefined()
+  })
+
+  // Guarda, no RED propio: hoy la fila «Nombre» de «Datos del estudiante» ya es la única
+  // aparición visible de `studentName` (los usos en `mailto:`/`wa.me` van dentro de atributos
+  // `href`, no como texto del DOM). Tras T2 sigue habiendo una sola aparición: la fila
+  // «Nombre» se retira y el nombre pasa al `h2`.
+  it('el nombre del estudiante aparece una sola vez en el detalle (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('Ana Pérez')).toHaveLength(1)
+  })
+
+  // T2: el radicado y las fechas de creación/actualización se muestran en una sola línea bajo
+  // el nombre del estudiante. Regex robusta al formato local de `formatDate` (es-CO): solo se
+  // afirma el texto fijo alrededor de las fechas, no su formato exacto.
+  it('muestra el radicado y las fechas de creación y actualización bajo el nombre', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(
+      screen.getByText(/^Solicitud request-1 · radicada el .+ · última actualización .+$/),
+    ).toBeDefined()
+  })
+
+  // T2: con datos reales, `stateName` sale de `currentState.name` (`lib/store.tsx:188`), así
+  // que ambos coinciden — a diferencia del fixture de #9a, que conserva un `stateName`
+  // desactualizado y por eso no detectaba la duplicación. El encabezado ya no debe repetir el
+  // nombre del estado que muestra el banner (`CurrentStateBlock`): se retira `StatusBadge`.
+  it('el encabezado no repite el nombre del estado que ya muestra el banner', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.getAllByText('En coordinación (revisión)')).toHaveLength(1)
+  })
+
+  // T2: el detalle cuelga del `h1` de `AppShell` (mockeado en estas pruebas), así que ningún
+  // encabezado puede saltar un nivel respecto del anterior. El banner de estado va antes del
+  // nombre del estudiante (`h2`): si su rótulo fuera `h3`, la jerarquía quedaría invertida.
+  it('los encabezados del detalle no saltan niveles', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const levels = screen
+      .getAllByRole('heading')
+      .map((heading) => Number(heading.getAttribute('aria-level') ?? heading.tagName.slice(1)))
+    let previous = 1
+    for (const level of levels) {
+      expect(level).toBeLessThanOrEqual(previous + 1)
+      previous = level
+    }
   })
 
   it('abre el diálogo para la transición que entrega el backend', async () => {

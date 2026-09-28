@@ -19,7 +19,6 @@ import {
   X,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { StatusBadge } from '@/components/brand'
 import { TypeBadge } from '@/components/type-badge'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
 import { CurrentStateBlock } from '@/components/current-state-block'
@@ -260,47 +259,16 @@ export default function RequestDetailPage() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <Link
-            href="/dashboard"
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Volver a la bandeja
-          </Link>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-serif text-2xl font-bold tracking-tight">
-                  {req.radicado}
-                </h2>
-                <StatusBadge status={req.status} stateName={req.stateName} />
-                {req.priority === 'urgente' && !isFinalized && (
-                  <Badge variant="destructive">Urgente</Badge>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <TypeBadge code={req.definition.code} name={req.definition.name} />
-                <span>Radicado el {formatDate(req.createdAt)}</span>
-                <span aria-hidden>·</span>
-                <span>Última actualización {formatDate(req.updatedAt)}</span>
-              </div>
-            </div>
-
-            {/* Los botones de transición y los avisos al estudiante viven en el panel lateral
-                «Acciones» (T1, odd/tasks/rediseno-detalle-solicitud.md); el enlace al PDF se
-                queda en el encabezado. */}
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/requests/${req.id}/documento`}>
-                <Button className="gap-2">
-                  <Download className="size-4" />
-                  Ver documento PDF
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
+        {/* Enlace de regreso → banner de estado → encabezado: el banner va primero porque el
+            dato central del producto es de quién depende ahora el trámite (CLAUDE.md, «Qué se
+            está construyendo»), y ese dato vive en `CurrentStateBlock`. */}
+        <Link
+          href="/dashboard"
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Volver a la bandeja
+        </Link>
 
         <CurrentStateBlock
           state={req.currentState}
@@ -308,6 +276,41 @@ export default function RequestDetailPage() {
           waitingSince={waitingSince}
           now={now}
         />
+
+        {/* Header: el nombre del estudiante identifica la solicitud; es `h2` porque `AppShell`
+            ya renderiza el `h1` con el título de la página
+            (`components/app-shell.tsx:185-187`). Sin `StatusBadge`: con datos
+            reales `stateName` sale de `currentState.name` (`lib/store.tsx:188`) y repetiría el
+            nombre del estado que ya muestra el banner de arriba. */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <TypeBadge code={req.definition.code} name={req.definition.name} />
+              {req.priority === 'urgente' && !isFinalized && (
+                <Badge variant="destructive">Urgente</Badge>
+              )}
+            </div>
+            <h2 className="font-serif text-[34px] font-bold leading-tight tracking-tight">
+              {req.studentName}
+            </h2>
+            <p className="text-[17px] text-muted-foreground">
+              {`Solicitud ${req.radicado} · radicada el ${formatDate(req.createdAt)}` +
+                ` · última actualización ${formatDate(req.updatedAt)}`}
+            </p>
+          </div>
+
+          {/* Los botones de transición y los avisos al estudiante viven en el panel lateral
+              «Acciones» (T1, odd/tasks/rediseno-detalle-solicitud.md); el enlace al PDF se
+              queda en el encabezado. */}
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/requests/${req.id}/documento`}>
+              <Button variant="outline" className="h-12 gap-2 px-5 text-base font-semibold">
+                <Download className="size-4" />
+                Ver documento PDF
+              </Button>
+            </Link>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left column */}
@@ -322,7 +325,6 @@ export default function RequestDetailPage() {
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <InfoRow label="Nombre" value={req.studentName} />
                   <InfoRow label="Código" value={req.studentCode} />
                   <InfoRow label="Cédula" value={req.studentCedula} />
                   <InfoRow label="Programa" value={req.program} />
