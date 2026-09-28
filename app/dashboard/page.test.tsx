@@ -395,6 +395,32 @@ describe('DashboardPage — una sola lista (lista-unica-resultados)', () => {
 
     expect(screen.getByText(/1 de 2 coinciden con los filtros/i)).toBeDefined()
   })
+
+  // Un filtro nuevo es una lista nueva: si la usuaria estaba en la página 2, ver «Página 2»
+  // de otro conjunto la desorienta (visto en la prueba en vivo del 2026-09-28).
+  it('al cambiar un filtro, los resultados vuelven a la página 1', () => {
+    Element.prototype.scrollIntoView = vi.fn() // jsdom no lo implementa; «Siguiente» lo invoca
+    const doce = Array.from({ length: 12 }, (_, i) =>
+      baseRequest({
+        id: `request-${i}`,
+        definition: request.definition,
+        studentName: `Estudiante ${i}`,
+        studentDocument: `10000000${i}`,
+        currentState: request.currentState,
+        createdAt: '2026-09-01T12:00:00',
+      }),
+    )
+    renderDashboard({ tramita: { requests: doce, searched: true, searchErrors: [] } })
+
+    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }))
+    expect(screen.getByText('Página 2 de 2')).toBeDefined()
+
+    fireEvent.change(screen.getByLabelText(/tipo de trámite/i), {
+      target: { value: 'adicion_creditos' },
+    })
+
+    expect(screen.getByText('Página 1 de 2')).toBeDefined()
+  })
 })
 
 function entry() {

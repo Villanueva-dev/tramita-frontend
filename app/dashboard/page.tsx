@@ -153,7 +153,7 @@ export default function DashboardPage() {
             <Button
               type="button"
               variant="ghost"
-              className="w-fit gap-2 text-base"
+              className="h-12 w-fit gap-2 text-base"
               onClick={returnToInbox}
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
@@ -289,6 +289,8 @@ export default function DashboardPage() {
         {!searched && <CoordinationInbox inbox={inbox} now={now} />}
         {searched && (
           <CoordinationInbox
+            // Un filtro nuevo es una lista nueva: la `key` la vuelve a montar en la página 1.
+            key={`${typeFilter}|${statusFilter}|${responsibleFilter}|${dateFilter}`}
             variant="results"
             inbox={{ status: 'ready', entries: resultEntries, mayHaveMore: false }}
             now={now}
