@@ -17,14 +17,10 @@ import { useAuth } from './auth-store'
 import type {
   AcademicRequest,
   AnnexRequirement,
-  Attachment,
-  AttachmentApproval,
-  DocumentApprovalInput,
   InboxOrigin,
   RequestStatus,
   RequestMetrics,
   RequestType,
-  SignatureType,
   SubjectInfo,
   TimelineEvent,
 } from './types'
@@ -82,25 +78,6 @@ interface ApiTimelineEntry {
   note: string | null
   occurredAt: string
 }
-interface ApiDocument {
-  id: string
-  originalName: string
-  contentType: string
-  size: number
-  sha256: string
-}
-interface ApiDocumentApproval {
-  id: number
-  signerName: string
-  signerRole: string
-  signatureType: SignatureType
-  documentSha256: string
-  recordedByEmail: string
-  note: string | null
-  signedAt: string
-  timestampedAt: string
-}
-
 interface TramitaContextValue {
   isAuthenticated: boolean
   coordinatorName: string
@@ -117,7 +94,6 @@ interface TramitaContextValue {
   refreshRequest: (id: string) => Promise<void>
   createRequest: (input: NewRequestInput) => Promise<AcademicRequest>
   transition: (id: string, targetStateCode: string, comment?: string) => Promise<void>
-  registerDocumentApproval: (requestId: string, documentId: string, input: DocumentApprovalInput) => Promise<AttachmentApproval>
 }
 
 const TramitaContext = createContext<TramitaContextValue | null>(null)
@@ -200,7 +176,6 @@ export function baseRequest(apiRequest: ApiRequest): AcademicRequest {
       proposedGrade: subject.proposedGrade ?? undefined,
     })) ?? [],
     reason: apiRequest.reason ?? '',
-    attachments: [],
     timeline: [],
     assignedTo: apiRequest.availableTransitions?.[0]?.responsible ?? '',
     // Estos valores ya vienen persistidos desde V2.3.0.
@@ -232,53 +207,20 @@ function applyTimeline(request: AcademicRequest, entries: ApiTimelineEntry[]): A
   }
 }
 
-function mapApproval(approval: ApiDocumentApproval): AttachmentApproval {
-  return {
-    id: approval.id,
-    signerName: approval.signerName,
-    signerRole: approval.signerRole,
-    signatureType: approval.signatureType,
-    documentSha256: approval.documentSha256,
-    recordedByEmail: approval.recordedByEmail,
-    note: approval.note ?? undefined,
-    signedAt: approval.signedAt,
-    timestampedAt: approval.timestampedAt,
-  }
-}
-
-async function loadAttachment(requestId: string, document: ApiDocument): Promise<Attachment> {
-  const approvalsResponse = await apiFetch(`/requests/${requestId}/documents/${document.id}/approvals`)
-  const approvals = approvalsResponse.ok
-    ? (await approvalsResponse.json() as ApiDocumentApproval[]).map(mapApproval)
-    : []
-  return {
-    id: document.id,
-    name: document.originalName,
-    size: `${Math.ceil(document.size / 1024)} KB`,
-    type: document.contentType,
-    sha256: document.sha256,
-    approvals,
-  }
-}
-
+// Issue #12, criterio 1: el backend no recibe adjuntos (Request.java:39-40, FR-010) ni
+// captura firmas de aprobadores (spec 006, FR-011), así que no expone
+// `/requests/{id}/documents` ni sus `/approvals`. `loadRequest` solo pide el detalle y su
+// timeline.
 async function loadRequest(id: string): Promise<AcademicRequest> {
-  const [requestResponse, timelineResponse, documentsResponse] = await Promise.all([
+  const [requestResponse, timelineResponse] = await Promise.all([
     apiFetch(`/requests/${id}`),
     apiFetch(`/requests/${id}/timeline`),
-    apiFetch(`/requests/${id}/documents`),
   ])
   if (!requestResponse.ok) throw new Error(await problemMessage(requestResponse, 'No se pudo cargar la solicitud'))
   const request = baseRequest(await requestResponse.json() as ApiRequest)
-  const withTimeline = timelineResponse.ok
+  return timelineResponse.ok
     ? applyTimeline(request, await timelineResponse.json() as ApiTimelineEntry[])
     : request
-  if (!documentsResponse.ok) return withTimeline
-  const documents = await documentsResponse.json() as ApiDocument[]
-  return {
-    ...withTimeline,
-    // Cada adjunto trae su traza de aprobaciones desde el backend real.
-    attachments: await Promise.all(documents.map((document) => loadAttachment(id, document))),
-  }
 }
 
 export function TramitaProvider({ children }: { children: ReactNode }) {
@@ -362,21 +304,6 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const registerDocumentApproval = useCallback(async (requestId: string, documentId: string, input: DocumentApprovalInput) => {
-    const response = await apiFetch(`/requests/${requestId}/documents/${documentId}/approvals`, {
-      method: 'POST',
-      body: JSON.stringify({
-        ...input,
-        note: input.note?.trim() || undefined,
-      }),
-    })
-    if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo registrar la aprobación documental'))
-    const approval = mapApproval(await response.json() as ApiDocumentApproval)
-    // Después de persistir, el detalle se recarga para reflejar la traza documental real.
-    await refreshRequest(requestId)
-    return approval
-  }, [refreshRequest])
-
   const createRequest = useCallback(async (input: NewRequestInput) => {
     const response = await apiFetch('/requests', {
       method: 'POST',
@@ -453,8 +380,7 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     refreshRequest,
     createRequest,
     transition,
-    registerDocumentApproval,
-  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition, registerDocumentApproval])
+  }), [isAuthenticated, user, visibleRequests, visibleMetrics, searchRequests, searched, searchErrors, login, logout, getRequest, refreshRequest, createRequest, transition])
   return <TramitaContext.Provider value={value}>{children}</TramitaContext.Provider>
 }
 

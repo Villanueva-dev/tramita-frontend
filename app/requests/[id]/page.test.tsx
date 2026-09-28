@@ -5,10 +5,6 @@ import { baseRequest } from '@/lib/store'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
-// T4b: la descarga de un adjunto llama a `apiFetch` directo desde `page.tsx` (no pasa por el
-// store). Se mockea aparte, con `importOriginal`, para no tocar `problemMessage` (se necesita
-// real: lee `response.json()` para construir el mensaje del error).
-const apiFetchMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -18,10 +14,6 @@ vi.mock('@/components/app-shell', () => ({
 vi.mock('@/lib/store', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/store')>()),
   useTramita,
-}))
-vi.mock('@/lib/api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/api')>()),
-  apiFetch: apiFetchMock,
 }))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'request-1' }),
@@ -48,7 +40,6 @@ const request: AcademicRequest = {
   semester: '7',
   subjects: [],
   reason: 'Solicitud académica',
-  attachments: [],
   timeline: [],
   assignedTo: 'FACULTAD',
   definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
@@ -80,7 +71,6 @@ function mockTramita(overrides: { getRequest: () => AcademicRequest }) {
     getRequest: overrides.getRequest,
     refreshRequest: vi.fn().mockResolvedValue(undefined),
     transition: vi.fn(),
-    registerDocumentApproval: vi.fn(),
   })
 }
 
@@ -90,7 +80,6 @@ function setup() {
     getRequest: () => request,
     refreshRequest: vi.fn().mockResolvedValue(undefined),
     transition,
-    registerDocumentApproval: vi.fn(),
   })
   render(<RequestDetailPage />)
   return transition
@@ -217,7 +206,6 @@ describe('RequestDetailPage', () => {
       getRequest: () => request,
       refreshRequest: vi.fn().mockResolvedValue(undefined),
       transition,
-      registerDocumentApproval: vi.fn(),
     })
 
     render(<RequestDetailPage />)
@@ -269,7 +257,6 @@ describe('RequestDetailPage', () => {
       getRequest: () => desconocida,
       refreshRequest: vi.fn().mockResolvedValue(undefined),
       transition: vi.fn(),
-      registerDocumentApproval: vi.fn(),
     })
 
     render(<RequestDetailPage />)
@@ -482,7 +469,6 @@ describe('RequestDetailPage', () => {
       getRequest: () => currentRequest,
       refreshRequest: vi.fn().mockResolvedValue(undefined),
       transition,
-      registerDocumentApproval: vi.fn(),
     })
 
     render(<RequestDetailPage />)
@@ -745,34 +731,6 @@ describe('RequestDetailPage', () => {
     expect(status.textContent).toContain('Solicitud registrada en estado En facultad.')
   })
 
-  // T4b: un error de descarga (hoy inalcanzable en la práctica porque la sección de documentos
-  // llega vacía, pero el código lo maneja) usaba el mismo mensaje flotante que el éxito, con el
-  // mismo ícono. Debe anunciarse aparte, como `role="alert"`, y nunca como `role="status"`.
-  it('un error de descarga se anuncia con role="alert" y nunca como role="status"', async () => {
-    const conAdjunto: AcademicRequest = {
-      ...request,
-      attachments: [
-        { id: 'doc-1', name: 'Certificado.pdf', size: '120 KB', type: 'application/pdf', approvals: [] },
-      ],
-    }
-    mockTramita({ getRequest: () => conAdjunto })
-    apiFetchMock.mockResolvedValue({
-      ok: false,
-      json: async () => ({ detail: 'No se pudo descargar el archivo de prueba.' }),
-    } as Response)
-
-    render(<RequestDetailPage />)
-
-    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar' }))
-
-    const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toContain('No se pudo descargar el archivo de prueba.')
-    // Ningún `role="status"` debe llevar el mensaje de error: son roles ARIA distintos y
-    // anunciarlo como éxito sería el mismo defecto que se corrige en esta tarea.
-    expect(screen.queryByRole('status')).toBeNull()
-  })
-
   // T4b: la tarjeta «Resumen» solo repetía el tipo de trámite, que el encabezado ya muestra
   // (`TypeBadge`, T2). Se retira del panel lateral.
   it('la tarjeta «Resumen» ya no existe', async () => {
@@ -781,5 +739,17 @@ describe('RequestDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
     expect(screen.queryByText('Resumen')).toBeNull()
+  })
+
+  // Issue #12, criterio 1: el backend no recibe adjuntos (Request.java:39-40, FR-010) ni
+  // captura firmas de aprobadores (FR-011). La tarjeta se retira, no se deshabilita.
+  it('no muestra la tarjeta «Documentos adjuntos» ni ofrece «Registrar firma»', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryAllByText(/documentos adjuntos/i)).toHaveLength(0)
+    // Guarda: «Registrar firma» solo aparecía junto a un adjunto, y ningún fixture los tiene.
+    expect(screen.queryByRole('button', { name: 'Registrar firma' })).toBeNull()
   })
 })
