@@ -42,9 +42,9 @@ contrato no respalda. Verificado en disco y en git (`origin/main` del backend `f
   con el ícono de éxito, `page.tsx:249-253`).
 
 Fuera de alcance: cambios de backend; `components/app-shell.tsx` (lo edita otra rama en paralelo);
-la sección de documentos, que llama a rutas `/documents…` inexistentes en el backend (se tratará en
-un issue aparte, Engram #2721); eliminar el código muerto `components/transition-dialog.tsx`;
-cambiar la variante de color de las transiciones que exigen nota.
+la sección de documentos, que llama a rutas `/documents…` inexistentes en el backend (se tratará
+en un issue aparte); eliminar el código muerto `components/transition-dialog.tsx`; cambiar la
+variante de color de las transiciones que exigen nota.
 
 ## Decisiones de diseño
 
@@ -102,21 +102,33 @@ cambiar la variante de color de las transiciones que exigen nota.
   ser negado (`spec.md:496-503`). Se retira `StatusBadge` del encabezado: con datos reales repite
   el nombre del estado que ya muestra el banner (`stateName` sale de `currentState.name`); el
   test #9a no lo detectaba porque su fixture conserva un `stateName` desactualizado.
-- [ ] **T3 — Datos del estudiante y lo que se solicita.** RED: la fila «Teléfono» aparece solo
-  cuando existe `studentPhone` (correo y teléfono en filas separadas, no una fila «Contacto»: cada
-  dato conserva su etiqueta); la tarjeta «Créditos solicitados» suma `subjects[].credits` en
-  adición de créditos con asignaturas, y no aparece en novedad de notas, en una definición
-  desconocida ni sin asignaturas. GREEN: «Información del trámite» pasa a «Lo que se solicita» y
-  las tres secciones de la columna principal adoptan la escala del mockup (títulos de 20 px,
-  etiquetas de 16 px, valores y tabla de 17 px); «Documentos adjuntos» solo cambia su título.
-- [ ] **T4 — Historial, diálogo y mensaje de resultado.** RED: un error de transición se anuncia
-  como alerta, no con el ícono de éxito. GREEN: `WorkflowTimeline` y `ActionDialog` reestilizados
-  sin cambiar sus props; se retira la tarjeta «Resumen», porque el tipo ya está en el encabezado.
-- [ ] **T5 — Prueba en vivo.** En Chrome contra el backend local (receta Engram #2668), con
-  permiso del propietario porque las transiciones escriben en la base local. Registrar la
-  evidencia aquí. Comprobar en particular la columna lateral fija (`lg:sticky`): si el panel y
-  un historial largo superan la altura de la ventana, el final del historial solo se ve al
-  llegar al final de la página.
+- [x] **T3 — Datos del estudiante y lo que se solicita.** Commit `87396aa`. RED: la fila
+  «Teléfono» aparece solo cuando existe `studentPhone` (correo y teléfono en filas separadas, no
+  una fila «Contacto»: cada dato conserva su etiqueta); la tarjeta «Créditos solicitados» suma
+  `subjects[].credits` en adición de créditos con asignaturas, y no aparece en novedad de notas,
+  en una definición desconocida ni sin asignaturas. GREEN: «Información del trámite» pasa a «Lo
+  que se solicita» y las tres secciones de la columna principal adoptan la escala del mockup
+  (títulos de 20 px, etiquetas de 16 px, valores y tabla de 17 px); «Documentos adjuntos» solo
+  cambia su título.
+- [ ] **T4a — El diálogo de transición no se traba ante un error (`fix`).** Bug previo, hallado al
+  preparar T4 e incluido con autorización del propietario (2026-09-27, opción A): `ActionDialog`
+  espera 700 ms artificiales y llama a `onConfirm` sin esperar su resultado; si la transición
+  falla, `runAction` no cierra el diálogo y `loading` nunca se restablece, así que «Confirmar» y
+  «Cancelar» quedan deshabilitados y el error solo aparece en el toast, detrás del fondo del modal
+  (reproducido con un test temporal, luego borrado). RED: tras un rechazo del backend, el diálogo
+  sigue abierto, muestra el mensaje como alerta dentro de sí mismo y vuelve a habilitar sus
+  botones. GREEN: `onConfirm` se espera; `runAction` propaga el error al diálogo en vez de
+  mandarlo al toast; se retira la espera artificial y el test que la saltaba con relojes falsos
+  pasa a esperar el resultado real. Commit propio `fix(solicitudes): …`.
+- [ ] **T4b — Historial, diálogo y mensaje de resultado.** RED: el resultado de una acción de la
+  página se anuncia dentro de la página y distingue éxito (`status`) de error (`alert`), sin el
+  ícono de éxito para un error. GREEN: `WorkflowTimeline` y `ActionDialog` adoptan el estilo del
+  mockup sin cambiar sus props; se retira la tarjeta «Resumen», porque el tipo ya está en el
+  encabezado.
+- [ ] **T5 — Prueba en vivo.** En Chrome contra el backend local, con permiso del propietario
+  porque las transiciones escriben en la base local. Registrar la evidencia aquí. Comprobar en
+  particular la columna lateral fija (`lg:sticky`): si el panel y un historial largo superan la
+  altura de la ventana, el final del historial solo se ve al llegar al final de la página.
 
 ## Progreso y evidencia
 
@@ -165,11 +177,23 @@ cambiar la variante de color de las transiciones que exigen nota.
   una clave ausente en `null` y el chequeo de verdad descarta además la cadena vacía). GREEN
   sobre el diff final: `pnpm test` 28 archivos / 367 tests; `tsc --noEmit`, `pnpm lint`, `pnpm
   build` y `git diff --check` limpios. Riesgo nativo: `medium`, `under_budget` (166 líneas).
+- 2026-09-27 — **T3 commiteada**: `944ec57` (este documento) y `87396aa` (feat).
+- 2026-09-27 — **T4a implementada, pendiente de revisión y commit.** Ruta: delegada (escritor
+  único; disparador: `action-dialog.tsx` + `page.tsx` + `page.test.tsx`). RED observado: `si la
+  transición falla, el diálogo sigue abierto y muestra el error dentro de sí mismo` (`Unable to
+  find role="alert"` dentro del diálogo). Ajuste de un test existente: `muestra el aviso sin
+  recargar tras una transición a estado final` dejó los relojes falsos y el avance de 700 ms,
+  que solo saltaban la espera retirada; afirma lo mismo esperando el resultado real. Revisión del
+  orquestador: el contrato de `onConfirm` citaba `onClose` como vía de cierre en éxito (el padre
+  cierra con `setDialog(null)`), corregido; código y test citaban un identificador de memoria
+  local que nadie más puede seguir, reemplazado por este documento. GREEN sobre el diff final:
+  `pnpm test` 28 archivos / 368 tests; `tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff
+  --check` limpios. Riesgo nativo: `medium`, `under_budget` (121 líneas).
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T3 por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
-T3, y después T4.
+Revisión del diff de T4a por el propietario; con su aprobación, commits `docs(odd)` y `fix` de
+T4a, y después T4b.
