@@ -23,10 +23,14 @@ export function ActionDialog({
 }: {
   config: ActionConfig | null
   onClose: () => void
-  onConfirm: (comment: string) => void | Promise<void>
+  // Contrato: resuelve cuando el backend confirmó la transición (y el padre cierra el diálogo)
+  // y rechaza con un `Error` cuyo `message` se muestra al usuario dentro del propio diálogo,
+  // que permanece abierto para reintentar.
+  onConfirm: (comment: string) => Promise<void>
 }) {
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
+  const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -41,15 +45,22 @@ export function ActionDialog({
 
   const activeConfig = config
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    // Cada intento limpia el error del servidor del intento anterior, exista o no uno nuevo.
+    setServerError('')
     if (activeConfig.commentRequired && !comment.trim()) {
       setError('Ingrese una observación para continuar.')
       return
     }
     setLoading(true)
-    setTimeout(() => {
-      onConfirm(comment.trim())
-    }, 700)
+    try {
+      // Se espera la promesa: si rechaza, el diálogo permanece abierto y muestra el motivo
+      // (antes se disparaba sin esperar y el error solo llegaba al toast, detrás del modal).
+      await onConfirm(comment.trim())
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : 'No se pudo registrar la transición.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -94,6 +105,14 @@ export function ActionDialog({
             <p className="text-xs font-medium text-destructive">{error}</p>
           )}
         </div>
+
+        {serverError && (
+          // Separado del error de validación del comentario: este viene del backend, no del
+          // formulario, y el diálogo debe seguir habilitado para reintentar.
+          <p role="alert" className="mt-3 text-xs font-medium text-destructive">
+            {serverError}
+          </p>
+        )}
 
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose} disabled={loading}>

@@ -189,6 +189,38 @@ describe('RequestDetailPage', () => {
     expect(screen.getByText(/registrar transición a en facultad/i)).toBeDefined()
   })
 
+  // Bug (T4a, odd/tasks/rediseno-detalle-solicitud.md): `ActionDialog` no esperaba la promesa de
+  // `onConfirm` y `runAction` mandaba el error solo al toast sin cerrar el diálogo, así que
+  // quedaba trabado con «Confirmar»/«Cancelar» deshabilitados y el mensaje visible solo detrás
+  // del fondo del modal.
+  it('si la transición falla, el diálogo sigue abierto y muestra el error dentro de sí mismo', async () => {
+    const transition = vi.fn().mockRejectedValue(new Error('El backend rechazó la transición.'))
+    useTramita.mockReturnValue({
+      getRequest: () => request,
+      refreshRequest: vi.fn().mockResolvedValue(undefined),
+      transition,
+      registerDocumentApproval: vi.fn(),
+    })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert.textContent).toContain('El backend rechazó la transición.')
+    // El diálogo sigue siendo el mismo (no se cerró y volvió a abrir): sigue montado.
+    expect(screen.getByRole('dialog')).toBeDefined()
+    // El mensaje no se duplica en el toast, detrás del fondo del modal.
+    expect(screen.getAllByText('El backend rechazó la transición.')).toHaveLength(1)
+    const confirmButton = within(dialog).getByRole('button', { name: 'En facultad' })
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancelar' })
+    expect(confirmButton.hasAttribute('disabled')).toBe(false)
+    expect(cancelButton.hasAttribute('disabled')).toBe(false)
+  })
+
   // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). El
   // sistema solo puede afirmar cuánto lleva esperando un trámite, nunca si ese tiempo es
   // excesivo. Mata al mutante "badge Vencida" si alguien lo restaura.
@@ -438,14 +470,14 @@ describe('RequestDetailPage', () => {
     render(<RequestDetailPage />)
 
     await screen.findByRole('button', { name: 'Finalizada' })
-    vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: 'Finalizada' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Finalizada' }))
-    await vi.advanceTimersByTimeAsync(700)
 
-    expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', '')
-    expect(screen.getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
-    expect(screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
+    // Sin relojes falsos: T4a retira la espera artificial de 700 ms, así que se espera el
+    // resultado real de la transición y de que el diálogo cierre y la página se actualice.
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('request-1', 'FINALIZADA', ''))
+    expect(await screen.findByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(await screen.findByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
   })
 
   // «Ahora depende de» es el único punto que responde a quién depende el trámite: la fila

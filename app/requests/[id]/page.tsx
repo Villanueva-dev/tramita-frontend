@@ -151,14 +151,13 @@ export default function RequestDetailPage() {
 
   async function runAction(comment: string) {
     if (!dialog) return
-    try {
-      // El éxito se informa después de confirmar la persistencia en PostgreSQL.
-      await transition(requestId, dialog.targetStateCode, comment)
-      setToast(`Solicitud registrada en estado ${dialog.confirmLabel}.`)
-      setDialog(null)
-    } catch (error) {
-      setToast(error instanceof Error ? error.message : 'No se pudo aplicar la transición.')
-    }
+    // El éxito se informa después de confirmar la persistencia en PostgreSQL. El error ya no
+    // se captura acá: se propaga a `ActionDialog` (contrato de `onConfirm`), que lo muestra
+    // dentro de sí mismo y mantiene sus botones activos para reintentar (T4a,
+    // odd/tasks/rediseno-detalle-solicitud.md).
+    await transition(requestId, dialog.targetStateCode, comment)
+    setToast(`Solicitud registrada en estado ${dialog.confirmLabel}.`)
+    setDialog(null)
   }
 
   function getApprovalDraft(documentId: string): DocumentApprovalInput {
