@@ -113,6 +113,10 @@ describe('RequestDetailPage', () => {
     setup()
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'En facultad' })).toBeDefined())
+    // T1: el botón de transición vive en el panel lateral «Acciones», ya no en el encabezado.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('button', { name: 'En facultad' })).toBeDefined()
+
     fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
 
     expect(screen.getByRole('dialog')).toBeDefined()
@@ -231,6 +235,11 @@ describe('RequestDetailPage', () => {
     const message = 'Hola Ana Pérez.\r\nSu trámite «Adición de créditos» quedó en estado: Finalizada.'
     const emailLink = screen.getByRole('link', { name: 'Enviar correo al estudiante' })
     const whatsappLink = screen.getByRole('link', { name: 'Enviar WhatsApp al estudiante' })
+
+    // T1: los avisos manuales viven en el panel lateral «Acciones», junto a las transiciones.
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar correo al estudiante' })).toBeDefined()
+    expect(within(actionsPanel).getByRole('link', { name: 'Enviar WhatsApp al estudiante' })).toBeDefined()
 
     expect(emailLink.getAttribute('href')).toBe(
       `mailto:ana@example.com?subject=${encodeURIComponent('Su proceso ha sido completado')}&body=${encodeURIComponent(message)}`,
@@ -430,9 +439,12 @@ describe('RequestDetailPage', () => {
   })
 
   // El sistema nunca sabe si el anexo se adjuntó (FR-012): el aviso solo recuerda qué llevar
-  // y de dónde sale, entre las acciones de transición (donde se decide reenviar) y el bloque
-  // de estado, sin convertirse en una región viva que interrumpa cada carga o transición.
-  it('muestra el requisito de anexo entre las acciones y el estado, sin afirmar que se adjuntó', async () => {
+  // y de dónde sale. D1 (odd/tasks/rediseno-detalle-solicitud.md): el requisito canónico es
+  // «cerca de las acciones de transición» (spec.md:292, escenario :355-359); el orden relativo
+  // al enlace del PDF era la forma de cumplirlo con el layout viejo (un solo encabezado). Con
+  // el panel lateral, «cerca» significa dentro de la misma región «Acciones» — se abandona la
+  // aproximación por posición de DOM y se afirma directamente la contención.
+  it('muestra el requisito de anexo dentro del panel de acciones, sin afirmar que se adjuntó', async () => {
     const conAnexo: AcademicRequest = {
       ...request,
       annexRequirement: {
@@ -446,20 +458,12 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
-    const documentLink = screen.getByRole('link', { name: 'Ver documento PDF' })
-    const annexNotice = screen.getByRole('region', { name: 'Anexo requerido' })
-    const currentStateBlock = screen.getByRole('region', { name: 'Estado actual' })
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    const annexNotice = within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })
 
     expect(annexNotice.textContent).toContain('Documento de prueba')
     expect(annexNotice.textContent).toContain('Lo entrega el estudiante')
     expect(annexNotice.textContent).not.toMatch(/adjuntad[oa]|se adjuntó|recibid[oa]/i)
-
-    expect(
-      documentLink.compareDocumentPosition(annexNotice) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      annexNotice.compareDocumentPosition(currentStateBlock) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
 
     expect(annexNotice.matches('[role="alert"]')).toBe(false)
     expect(annexNotice.hasAttribute('aria-live')).toBe(false)
@@ -473,5 +477,46 @@ describe('RequestDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
     expect(screen.queryByRole('region', { name: 'Anexo requerido' })).toBeNull()
+  })
+
+  // T1 (rediseno-detalle-solicitud.md): un estado final no tiene transiciones (:233), pero el
+  // aviso de anexo sigue siendo obligatorio en cualquier estado (spec.md:292-294). La región
+  // «Acciones» debe existir solo por el aviso, sin ofrecer ningún botón de transición.
+  it('en un estado final con anexo, la región Acciones existe con el aviso y sin botones de transición', async () => {
+    const cerradoConAnexo: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+      annexRequirement: {
+        documentName: 'Documento de prueba',
+        sourceHint: 'Lo entrega el estudiante',
+      },
+    }
+    mockTramita({ getRequest: () => cerradoConAnexo })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const actionsPanel = screen.getByRole('region', { name: 'Acciones' })
+    expect(within(actionsPanel).getByRole('region', { name: 'Anexo requerido' })).toBeDefined()
+    expect(within(actionsPanel).queryAllByRole('button')).toHaveLength(0)
+  })
+
+  // T1: sin transiciones, sin anexo y sin enlaces de aviso (origin: null, como en el fixture
+  // base), no queda ningún contenedor vacío en el panel lateral: la región no se renderiza.
+  it('sin transiciones, anexo ni enlaces de aviso, la región Acciones no se renderiza', async () => {
+    const cerradoSinAvisos: AcademicRequest = {
+      ...request,
+      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+      availableTransitions: [],
+    }
+    mockTramita({ getRequest: () => cerradoSinAvisos })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByRole('region', { name: 'Acciones' })).toBeNull()
   })
 })

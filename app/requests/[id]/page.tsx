@@ -229,6 +229,13 @@ export default function RequestDetailPage() {
     commentRequired: availableTransition.requiresNote,
     variant: availableTransition.requiresNote ? 'destructive' : 'default',
   }))
+  // Sin transiciones, sin anexo y sin enlaces de aviso, el panel no tiene nada que mostrar:
+  // la región no se renderiza, tampoco como contenedor vacío.
+  const hasActionsPanel =
+    transitionActions.length > 0 ||
+    Boolean(req.annexRequirement) ||
+    Boolean(emailHref) ||
+    Boolean(whatsappHref)
 
   return (
     <AppShell title="Detalle de solicitud">
@@ -281,57 +288,19 @@ export default function RequestDetailPage() {
               </div>
             </div>
 
-            {/* Action buttons */}
+            {/* Los botones de transición y los avisos al estudiante viven en el panel lateral
+                «Acciones» (T1, odd/tasks/rediseno-detalle-solicitud.md); el enlace al PDF se
+                queda en el encabezado. */}
             <div className="flex flex-wrap gap-2">
-              {transitionActions.map((action) => (
-                <Button
-                  key={action.targetStateCode}
-                  variant={action.variant}
-                  onClick={() => setDialog(action)}
-                  className="gap-2"
-                >
-                  <CheckCircle2 className="size-4" />
-                  {action.confirmLabel}
-                </Button>
-              ))}
               <Link href={`/requests/${req.id}/documento`}>
                 <Button className="gap-2">
                   <Download className="size-4" />
                   Ver documento PDF
                 </Button>
               </Link>
-              {emailHref && (
-                <a
-                  href={emailHref}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  <Mail className="size-4" />
-                  Enviar correo al estudiante
-                </a>
-              )}
-              {whatsappHref && (
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  <MessageCircle className="size-4" />
-                  Enviar WhatsApp al estudiante
-                </a>
-              )}
             </div>
           </div>
         </div>
-
-        {/* Va junto a las acciones porque ahí se decide reenviar a la facultad; el texto nunca
-            afirma que el anexo ya se adjuntó, se recibió ni se pidió (el sistema no lo sabe). */}
-        {req.annexRequirement ? (
-          <AnnexRequirementNotice
-            documentName={req.annexRequirement.documentName}
-            sourceHint={req.annexRequirement.sourceHint}
-          />
-        ) : null}
 
         <CurrentStateBlock
           state={req.currentState}
@@ -601,8 +570,68 @@ export default function RequestDetailPage() {
             </Card>
           </div>
 
-          {/* Right column: timeline */}
-          <div className="flex flex-col gap-6">
+          {/* Right column: acciones + timeline. Fija al hacer scroll, como en el mockup: el panel
+              de acciones y el historial acompañan mientras se revisa la columna principal. */}
+          <div className="flex flex-col gap-6 lg:sticky lg:top-4 lg:self-start">
+            {hasActionsPanel && (
+              <section
+                aria-label="Acciones"
+                className="overflow-hidden rounded-2xl border-2 border-primary"
+              >
+                <div className="bg-primary/10 px-5 py-3">
+                  <h3 className="text-[17px] font-bold text-primary">Acciones</h3>
+                </div>
+                <div className="flex flex-col gap-3 p-5">
+                  {transitionActions.length > 0 && (
+                    <>
+                      <p className="text-[17px]">
+                        Registre el estado al que pasa la solicitud.
+                      </p>
+                      {transitionActions.map((action) => (
+                        <Button
+                          key={action.targetStateCode}
+                          variant={action.variant}
+                          onClick={() => setDialog(action)}
+                          className="h-[52px] w-full gap-2 text-[17px] font-semibold"
+                        >
+                          <CheckCircle2 className="size-4" />
+                          {action.confirmLabel}
+                        </Button>
+                      ))}
+                    </>
+                  )}
+
+                  {req.annexRequirement ? (
+                    <AnnexRequirementNotice
+                      documentName={req.annexRequirement.documentName}
+                      sourceHint={req.annexRequirement.sourceHint}
+                    />
+                  ) : null}
+
+                  {emailHref && (
+                    <a
+                      href={emailHref}
+                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-base font-medium hover:bg-muted"
+                    >
+                      <Mail className="size-4" />
+                      Enviar correo al estudiante
+                    </a>
+                  )}
+                  {whatsappHref && (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-base font-medium hover:bg-muted"
+                    >
+                      <MessageCircle className="size-4" />
+                      Enviar WhatsApp al estudiante
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Resumen</CardTitle>
