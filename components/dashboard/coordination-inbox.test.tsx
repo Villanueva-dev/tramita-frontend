@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { CoordinationInbox } from './coordination-inbox'
 import type { InboxState } from '@/lib/use-coordination-inbox'
 import type { InboxEntry } from '@/lib/types'
@@ -40,6 +40,11 @@ function entry(overrides: Partial<InboxEntry> = {}): InboxEntry {
   }
 }
 
+/** N entradas distinguibles por nombre e id, en orden ascendente — no es el fixture de orden. */
+function manyEntries(n: number): InboxEntry[] {
+  return Array.from({ length: n }, (_, i) => entry({ id: `entry-${i}`, studentName: `Estudiante de prueba ${i}` }))
+}
+
 function region() {
   return screen.getByRole('region', { name: /bandeja de trabajo/i })
 }
@@ -49,7 +54,7 @@ describe('CoordinationInbox', () => {
     const inbox: InboxState = { status: 'loading' }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
-    expect(within(region()).queryByRole('table')).toBeNull()
+    expect(within(region()).queryAllByRole('link')).toHaveLength(0)
     expect(within(region()).queryByRole('alert')).toBeNull()
   })
 
@@ -68,7 +73,7 @@ describe('CoordinationInbox', () => {
     expect(within(screen.getByRole('alert')).getByText('No se pudo consultar la bandeja')).toBeDefined()
   })
 
-  it('una fila muestra sus cinco datos: definición, estudiante, estado, espera y origen', () => {
+  it('una fila muestra sus datos: trámite, estudiante, estado, espera y origen', () => {
     const inbox: InboxState = {
       status: 'ready',
       entries: [
@@ -89,7 +94,7 @@ describe('CoordinationInbox', () => {
     expect(row.getByText('Estudiante de prueba 7')).toBeDefined()
     expect(row.getByText('Registrada')).toBeDefined()
     expect(row.getByText(/esperando desde hace 3 días/i)).toBeDefined()
-    expect(row.getByText('Coordinación')).toBeDefined()
+    expect(row.getByText('Origen: Coordinación')).toBeDefined()
   })
 
   // Regla del fixture (design.md): el orden no coincide con lo que produciría ordenar por
@@ -103,11 +108,11 @@ describe('CoordinationInbox', () => {
     const inbox: InboxState = { status: 'ready', entries, mayHaveMore: false }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
-    const rows = within(region()).getAllByRole('row').slice(1) // sin el encabezado
-    expect(rows.map((r) => within(r).getByRole('link').textContent)).toEqual([
-      'Estudiante de prueba 2',
-      'Estudiante de prueba 3',
-      'Estudiante de prueba 1',
+    const links = within(region()).getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/requests/entry-a',
+      '/requests/entry-b',
+      '/requests/entry-c',
     ])
   })
 
@@ -123,28 +128,27 @@ describe('CoordinationInbox', () => {
     expect(within(region()).queryByText(/esperando desde hace 60 días/i)).toBeNull()
   })
 
-  it('origen por enlace público muestra "Enlace público"', () => {
+  it('origen por enlace público muestra "Origen: Enlace público"', () => {
     const inbox: InboxState = { status: 'ready', entries: [entry({ origin: 'PUBLIC_LINK' })], mayHaveMore: false }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
-    expect(within(region()).getByText('Enlace público')).toBeDefined()
+    expect(within(region()).getByText('Origen: Enlace público')).toBeDefined()
   })
 
-  it('origen por Coordinación muestra "Coordinación"', () => {
+  it('origen por Coordinación muestra "Origen: Coordinación"', () => {
     const inbox: InboxState = { status: 'ready', entries: [entry({ origin: 'COORDINATION' })], mayHaveMore: false }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
-    expect(within(region()).getByText('Coordinación')).toBeDefined()
+    expect(within(region()).getByText('Origen: Coordinación')).toBeDefined()
   })
 
-  it('origen nulo se presenta como "Origen no registrado", con el mismo estilo que los otros dos', () => {
+  it('origen nulo se presenta como "Origen no registrado", sin duplicar el prefijo', () => {
     const inbox: InboxState = { status: 'ready', entries: [entry({ origin: null })], mayHaveMore: false }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
     const cell = within(region()).getByText('Origen no registrado')
     expect(cell).toBeDefined()
-    // Estilo neutro: ninguna clase de alerta/error, igual que las celdas de origen conocido.
-    expect(cell.className).not.toMatch(/destructive|warning|alert/i)
+    expect(within(region()).queryByText(/^Origen: Origen/)).toBeNull()
   })
 
   it('aviso presente cuando la bandeja llega al límite (mayHaveMore)', () => {
@@ -161,12 +165,13 @@ describe('CoordinationInbox', () => {
     expect(within(region()).queryByText(/puede haber más solicitudes/i)).toBeNull()
   })
 
-  it('el nombre del estudiante es un enlace a /requests/{id}', () => {
+  it('cada fila es un único enlace a /requests/{id}, sin un segundo enlace', () => {
     const inbox: InboxState = { status: 'ready', entries: [entry({ id: 'entry-42' })], mayHaveMore: false }
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
-    const link = within(region()).getByRole('link', { name: 'Estudiante de prueba 1' })
-    expect(link.getAttribute('href')).toBe('/requests/entry-42')
+    const links = within(region()).getAllByRole('link')
+    expect(links).toHaveLength(1)
+    expect(links[0].getAttribute('href')).toBe('/requests/entry-42')
   })
 
   it('ninguna fila expone número de documento', () => {
@@ -181,5 +186,100 @@ describe('CoordinationInbox', () => {
     render(<CoordinationInbox inbox={inbox} now={NOW} />)
 
     expect(region().textContent).not.toMatch(/venc/i)
+  })
+
+  describe('marca de devuelta', () => {
+    it('una adición de créditos devuelta (DEVUELTA) muestra el ícono de la marca', () => {
+      const inbox: InboxState = {
+        status: 'ready',
+        entries: [
+          entry({
+            definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+            currentState: { code: 'DEVUELTA', name: 'Devuelta para corrección', isFinal: false, isInitial: false },
+          }),
+        ],
+        mayHaveMore: false,
+      }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      expect(within(region()).getByTestId('coordination-inbox-returned-icon')).toBeDefined()
+      // La ficha siempre muestra el dato del servidor, marca incluida: no se inventa texto.
+      expect(within(region()).getByText('Devuelta para corrección')).toBeDefined()
+    })
+
+    it('una adición de créditos en coordinación (EN_COORDINACION) no muestra la marca', () => {
+      const inbox: InboxState = { status: 'ready', entries: [entry()], mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      expect(within(region()).queryByTestId('coordination-inbox-returned-icon')).toBeNull()
+    })
+  })
+
+  describe('paginación de vista', () => {
+    it('con 11 entradas, la página 1 muestra las primeras 10 y no la 11.ª', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(11), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      expect(within(region()).getByText('Estudiante de prueba 0')).toBeDefined()
+      expect(within(region()).getByText('Estudiante de prueba 9')).toBeDefined()
+      expect(within(region()).queryByText('Estudiante de prueba 10')).toBeNull()
+    })
+
+    it('al hacer clic en «Siguiente» aparece la 11.ª entrada y desaparece la primera', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(11), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      fireEvent.click(within(region()).getByRole('button', { name: /siguiente/i }))
+
+      expect(within(region()).getByText('Estudiante de prueba 10')).toBeDefined()
+      expect(within(region()).queryByText('Estudiante de prueba 0')).toBeNull()
+    })
+
+    it('con 10 entradas o menos no aparece ningún control de paginación', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(10), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      expect(within(region()).queryByRole('button', { name: /anterior/i })).toBeNull()
+      expect(within(region()).queryByRole('button', { name: /siguiente/i })).toBeNull()
+      expect(within(region()).queryByText(/página \d+ de \d+/i)).toBeNull()
+    })
+
+    it('los controles son botones reales, con type="button", deshabilitados en los extremos', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(25), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      const scope = within(region())
+      const prev = scope.getByRole('button', { name: /anterior/i })
+      const next = scope.getByRole('button', { name: /siguiente/i })
+      expect(prev.tagName).toBe('BUTTON')
+      expect(prev.getAttribute('type')).toBe('button')
+      expect(next.tagName).toBe('BUTTON')
+      expect(next.getAttribute('type')).toBe('button')
+
+      expect((prev as HTMLButtonElement).disabled).toBe(true)
+      expect((next as HTMLButtonElement).disabled).toBe(false)
+
+      fireEvent.click(next)
+      fireEvent.click(next)
+      expect((next as HTMLButtonElement).disabled).toBe(true)
+      expect((prev as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('muestra «Página X de Y» y «Mostrando a–b de n», y avanzan juntos', () => {
+      const inbox: InboxState = { status: 'ready', entries: manyEntries(25), mayHaveMore: false }
+      render(<CoordinationInbox inbox={inbox} now={NOW} />)
+
+      const scope = within(region())
+      expect(scope.getByText('Página 1 de 3')).toBeDefined()
+      expect(scope.getByText('Mostrando 1–10 de 25')).toBeDefined()
+
+      fireEvent.click(scope.getByRole('button', { name: /siguiente/i }))
+      expect(scope.getByText('Página 2 de 3')).toBeDefined()
+      expect(scope.getByText('Mostrando 11–20 de 25')).toBeDefined()
+
+      fireEvent.click(scope.getByRole('button', { name: /siguiente/i }))
+      expect(scope.getByText('Página 3 de 3')).toBeDefined()
+      expect(scope.getByText('Mostrando 21–25 de 25')).toBeDefined()
+    })
   })
 })

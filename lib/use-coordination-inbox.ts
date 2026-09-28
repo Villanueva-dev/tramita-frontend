@@ -15,9 +15,12 @@ export const COORDINATION_RESPONSIBLE = 'COORDINACION'
 
 /**
  * Cota explícita de la consulta (D8). Vive acá, no en `lib/api.ts`: el contrato exige
- * que quien llama decida cuánto pide, y quien llama es este hook.
+ * que quien llama decida cuánto pide, y quien llama es este hook. Es el máximo que acepta
+ * el backend (`RequestController.java:108`). La bandeja se pagina en el cliente (issue #56)
+ * porque el servidor ordena por espera el lote entero que devuelve: paginar en el servidor
+ * ordenaría cada página por separado. Por eso se pide el lote más grande permitido.
  */
-export const INBOX_LIMIT = 50
+export const INBOX_LIMIT = 200
 
 export type InboxState =
   | { status: 'loading' }
