@@ -140,33 +140,62 @@ describe('DashboardPage — localización de solicitudes', () => {
   })
 })
 
-describe('DashboardPage', () => {
-  it('excluye los rechazos al filtrar por Completadas', () => {
-    const rejected: AcademicRequest = {
-      ...request,
-      id: 'request-rejected',
-      radicado: 'RAD-REJECTED',
-      studentName: 'Solicitud Rechazada',
-      status: 'finalizado',
-      stateName: 'Rechazada',
-      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
-    }
-    const finalized: AcademicRequest = {
-      ...request,
-      id: 'request-finalized',
-      radicado: 'RAD-FINALIZED',
-      studentName: 'Solicitud Finalizada',
-      status: 'finalizado',
-      stateName: 'Finalizada',
-      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
-    }
-    renderDashboard({ tramita: { requests: [rejected, finalized], searched: true, searchErrors: [] } })
-    fireEvent.click(screen.getByRole('button', { name: /completadas/i }))
+// El buscador sube al primer bloque tras el encabezado (#56): localizar por nombre o
+// cédula es la tarea diaria de la Coordinación y antes vivía al final, debajo de la
+// bandeja, las tarjetas y los indicadores — que este mismo cambio retira.
+describe('DashboardPage — buscador primero, sin tarjetas (#56)', () => {
+  it('el buscador precede a la bandeja en el orden del documento', () => {
+    renderDashboard({
+      tramita: { requests: [], searched: false, searchErrors: [] },
+      inbox: { status: 'ready', entries: [entry()], mayHaveMore: false },
+    })
 
-    expect(screen.getAllByText('Solicitud Finalizada').length).toBeGreaterThan(0)
-    expect(screen.queryAllByText('Solicitud Rechazada')).toHaveLength(0)
+    const searchInput = screen.getByLabelText(/cédula o nombre/i)
+    const inboxRegion = screen.getByRole('region', { name: /bandeja de trabajo/i })
+
+    expect(
+      searchInput.compareDocumentPosition(inboxRegion) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
+  it('no hay tarjetas de resumen ni indicadores operativos', () => {
+    renderDashboard({ tramita: { requests: [request], searched: true, searchErrors: [] } })
+
+    expect(screen.queryByText('Pendientes')).toBeNull()
+    expect(screen.queryByText('Completadas')).toBeNull()
+    expect(screen.queryByText('Urgentes')).toBeNull()
+    expect(screen.queryByText('Ciclo promedio')).toBeNull()
+    expect(screen.queryByText('Devoluciones')).toBeNull()
+  })
+
+  it('el panel de filtros no aparece antes de buscar', () => {
+    renderDashboard({ tramita: { requests: [], searched: false, searchErrors: [] } })
+
+    expect(screen.queryByText(/filtros y búsqueda/i)).toBeNull()
+  })
+
+  it('el panel de filtros aparece después de buscar', () => {
+    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
+
+    expect(screen.getByText(/filtros y búsqueda/i)).toBeDefined()
+  })
+
+  // Había dos cajas «Buscar»: la principal, que consulta al backend, y otra dentro del
+  // panel de filtros que filtraba en el cliente. Confunde a una usuaria no técnica; se
+  // retira la del panel y sus cuatro controles restantes quedan solos (#56).
+  it('tras buscar, el panel de filtros no tiene una segunda caja de búsqueda', () => {
+    renderDashboard({ tramita: { requests: [], searched: true, searchErrors: [] } })
+
+    expect(screen.queryByRole('textbox', { name: 'Buscar' })).toBeNull()
+    expect(screen.getByLabelText('Cédula o nombre del estudiante')).toBeDefined()
+    expect(screen.getByLabelText(/tipo de trámite/i)).toBeDefined()
+    expect(screen.getByLabelText(/responsable/i)).toBeDefined()
+    expect(screen.getByLabelText(/estado/i)).toBeDefined()
+    expect(screen.getByLabelText(/fecha de radicación/i)).toBeDefined()
+  })
+})
+
+describe('DashboardPage', () => {
   it('renderiza los resultados de búsqueda con datos provenientes del store', () => {
     renderDashboard({
       tramita: {
@@ -293,9 +322,9 @@ describe('DashboardPage — bandeja de trabajo de la Coordinación', () => {
   })
 
   // El requisito acota "el encabezado" (coordination-inbox/spec.md, «El encabezado cuenta
-  // la bandeja, no la búsqueda»): la tarjeta «Urgentes» de SummaryCards sigue mostrando su
-  // propio hint «Atención prioritaria» sobre los resultados de búsqueda, y eso es ajeno a
-  // esta unidad — por eso la aserción se acota al encabezado, no a toda la pantalla.
+  // la bandeja, no la búsqueda»). Ya no hay tarjetas de resumen ni indicadores por
+  // prioridad (#56): esta prueba queda como resguardo para que el encabezado nunca absorba
+  // ese texto.
   it('el encabezado nunca menciona atención prioritaria ni ningún conteo de prioridad', () => {
     renderDashboard({
       tramita: { requests: [], searched: false, searchErrors: [] },

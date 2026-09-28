@@ -106,7 +106,7 @@ const MIN_SEARCH_LENGTH = 2
  * ternario con respaldo: una definición que el cliente no reconoce da `null`, nunca
  * `'adicion_creditos'` por defecto (#9 b, mutante 4).
  */
-const typeFromCode = (code: string): RequestType | null =>
+export const typeFromCode = (code: string): RequestType | null =>
   code === 'ADICION_CREDITOS' ? 'adicion_creditos'
     : code === 'NOVEDAD_NOTAS' ? 'novedad_notas'
       : null

@@ -146,7 +146,7 @@ describe('DashboardPage con el store real — la bandeja convive con la búsqued
       expect(inboxCalls).toHaveLength(1)
     })
     const [inboxCall] = spy.mock.calls.filter(([input]) => String(input).includes('/requests/inbox'))
-    expect(String(inboxCall[0])).toBe('/api/requests/inbox?responsible=COORDINACION&limit=50')
+    expect(String(inboxCall[0])).toBe('/api/requests/inbox?responsible=COORDINACION&limit=200')
 
     search('Pérez')
     await waitFor(() => {

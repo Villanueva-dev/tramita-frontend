@@ -47,17 +47,18 @@ function problemResponse(status: number, title: string): Response {
 }
 
 describe('useCoordinationInbox', () => {
-  it('consulta con responsible=COORDINACION y limit=50 al montar', async () => {
+  it('consulta con responsible=COORDINACION y limit=200 al montar', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, []))
     vi.stubGlobal('fetch', fetchMock)
 
     const { result } = renderHook(() => useCoordinationInbox())
 
     expect(COORDINATION_RESPONSIBLE).toBe('COORDINACION')
-    expect(INBOX_LIMIT).toBe(50)
+    // El máximo del backend (RequestController.java:108), issue #56.
+    expect(INBOX_LIMIT).toBe(200)
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/requests/inbox?responsible=COORDINACION&limit=50',
+      '/api/requests/inbox?responsible=COORDINACION&limit=200',
       expect.objectContaining({ method: 'GET' }),
     )
   })
@@ -80,8 +81,8 @@ describe('useCoordinationInbox', () => {
     expect(result.current).toMatchObject({ status: 'ready', entries })
   })
 
-  it('mayHaveMore es true con exactamente INBOX_LIMIT (50) entradas', async () => {
-    const entries = Array.from({ length: 50 }, (_, i) => entry({ id: `entry-${i}` }))
+  it('mayHaveMore es true con exactamente INBOX_LIMIT (200) entradas', async () => {
+    const entries = Array.from({ length: 200 }, (_, i) => entry({ id: `entry-${i}` }))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, entries)))
 
     const { result } = renderHook(() => useCoordinationInbox())
@@ -90,8 +91,8 @@ describe('useCoordinationInbox', () => {
     expect(result.current).toMatchObject({ mayHaveMore: true })
   })
 
-  it('mayHaveMore es false con INBOX_LIMIT − 1 (49) entradas', async () => {
-    const entries = Array.from({ length: 49 }, (_, i) => entry({ id: `entry-${i}` }))
+  it('mayHaveMore es false con INBOX_LIMIT − 1 (199) entradas', async () => {
+    const entries = Array.from({ length: 199 }, (_, i) => entry({ id: `entry-${i}` }))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, entries)))
 
     const { result } = renderHook(() => useCoordinationInbox())
