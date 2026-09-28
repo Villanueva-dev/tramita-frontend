@@ -50,6 +50,27 @@ describe('CurrentStateBlock', () => {
     expect(within(region()).getByText('En registro nacional')).toBeDefined()
   })
 
+  it('distribuye el estado y sus metadatos en columnas amplias sin perder el apilado angosto', () => {
+    render(
+      <CurrentStateBlock
+        state={state()}
+        responsibility={single}
+        waitingSince={daysAgoIso(5)}
+        now={NOW}
+      />,
+    )
+
+    const block = region()
+    const stateSummary = within(block).getByRole('heading', { name: 'Estado actual' }).parentElement
+    const metadata = within(block).getByText('Ahora depende de').parentElement?.parentElement
+
+    expect(block.className).toContain('2xl:grid-cols-[auto_minmax(16rem,1.2fr)_minmax(0,0.8fr)]')
+    expect(stateSummary?.className).toContain('sm:col-start-2')
+    expect(stateSummary?.className).toContain('2xl:col-start-auto')
+    expect(metadata?.className).toContain('sm:col-start-2')
+    expect(metadata?.className).toContain('sm:grid-cols-2')
+  })
+
   it('muestra una insignia para isInitial y otra, independiente, para isFinal', () => {
     render(
       <CurrentStateBlock
