@@ -62,6 +62,10 @@ variante de color de las transiciones que exigen nota.
   eligiendo la variante como en `main`.
 - **D4 — La escala tipográfica sube solo en el detalle.** Cambiar la base global afectaría
   pantallas fuera de alcance.
+- **D5 — El mensaje de resultado sigue flotante.** El mockup lo pone al inicio de la página y
+  salta arriba tras confirmar; aquí la acción se lanza desde el panel lateral fijo, a menudo con
+  la página desplazada, y un aviso arriba quedaría fuera de la vista. Se conserva la posición
+  flotante y se corrige su semántica.
 
 ## Restricciones y ruta
 
@@ -110,25 +114,29 @@ variante de color de las transiciones que exigen nota.
   que se solicita» y las tres secciones de la columna principal adoptan la escala del mockup
   (títulos de 20 px, etiquetas de 16 px, valores y tabla de 17 px); «Documentos adjuntos» solo
   cambia su título.
-- [ ] **T4a — El diálogo de transición no se traba ante un error (`fix`).** Bug previo, hallado al
-  preparar T4 e incluido con autorización del propietario (2026-09-27, opción A): `ActionDialog`
-  espera 700 ms artificiales y llama a `onConfirm` sin esperar su resultado; si la transición
-  falla, `runAction` no cierra el diálogo y `loading` nunca se restablece, así que «Confirmar» y
-  «Cancelar» quedan deshabilitados y el error solo aparece en el toast, detrás del fondo del modal
-  (reproducido con un test temporal, luego borrado). RED: tras un rechazo del backend, el diálogo
-  sigue abierto, muestra el mensaje como alerta dentro de sí mismo y vuelve a habilitar sus
-  botones. GREEN: `onConfirm` se espera; `runAction` propaga el error al diálogo en vez de
-  mandarlo al toast; se retira la espera artificial y el test que la saltaba con relojes falsos
-  pasa a esperar el resultado real. Commit propio `fix(solicitudes): …`.
-- [ ] **T4b — Historial, diálogo y mensaje de resultado.** RED: el resultado de una acción de la
-  página se anuncia dentro de la página y distingue éxito (`status`) de error (`alert`), sin el
-  ícono de éxito para un error. GREEN: `WorkflowTimeline` y `ActionDialog` adoptan el estilo del
-  mockup sin cambiar sus props; se retira la tarjeta «Resumen», porque el tipo ya está en el
-  encabezado.
+- [x] **T4a — El diálogo de transición no se traba ante un error (`fix`).** Commit `a274f7f`. Bug
+  previo, hallado al preparar T4 e incluido con autorización del propietario (2026-09-27, opción
+  A): `ActionDialog` espera 700 ms artificiales y llama a `onConfirm` sin esperar su resultado; si
+  la transición falla, `runAction` no cierra el diálogo y `loading` nunca se restablece, así que
+  «Confirmar» y «Cancelar» quedan deshabilitados y el error solo aparece en el toast, detrás del
+  fondo del modal (reproducido con un test temporal, luego borrado). RED: tras un rechazo del
+  backend, el diálogo sigue abierto, muestra el mensaje como alerta dentro de sí mismo y vuelve a
+  habilitar sus botones. GREEN: `onConfirm` se espera; `runAction` propaga el error al diálogo en
+  vez de mandarlo al toast; se retira la espera artificial y el test que la saltaba con relojes
+  falsos pasa a esperar el resultado real. Commit propio `fix(solicitudes): …`.
+- [ ] **T4b — Historial, diálogo y mensaje de resultado.** Tras T4a, el mensaje flotante de la
+  página solo lleva el éxito de una transición (y errores de descarga, hoy inalcanzables porque la
+  sección de documentos llega vacía). RED: el éxito se anuncia con `role="status"`; un error se
+  anuncia con `role="alert"` y sin el ícono de éxito. GREEN: el mensaje se tipa (éxito/error) y
+  conserva su posición flotante (D5); `WorkflowTimeline` y `ActionDialog` adoptan la escala del
+  mockup sin cambiar sus props ni su orden; se retira la tarjeta «Resumen», porque el tipo ya está
+  en el encabezado.
 - [ ] **T5 — Prueba en vivo.** En Chrome contra el backend local, con permiso del propietario
   porque las transiciones escriben en la base local. Registrar la evidencia aquí. Comprobar en
   particular la columna lateral fija (`lg:sticky`): si el panel y un historial largo superan la
-  altura de la ventana, el final del historial solo se ve al llegar al final de la página.
+  altura de la ventana, el final del historial solo se ve al llegar al final de la página. Mirar
+  también el historial: la línea vertical pasa por debajo de puntos con fondo translúcido y puede
+  verse a través de ellos (ya ocurría antes del rediseño).
 
 ## Progreso y evidencia
 
@@ -189,11 +197,25 @@ variante de color de las transiciones que exigen nota.
   local que nadie más puede seguir, reemplazado por este documento. GREEN sobre el diff final:
   `pnpm test` 28 archivos / 368 tests; `tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff
   --check` limpios. Riesgo nativo: `medium`, `under_budget` (121 líneas).
+- 2026-09-27 — **T4a commiteada**: `5d55936` (este documento) y `a274f7f` (fix).
+- 2026-09-27 — **T4b implementada, pendiente de revisión y commit.** Ruta: delegada (escritor
+  único; disparador: `page.tsx`, `page.test.tsx`, `action-dialog.tsx` y `workflow-timeline.tsx`).
+  RED observado: `el mensaje de éxito de una transición se anuncia con role="status"` (`Unable to
+  find role="status"`), `un error de descarga se anuncia con role="alert"…` (espera agotada en
+  `findByRole('alert')`) y `la tarjeta «Resumen» ya no existe` (`expected <div
+  data-slot="card-title">Resumen</div> to be null`). El estilo del historial y del diálogo no
+  tiene RED propio: lo protegen los tests existentes, intactos. Contraste del mensaje de error:
+  `--destructive` (oklch 0,55) sobre `--destructive-foreground` (oklch 0,99), ~4,7:1, sobre el
+  4,5:1 de WCAG AA para texto normal. Revisión del orquestador: el nombre de un test afirmaba más
+  de lo que comprobaba, un comentario de test describía en presente un defecto ya corregido y el
+  comentario del mensaje flotante se contradecía; corregidos. GREEN sobre el diff final: `pnpm
+  test` 28 archivos / 371 tests; `tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check`
+  limpios. Riesgo nativo: `medium`, `under_budget` (256 líneas).
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T4a por el propietario; con su aprobación, commits `docs(odd)` y `fix` de
-T4a, y después T4b.
+Revisión del diff de T4b por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
+T4b. Después, T5 (prueba en vivo), que requiere un permiso aparte.
