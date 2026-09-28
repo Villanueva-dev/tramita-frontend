@@ -50,20 +50,20 @@ export function CurrentStateBlock({
     <section
       aria-labelledby="current-state-heading"
       className={cn(
-        'flex flex-wrap items-center gap-5 rounded-2xl border-2 px-6 py-5 sm:px-7',
+        'grid gap-5 rounded-2xl border-2 px-6 py-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:px-7 2xl:grid-cols-[auto_minmax(16rem,1.2fr)_minmax(0,0.8fr)] 2xl:gap-x-8',
         state.isFinal ? 'border-border bg-muted/40' : 'border-primary/30 bg-primary/5',
       )}
     >
       <span
         aria-hidden
         className={cn(
-          'grid size-16 shrink-0 place-items-center rounded-full text-white',
+          'grid size-16 shrink-0 place-items-center rounded-full text-white sm:row-span-2 2xl:row-span-1',
           state.isFinal ? 'bg-muted-foreground' : 'bg-primary',
         )}
       >
         {state.isFinal ? <Lock className="size-8" /> : <Clock className="size-8" />}
       </span>
-      <div className="flex flex-col gap-2">
+      <div className="min-w-0 flex flex-col gap-2 sm:col-start-2 2xl:col-start-auto">
         {/* `h2`: el banner es una sección de primer nivel y va antes del `h2` con el nombre
             del estudiante; un `h3` aquí invertiría la jerarquía de encabezados. */}
         <h2
@@ -76,23 +76,23 @@ export function CurrentStateBlock({
           Estado actual
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[34px] font-bold leading-tight">{state.name}</span>
+          <span className="break-words text-[34px] font-bold leading-tight">{state.name}</span>
           {state.isInitial && <Badge variant="info">Inicial</Badge>}
           {state.isFinal && <Badge variant="secondary">Cerrado</Badge>}
         </div>
-        <dl className="flex flex-col gap-1 text-[18px]">
-          <div className="flex flex-col gap-0.5">
-            <dt className="font-medium text-muted-foreground">Ahora depende de</dt>
-            <dd>{responsibilityText(responsibility)}</dd>
-          </div>
-          {showAge && days !== null && (
-            <div className="flex flex-col gap-0.5">
-              <dt className="font-medium text-muted-foreground">Antigüedad del estado</dt>
-              <dd>{ageLabel(days)}</dd>
-            </div>
-          )}
-        </dl>
       </div>
+      <dl className="min-w-0 grid gap-1 text-[18px] sm:col-start-2 sm:grid-cols-2 sm:gap-3 2xl:col-start-auto 2xl:gap-x-6">
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <dt className="font-medium text-muted-foreground">Ahora depende de</dt>
+          <dd className="break-words">{responsibilityText(responsibility)}</dd>
+        </div>
+        {showAge && days !== null && (
+          <div className="min-w-0 flex flex-col gap-0.5">
+            <dt className="font-medium text-muted-foreground">Antigüedad del estado</dt>
+            <dd>{ageLabel(days)}</dd>
+          </div>
+        )}
+      </dl>
     </section>
   )
 }

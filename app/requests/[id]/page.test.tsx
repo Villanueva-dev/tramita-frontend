@@ -647,6 +647,33 @@ describe('RequestDetailPage', () => {
     expect(screen.queryByText('Teléfono')).toBeNull()
   })
 
+  // Guarda, no RED propio: el formulario público ya no envía `studentCode`, pero el backend lo
+  // conserva como opcional y los registros que lo traen deben seguir mostrándolo.
+  it('muestra la fila «Código» cuando el registro conserva un código de estudiante (guarda)', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const studentCard = screen.getByText('Datos del estudiante').closest<HTMLElement>('[data-slot="card"]')
+    if (!studentCard) throw new Error('No se encontró la tarjeta de datos del estudiante')
+
+    expect(within(studentCard).getByText('Código')).toBeDefined()
+    expect(within(studentCard).getByText('123456')).toBeDefined()
+  })
+
+  it.each(['', '   '])('no muestra la fila «Código» cuando studentCode es %j', async (studentCode) => {
+    mockTramita({ getRequest: () => ({ ...request, studentCode }) })
+
+    render(<RequestDetailPage />)
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    const studentCard = screen.getByText('Datos del estudiante').closest<HTMLElement>('[data-slot="card"]')
+    if (!studentCard) throw new Error('No se encontró la tarjeta de datos del estudiante')
+
+    expect(within(studentCard).queryByText('Código')).toBeNull()
+  })
+
   // T3: «Lo que se solicita» reemplaza a «Información del trámite» (mismo ícono, sin cambio
   // de contrato).
   it('la sección de asignaturas se titula «Lo que se solicita»', async () => {

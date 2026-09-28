@@ -50,6 +50,47 @@ describe('CurrentStateBlock', () => {
     expect(within(region()).getByText('En registro nacional')).toBeDefined()
   })
 
+  it('distribuye el estado y sus metadatos en columnas amplias sin perder el apilado angosto', () => {
+    render(
+      <CurrentStateBlock
+        state={state()}
+        responsibility={single}
+        waitingSince={daysAgoIso(5)}
+        now={NOW}
+      />,
+    )
+
+    const block = region()
+    const stateSummary = within(block).getByRole('heading', { name: 'Estado actual' }).parentElement
+    const metadata = within(block).getByText('Ahora depende de').parentElement?.parentElement
+
+    expect(block.className).toContain('2xl:grid-cols-[auto_minmax(16rem,1.2fr)_minmax(0,0.8fr)]')
+    expect(stateSummary?.className).toContain('sm:col-start-2')
+    expect(stateSummary?.className).toContain('2xl:col-start-auto')
+    expect(metadata?.className).toContain('sm:col-start-2')
+    expect(metadata?.className).toContain('sm:grid-cols-2')
+  })
+
+  // En angosto los metadatos se apilan: `gap-3` los separaba el triple que antes del
+  // reequilibrio y el banner crecía en móvil; la separación amplia vuelve desde `sm`.
+  it('mantiene juntos los metadatos apilados y los separa solo cuando van en columnas', () => {
+    render(
+      <CurrentStateBlock
+        state={state()}
+        responsibility={single}
+        waitingSince={daysAgoIso(5)}
+        now={NOW}
+      />,
+    )
+
+    const metadata = within(region()).getByText('Ahora depende de').parentElement?.parentElement
+    const classes = metadata?.className.split(' ')
+
+    expect(classes).toContain('gap-1')
+    expect(classes).toContain('sm:gap-3')
+    expect(classes).not.toContain('gap-3')
+  })
+
   it('muestra una insignia para isInitial y otra, independiente, para isFinal', () => {
     render(
       <CurrentStateBlock
