@@ -9,12 +9,8 @@ import {
   Download,
   FileText,
   Loader2,
-  Printer,
-  ShieldCheck,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { isClosed } from '@/lib/request-state'
-import { PdfDocument } from '@/components/pdf-document'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTramita } from '@/lib/store'
@@ -26,7 +22,7 @@ export default function DocumentoPage() {
   const { getRequest, refreshRequest } = useTramita()
   const req = getRequest(params.id)
   const [downloading, setDownloading] = useState(false)
-  const [downloaded, setDownloaded] = useState(false)
+  const [downloadedName, setDownloadedName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -38,10 +34,10 @@ export default function DocumentoPage() {
   }, [params.id, refreshRequest])
 
   useEffect(() => {
-    if (!downloaded) return
-    const t = setTimeout(() => setDownloaded(false), 3500)
+    if (!downloadedName) return
+    const t = setTimeout(() => setDownloadedName(null), 3500)
     return () => clearTimeout(t)
-  }, [downloaded])
+  }, [downloadedName])
 
   function handleDownload() {
     setDownloading(true)
@@ -56,13 +52,14 @@ export default function DocumentoPage() {
         anchor.href = url
         // El nombre lo fija el backend: identifica el formato institucional (DO-FR-100) y
         // omite deliberadamente cédula y nombre. Reescribirlo acá rompía esa correspondencia.
-        anchor.download = filenameFromContentDisposition(
+        const filename = filenameFromContentDisposition(
           response.headers?.get('Content-Disposition') ?? null,
           `documento_${params.id}.pdf`,
         )
+        anchor.download = filename
         anchor.click()
         URL.revokeObjectURL(url)
-        setDownloaded(true)
+        setDownloadedName(filename)
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'No se pudo generar el PDF.'))
       .finally(() => {
@@ -90,10 +87,8 @@ export default function DocumentoPage() {
     )
   }
 
-  const closed = isClosed(req)
-
   return (
-    <AppShell title={closed ? 'Documento formal' : 'Documento de la solicitud'}>
+    <AppShell title="Documento de la solicitud">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <Link
           href={`/requests/${req.id}`}
@@ -107,37 +102,25 @@ export default function DocumentoPage() {
           <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                {closed ? <ShieldCheck className="size-5" /> : <FileText className="size-5" />}
+                <FileText className="size-5" />
               </span>
               <div>
                 <h2 className="font-serif text-lg font-bold tracking-tight">
-                  {closed ? 'Documento oficial de cierre' : 'Documento de la solicitud'}
+                  Documento de la solicitud
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {closed ? (
-                    <>
-                      Este documento constituye la constancia formal del trámite{' '}
-                      <span className="font-medium text-foreground">{req.radicado}</span>.
-                    </>
-                  ) : (
-                    <>
-                      Información registrada para el trámite{' '}
-                      <span className="font-medium text-foreground">{req.radicado}</span>{' '}
-                      en su estado actual.
-                    </>
-                  )}
+                  Información registrada para el trámite{' '}
+                  <span className="font-medium text-foreground">{req.radicado}</span>{' '}
+                  en su estado actual. El pie del PDF lleva el estado al emitir y un código
+                  que se consulta en{' '}
+                  <Link href="/verificar" className="font-medium text-primary hover:underline">
+                    Verificar documento
+                  </Link>
+                  .
                 </p>
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => window.print()}
-              >
-                <Printer className="size-4" />
-                Imprimir
-              </Button>
               <Button
                 className="gap-2"
                 onClick={handleDownload}
@@ -159,14 +142,12 @@ export default function DocumentoPage() {
           </CardContent>
         </Card>
 
-        {downloaded && (
+        {downloadedName && (
           <div className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
             <CheckCircle2 className="size-5 shrink-0" />
             <span>
               Documento{' '}
-              <span className="font-semibold">
-                constancia_{req.radicado}.pdf
-              </span>{' '}
+              <span className="font-semibold">{downloadedName}</span>{' '}
               descargado correctamente.
             </span>
           </div>
@@ -193,11 +174,6 @@ export default function DocumentoPage() {
               <p className="truncate text-sm font-medium">{v}</p>
             </div>
           ))}
-        </div>
-
-        {/* Document preview */}
-        <div className="rounded-xl border border-border bg-muted/40 p-3 sm:p-8">
-          <PdfDocument request={req} />
         </div>
       </div>
     </AppShell>
