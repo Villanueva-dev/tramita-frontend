@@ -45,7 +45,7 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
   Commit convencional.
 - [x] **T3 — Entradas desde el menú y el login.** Entrada «Verificar documento» en `NAV` y
   enlace bajo el formulario del login. Commit convencional.
-- [ ] **T4 — Prueba en vivo** contra el backend local (registra un sello): `/verificar` sin
+- [x] **T4 — Prueba en vivo** contra el backend local (registra un sello): `/verificar` sin
   sesión no redirige; el código de un PDF descargado coincide en fecha, estado y revisión;
   `ZZZZZZZZZZZZZ` no da resultado.
 - [ ] **T5 — Revisión con agente limpio y PR** con `Closes #82`. Revisión hecha; falta la PR.
@@ -92,10 +92,22 @@ reglas por `definition.code`, mover el formateador a `lib/`, la T6 de #12.
   reescribir otra vez los `Verificado:` (lo que afirman se re-verificó cierto). Anotado aparte:
   el checklist `revisar-frontend-next` dice que `pnpm lint` está roto y ya no lo está.
 - T6: RED 2 fallidos (sin `role="status"`; `readOnly` falso); GREEN 47 en verde. Nueve mutantes
-  mueren, cinco de ellos sobrevivían en la revisión. Suite 364 en verde; `tsc`, lint, build y
+  mueren, siete de ellos sobrevivían en la revisión (M05, M08, M09, M19, M20, M21, M22). Suite 364 en verde; `tsc`, lint, build y
   `git diff --check` limpios. Commits `0aa2a8d` y `be636e0`.
 - Revisión nativa (RDD): `off` por `clone_local`; no aplica.
+- T4 en vivo (Chrome, 2026-09-27, backend local): se descargó el PDF de una solicitud de adición
+  de créditos, lo que registró un sello; `pdftotext` leyó en el pie `Emitido: 27/09/2026 · Estado:
+  En coordinación (revisión) · Revisión: 0`. Escribir el código en minúsculas y con espacios
+  consultó `/api/public/seals/<CÓDIGO>` en mayúsculas y sin espacios (200), y la pantalla mostró la
+  misma fecha, estado y revisión. `ZZZZZZZZZZZZZ` → 404 y el texto de «no hay ningún documento
+  emitido». `RC-000123` → error de campo y ninguna petición en la red. La entrada del menú lleva a
+  `/verificar` fuera del shell; con sesión, la página no redirige; el enlace del login está en el
+  HTML servido sin sesión, y `curl` sin cookies devuelve 200 sin redirección.
+- Observado en vivo, sin aplicar: el contenedor `role="status"` vacío ocupa un hueco del `gap-6`, y
+  deja ~24 px de más bajo el botón cuando no hay resultado (cosmético). Fuera del alcance de #82: el
+  aviso de descarga del documento dice `constancia_<id>.pdf`, pero el archivo se guarda como
+  `DO-FR-100-<id>.pdf`.
 
 ## Próximo paso
 
-T4: terminar la prueba en vivo con navegador (extensión de Chrome sin conectar), y después T5 (PR).
+T5: abrir la PR con `Closes #82`.
