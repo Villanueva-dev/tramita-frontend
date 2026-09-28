@@ -92,8 +92,8 @@ cambiar la variante de color de las transiciones que exigen nota.
   final sin anexo ni aviso no muestra la región. Reescribir el test de orden del anexo según D1.
   GREEN: layout de dos columnas con el panel fijo al hacer scroll; el enlace al PDF queda en el
   encabezado.
-- [ ] **T2 — Encabezado con el nombre del estudiante y banner de estado.** El nombre es `h2`, no
-  `h1`: `AppShell` ya renderiza el `h1` con el título de la página
+- [x] **T2 — Encabezado con el nombre del estudiante y banner de estado.** Commit `40b9028`. El
+  nombre es `h2`, no `h1`: `AppShell` ya renderiza el `h1` con el título de la página
   (`components/app-shell.tsx:185-187`) y está fuera de alcance. RED: el `h2` es el nombre del
   estudiante y aparece una sola vez (la fila «Nombre» sale de «Datos del estudiante»); se muestra
   «Solicitud {radicado} · radicada el {fecha}». GREEN: el banner sube arriba y
@@ -102,10 +102,13 @@ cambiar la variante de color de las transiciones que exigen nota.
   ser negado (`spec.md:496-503`). Se retira `StatusBadge` del encabezado: con datos reales repite
   el nombre del estado que ya muestra el banner (`stateName` sale de `currentState.name`); el
   test #9a no lo detectaba porque su fixture conserva un `stateName` desactualizado.
-- [ ] **T3 — Datos del estudiante y lo que se solicita.** RED: el contacto muestra el teléfono
-  solo cuando existe; la tarjeta «Créditos solicitados» suma los créditos en adición de créditos
-  y no aparece en novedad de notas ni en una definición desconocida. GREEN: secciones
-  reestilizadas.
+- [ ] **T3 — Datos del estudiante y lo que se solicita.** RED: la fila «Teléfono» aparece solo
+  cuando existe `studentPhone` (correo y teléfono en filas separadas, no una fila «Contacto»: cada
+  dato conserva su etiqueta); la tarjeta «Créditos solicitados» suma `subjects[].credits` en
+  adición de créditos con asignaturas, y no aparece en novedad de notas, en una definición
+  desconocida ni sin asignaturas. GREEN: «Información del trámite» pasa a «Lo que se solicita» y
+  las tres secciones de la columna principal adoptan la escala del mockup (títulos de 20 px,
+  etiquetas de 16 px, valores y tabla de 17 px); «Documentos adjuntos» solo cambia su título.
 - [ ] **T4 — Historial, diálogo y mensaje de resultado.** RED: un error de transición se anuncia
   como alerta, no con el ícono de éxito. GREEN: `WorkflowTimeline` y `ActionDialog` reestilizados
   sin cambiar sus props; se retira la tarjeta «Resumen», porque el tipo ya está en el encabezado.
@@ -149,11 +152,24 @@ cambiar la variante de color de las transiciones que exigen nota.
   antes que el test. GREEN sobre el diff final: `pnpm test` 28 archivos / 362 tests; `tsc
   --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check` limpios. Riesgo nativo: `medium`,
   `under_budget` (220 líneas antes de las correcciones del orquestador).
+- 2026-09-27 — **T2 commiteada**: `5f135a0` (este documento) y `40b9028` (feat).
+- 2026-09-27 — **T3 implementada, pendiente de revisión y commit.** Ruta: delegada (escritor
+  único; disparador: `page.tsx` + `page.test.tsx`). RED observado: `muestra la fila «Teléfono»
+  cuando studentPhone llega con un valor` (`Unable to find an element with the text:
+  Teléfono`), `«Créditos solicitados» suma los créditos…` (`…with the text: Créditos
+  solicitados`) y `la sección de asignaturas se titula «Lo que se solicita»` (`…with the text:
+  Lo que se solicita`). Guardas sin RED propio: sin teléfono no hay fila; sin «Créditos
+  solicitados» en novedad de notas, definición desconocida (#9b) ni adición sin asignaturas.
+  Revisión del orquestador: dos comentarios imprecisos corregidos (el correo desborda porque no
+  tiene espacios donde partirse, no por ser «el único dato largo»; `lib/store.tsx:210` convierte
+  una clave ausente en `null` y el chequeo de verdad descarta además la cadena vacía). GREEN
+  sobre el diff final: `pnpm test` 28 archivos / 367 tests; `tsc --noEmit`, `pnpm lint`, `pnpm
+  build` y `git diff --check` limpios. Riesgo nativo: `medium`, `under_budget` (166 líneas).
 - Deuda detectada, fuera de alcance: `.claude/skills/revisar-frontend-next/SKILL.md:123` afirma
   que `pnpm lint` está roto, pero ESLint 9.39.3 está instalado con `eslint.config.mjs` y corre
   limpio (lo usa la CI).
 
 ## Siguiente paso
 
-Revisión del diff de T2 por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
-T2, y después T3.
+Revisión del diff de T3 por el propietario; con su aprobación, commits `docs(odd)` y `feat` de
+T3, y después T4.
