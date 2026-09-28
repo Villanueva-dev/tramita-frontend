@@ -71,6 +71,26 @@ describe('CurrentStateBlock', () => {
     expect(metadata?.className).toContain('sm:grid-cols-2')
   })
 
+  // En angosto los metadatos se apilan: `gap-3` los separaba el triple que antes del
+  // reequilibrio y el banner crecía en móvil; la separación amplia vuelve desde `sm`.
+  it('mantiene juntos los metadatos apilados y los separa solo cuando van en columnas', () => {
+    render(
+      <CurrentStateBlock
+        state={state()}
+        responsibility={single}
+        waitingSince={daysAgoIso(5)}
+        now={NOW}
+      />,
+    )
+
+    const metadata = within(region()).getByText('Ahora depende de').parentElement?.parentElement
+    const classes = metadata?.className.split(' ')
+
+    expect(classes).toContain('gap-1')
+    expect(classes).toContain('sm:gap-3')
+    expect(classes).not.toContain('gap-3')
+  })
+
   it('muestra una insignia para isInitial y otra, independiente, para isFinal', () => {
     render(
       <CurrentStateBlock

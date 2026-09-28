@@ -81,7 +81,7 @@ export function CurrentStateBlock({
           {state.isFinal && <Badge variant="secondary">Cerrado</Badge>}
         </div>
       </div>
-      <dl className="min-w-0 grid gap-3 text-[18px] sm:col-start-2 sm:grid-cols-2 2xl:col-start-auto 2xl:gap-x-6">
+      <dl className="min-w-0 grid gap-1 text-[18px] sm:col-start-2 sm:grid-cols-2 sm:gap-3 2xl:col-start-auto 2xl:gap-x-6">
         <div className="min-w-0 flex flex-col gap-0.5">
           <dt className="font-medium text-muted-foreground">Ahora depende de</dt>
           <dd className="break-words">{responsibilityText(responsibility)}</dd>
