@@ -140,17 +140,27 @@ describe('RequestDetailPage', () => {
     expect(screen.getAllByText('Ana Pérez')).toHaveLength(1)
   })
 
-  // T2: el radicado y las fechas de creación/actualización se muestran en una sola línea bajo
-  // el nombre del estudiante. Regex robusta al formato local de `formatDate` (es-CO): solo se
-  // afirma el texto fijo alrededor de las fechas, no su formato exacto.
-  it('muestra el radicado y las fechas de creación y actualización bajo el nombre', async () => {
+  // T2: el radicado y la fecha de radicación se muestran en una sola línea bajo el nombre del
+  // estudiante. Regex robusta al formato local de `formatDate` (es-CO): solo se afirma el texto
+  // fijo alrededor de la fecha, no su formato exacto.
+  it('muestra el radicado y la fecha de radicación bajo el nombre', async () => {
     setup()
 
     await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
 
-    expect(
-      screen.getByText(/^Solicitud request-1 · radicada el .+ · última actualización .+$/),
-    ).toBeDefined()
+    expect(screen.getByText(/^Solicitud request-1 · radicada el .+$/)).toBeDefined()
+  })
+
+  // T5 (prueba en vivo): el contrato del detalle no trae `updatedAt` (RequestResponse), y el
+  // store lo rellena con `createdAt` (lib/store.tsx:191). Mostrar «última actualización»
+  // afirmaba la fecha de radicación como si fuera la del último cambio, aun después de registrar
+  // una transición. La fecha real del último cambio ya está en el historial.
+  it('no afirma una fecha de última actualización que el contrato no trae', async () => {
+    setup()
+
+    await waitFor(() => expect(screen.getByText('Ana Pérez')).toBeDefined())
+
+    expect(screen.queryByText(/última actualización/i)).toBeNull()
   })
 
   // T2: con datos reales, `stateName` sale de `currentState.name` (`lib/store.tsx:188`), así

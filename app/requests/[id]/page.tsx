@@ -324,9 +324,11 @@ export default function RequestDetailPage() {
             <h2 className="font-serif text-[34px] font-bold leading-tight tracking-tight">
               {req.studentName}
             </h2>
+            {/* Sin «última actualización»: el contrato no trae `updatedAt` y el store lo rellena
+                con `createdAt` (lib/store.tsx:191). La fecha del último cambio está en el
+                historial. */}
             <p className="text-[17px] text-muted-foreground">
-              {`Solicitud ${req.radicado} · radicada el ${formatDate(req.createdAt)}` +
-                ` · última actualización ${formatDate(req.updatedAt)}`}
+              {`Solicitud ${req.radicado} · radicada el ${formatDate(req.createdAt)}`}
             </p>
           </div>
 
@@ -398,7 +400,10 @@ export default function RequestDetailPage() {
                   </dl>
                 )}
 
-                <div className="overflow-hidden rounded-lg border border-border">
+                {/* `overflow-x-auto`, no `overflow-hidden`: a 17px la tabla no cabe en un
+                    celular (~390px) y ocultar el desborde escondía la última columna; así se
+                    desplaza dentro de su recuadro sin perder datos. */}
+                <div className="overflow-x-auto rounded-lg border border-border">
                   <table className="w-full text-left text-[17px]">
                     <thead>
                       <tr className="border-b border-border bg-muted/50 text-base text-muted-foreground">
@@ -620,8 +625,10 @@ export default function RequestDetailPage() {
           </div>
 
           {/* Right column: acciones + timeline. Fija al hacer scroll, como en el mockup: el panel
-              de acciones y el historial acompañan mientras se revisa la columna principal. */}
-          <div className="flex flex-col gap-6 lg:sticky lg:top-4 lg:self-start">
+              de acciones y el historial acompañan mientras se revisa la columna principal.
+              `top-20` = la barra sticky de `AppShell` (`h-16`) más 1rem de aire: con menos, el
+              panel se pega debajo de la barra y su título queda oculto. */}
+          <div className="flex flex-col gap-6 lg:sticky lg:top-20 lg:self-start">
             {hasActionsPanel && (
               <section
                 aria-label="Acciones"
