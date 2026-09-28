@@ -41,6 +41,12 @@ Aprovechar el ancho del banner del estado actual en escritorio y dejar de mostra
   el resto de los campos del estudiante y el código de asignatura sin cambios. Evidencia:
   RED observado (2 fallidas: `""` y `"   "`), GREEN con 386 en verde; `pnpm exec tsc
   --noEmit` y `pnpm lint` sin errores; prueba en vivo (abajo). Commit: `ad7e9d8`.
+- [x] **RD-3** — Quitar la separación de más entre los metadatos apilados en móvil, sin
+  reestructurar el banner (autorizado por el propietario: «lo más KISS posible, sin hacer
+  reingeniería»). Ruta: en línea (una clase y su prueba). Cambio: el `dl` pasa de `gap-3` a
+  `gap-1 sm:gap-3`. Evidencia: RED observado (1 fallida), GREEN con 387 en verde;
+  `pnpm exec tsc --noEmit` y `pnpm lint` sin errores; prueba en vivo (abajo). Commit:
+  `5597edc`.
 
 ## Prueba en vivo
 
@@ -62,19 +68,29 @@ Sin desborde horizontal del documento en ningún ancho. RD-2, en vivo a 1920 y 3
 solicitud del formulario público lista «Cédula · Programa · Semestre · Correo · Teléfono»
 (antes empezaba por «Código» vacío) y una que trae código conserva «Código» al inicio.
 
-**Hallazgo pendiente de decisión**: por debajo de `sm` (640 px) RD-1 hace el banner 22.5 px
-más alto. El `dl` pasó a ser hijo directo de la grilla (`gap-5`, 20 px) cuando antes vivía
-dentro del bloque del estado (`gap-2`, 8 px), y su separación interna pasó de `gap-1` a
-`gap-3`. La aceptación de RD-1 (sin desborde, legible) se cumple; corregirlo es un cambio de
-alcance que decide el propietario.
+**Alto extra en móvil (resuelto en parte por RD-3)**: por debajo de `sm` (640 px) RD-1 hacía
+el banner 22.5 px más alto. El desglose en vivo a 390 px atribuye todo a dos separaciones (la
+raíz del documento está a 18 px, así que el espaciado de Tailwind escala ×1.125):
+
+| Separación | `main` | RD-1 | RD-3 |
+| --- | --- | --- | --- |
+| nombre del estado → metadatos (`gap` de la grilla) | 9 | 22.5 | 22.5 |
+| entre metadatos apilados (`gap` del `dl`) | 4.5 | 13.5 | 4.5 |
+| alto del banner a 390 / 320 px | 423.3 / 465.8 | 445.8 / 488.3 | 436.8 / 479.3 |
+
+RD-3 no cambia nada desde `sm`: 205.8 px a 768 y 1280, y 127.1 px a 1920, con la misma
+separación horizontal; sin desborde. Los 13.5 px restantes vienen del `gap-5` de la grilla,
+que en móvil también separa el ícono del texto: bajarlos exige reestructurar el banner (un
+envoltorio con `sm:contents`, prototipado y medido: 423.3 px, igual que `main`) o compensar
+con márgenes negativos. El propietario eligió no reestructurar.
 
 ## Ejecución y entrega
 
 - TDD: estricto, habilitado por la configuración del proyecto (`openspec/config.yaml`);
   corredor: `pnpm test`. Cada tarea exige RED → GREEN → REFACTOR observados.
-- Pronóstico: 120–220 líneas de autoría para las dos tareas (orientativo). Conteo real:
-  78 en RD-1 y 31 en RD-2 (109), más este documento. Estrategia `ask-on-risk`; no hace falta
-  partir en PR encadenadas.
+- Pronóstico: 120–220 líneas de autoría (orientativo). Conteo real: 78 en RD-1, 31 en RD-2 y
+  21 en RD-3 (130), más este documento. Estrategia `ask-on-risk`; no hace falta partir en PR
+  encadenadas.
 - RDD: apagado en este clon (`gentle-ai review mode status`: `clone_local: off`). La
   evaluación de riesgo que corrió Codex sobre RD-1 dio `medium`, `under_budget`,
   `review_due: false`.
@@ -94,8 +110,9 @@ alcance que decide el propietario.
   distinguió los dos casos del `it.each` en su título y quitó una línea en blanco doble.
 - Corrección del registro anterior: `pnpm lint` no está roto. En el sandbox de Codex terminó
   por tiempo (exit 124, sin salida); en una terminal normal pasa en 8 s.
+- 2026-09-28: el propietario autorizó corregir el alto extra en móvil «lo más KISS posible,
+  sin hacer reingeniería»; se hizo RD-3 con una sola clase.
 
 ## Próximo paso
 
-Decidir si se corrige el alto extra del banner por debajo de 640 px. Después, la entrega
-(push y PR) queda a decisión del propietario.
+La entrega (push de `fix/request-detail-density` y PR) queda a decisión del propietario.
