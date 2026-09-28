@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 
 import { AppShell } from './app-shell'
 import { baseRequest } from '@/lib/store'
@@ -73,5 +73,14 @@ describe('AppShell', () => {
     renderShell([urgente('RECHAZADA', 'Rechazada', true)])
 
     expect(badge()).toBeNull()
+  })
+
+  // La verificación es pública y vive fuera del shell (#82); quien tiene sesión llega a ella
+  // desde el menú. Se consulta por rol y nombre visible, como la encuentra quien usa el sistema.
+  it('ofrece en el menú el enlace a la verificación pública de documentos', () => {
+    renderShell([])
+
+    const link = screen.getByRole('link', { name: 'Verificar documento' })
+    expect(link.getAttribute('href')).toBe('/verificar')
   })
 })
