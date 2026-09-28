@@ -214,3 +214,14 @@ idempotencia del registro en el backend (Tramita#30) y los datos de prueba local
     feature; ahora dicen «spec 006, FR-011».
   - Commit `ae09837` (`fix(solicitudes): deja de pedir documentos que el backend no expone`),
     8 archivos, +54 −449.
+- Prueba en vivo de la PR-2 (Chrome, 2026-09-27, backend local; solo lectura, sin descargas ni
+  transiciones, así que no registró sellos):
+  - Detalle de una solicitud en curso: sin «Documentos adjuntos», sin «Registrar firma» y sin
+    botón de descarga de adjuntos; conserva «Datos del estudiante», «Lo que se solicita»,
+    «Historial» y «Acciones».
+  - Red al cargar el detalle: `GET /api/requests/{id}` y `/timeline` (200, dos veces cada uno por
+    Strict Mode en desarrollo) y **0** peticiones a `/documents`, que antes salían en cada carga.
+  - `/requests/{id}/documento`: las mismas dos rutas y 0 a `/documents`; no se pulsó «Descargar».
+  - Un primer intento dio 401 porque la sesión de Chrome había expirado tras reiniciar los
+    servidores; el propietario volvió a iniciar sesión y la prueba se repitió completa. Incluso
+    con 401, la red ya mostraba solo las dos rutas.
