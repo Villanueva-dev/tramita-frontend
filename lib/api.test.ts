@@ -446,7 +446,7 @@ describe('getRequestTimeline', () => {
 })
 
 describe('advanceRequest', () => {
-  it('envía POST .../transitions con solo targetStateCode cuando no hay note', async () => {
+  it('envía POST .../transitions con fromStateCode y targetStateCode cuando no hay note', async () => {
     const updated: Request = {
       id: 'uuid-1',
       definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
@@ -459,22 +459,23 @@ describe('advanceRequest', () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, updated))
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await advanceRequest('uuid-1', 'EN_FACULTAD')
+    const result = await advanceRequest('uuid-1', 'EN_COORDINACION', 'EN_FACULTAD')
 
     expect(result).toEqual(updated)
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('/api/requests/uuid-1/transitions')
-    expect(JSON.parse(init.body as string)).toEqual({ targetStateCode: 'EN_FACULTAD' })
+    expect(JSON.parse(init.body as string)).toEqual({ fromStateCode: 'EN_COORDINACION', targetStateCode: 'EN_FACULTAD' })
   })
 
   it('incluye note en el body cuando se pasa (devolución con observación obligatoria)', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {}))
     vi.stubGlobal('fetch', fetchMock)
 
-    await advanceRequest('uuid-1', 'DEVUELTO', 'Falta soporte de notas')
+    await advanceRequest('uuid-1', 'EN_FACULTAD', 'DEVUELTO', 'Falta soporte de notas')
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(JSON.parse(init.body as string)).toEqual({
+      fromStateCode: 'EN_FACULTAD',
       targetStateCode: 'DEVUELTO',
       note: 'Falta soporte de notas',
     })
@@ -483,7 +484,7 @@ describe('advanceRequest', () => {
   it('lanza ApiError 422 cuando falta la nota obligatoria; ADVANCE_REQUEST_422_FIELD identifica el campo', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(problemResponse(422, 'Unprocessable Entity')))
 
-    await expect(advanceRequest('uuid-1', 'DEVUELTO')).rejects.toMatchObject({ status: 422 })
+    await expect(advanceRequest('uuid-1', 'EN_FACULTAD', 'DEVUELTO')).rejects.toMatchObject({ status: 422 })
     expect(ADVANCE_REQUEST_422_FIELD).toBe('note')
   })
 
@@ -493,7 +494,7 @@ describe('advanceRequest', () => {
       vi.fn().mockResolvedValue(problemResponse(409, 'Conflict', 'Transición no definida')),
     )
 
-    await expect(advanceRequest('uuid-1', 'EN_FACULTAD')).rejects.toMatchObject({ status: 409 })
+    await expect(advanceRequest('uuid-1', 'EN_COORDINACION', 'EN_FACULTAD')).rejects.toMatchObject({ status: 409 })
   })
 })
 

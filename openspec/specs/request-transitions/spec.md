@@ -24,8 +24,12 @@ aprobación o rechazo — `project.md:92-94` lo autoriza explícitamente: regist
 `APROBADA_FACULTAD` es dejar constancia de que la facultad aprobó, no aprobar. El
 sistema **MUST NOT** presentarse a sí mismo como quien aprueba o rechaza. El
 `targetStateCode` enviado en
-`AdvanceRequestBody` (:193-200) **MUST** provenir exclusivamente de la opción
-seleccionada entre las `availableTransitions` mostradas. El sistema **MUST NOT** fijar
+`AdvanceRequestBody` (schema del contrato 002 del backend) **MUST** provenir
+exclusivamente de la opción seleccionada entre las `availableTransitions` mostradas. El
+`fromStateCode` del mismo `AdvanceRequestBody` **MUST** ser el `currentState.code` de la
+solicitud tal como la muestra la pantalla cuando la persona decidió, y **MUST NOT** ser el
+de un detalle consultado justo antes del envío: ese siempre coincide con el vigente y
+anularía la comprobación de concurrencia del backend. El sistema **MUST NOT** fijar
 códigos o etiquetas de transición/estado en `app/`, `components/` o `lib/` fuera de
 fixtures.
 
@@ -50,6 +54,14 @@ fixtures.
 - WHEN se selecciona una y se confirma
 - THEN el `targetStateCode` del `AdvanceRequestBody` es el de esa transición y no un
   valor construido por el cliente
+
+#### Scenario: El `fromStateCode` es el estado mostrado, no el recién consultado
+
+- GIVEN la pantalla muestra la solicitud en el estado A y el detalle vigente del backend
+  la tiene en el estado B, con la misma transición disponible
+- WHEN se confirma la transición
+- THEN el body del `AdvanceRequestBody` lleva `fromStateCode` = A
+- AND el backend responde 409 sin registrar nada
 
 #### Scenario: Ausencia de códigos y etiquetas de transición o estado
 

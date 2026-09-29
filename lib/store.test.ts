@@ -364,4 +364,51 @@ describe('transition (TramitaProvider)', () => {
 
     expect(result.current.getRequest(summary.id)?.annexRequirement).toEqual(annexRequirement)
   })
+
+  // H-10: el backend compara `fromStateCode` con el estado vigente; para que esa comparación
+  // proteja algo, tiene que ser el estado que la pantalla mostraba cuando la persona decidió,
+  // no el del detalle que `transition` pide justo antes de enviar.
+  const toFaculty = { targetState: { code: 'EN_FACULTAD', name: 'En facultad', isFinal: false, isInitial: false }, responsible: 'Facultad', requiresNote: false }
+
+  function transitionsBody(): { fromStateCode?: string, targetStateCode?: string } {
+    const call = apiFetchMock.mock.calls.find(([path]) => path === `/requests/${summary.id}/transitions`)
+    return JSON.parse((call?.[1] as { body: string }).body)
+  }
+
+  async function loadThenTransition(shownState: ReturnType<typeof withState>, currentDetail: object) {
+    const detailPath = `/requests/${summary.id}`
+    let detail: object = { ...shownState, availableTransitions: [toFaculty] }
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === detailPath) return Promise.resolve(jsonResponse(200, detail))
+      if (path === `${detailPath}/timeline`) return Promise.resolve(jsonResponse(200, []))
+      if (path === `${detailPath}/transitions`) return Promise.resolve(jsonResponse(200, {}))
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+    await act(async () => {
+      await result.current.refreshRequest(summary.id)
+    })
+    detail = currentDetail
+    await act(async () => {
+      await result.current.transition(summary.id, 'EN_FACULTAD')
+    })
+  }
+
+  it('envía como fromStateCode el estado que mostraba la pantalla, no el del detalle recién pedido (H-10)', async () => {
+    const shown = withState('EN_COORDINACION', 'En coordinación', false, true)
+    const current = { ...withState('EN_REGISTRO_CALI', 'En registro Cali', false), availableTransitions: [toFaculty] }
+
+    await loadThenTransition(shown, current)
+
+    expect(transitionsBody()).toMatchObject({ fromStateCode: 'EN_COORDINACION', targetStateCode: 'EN_FACULTAD' })
+  })
+
+  it('envía el estado vigente cuando la pantalla está al día', async () => {
+    const shown = withState('EN_COORDINACION', 'En coordinación', false, true)
+    const current = { ...shown, availableTransitions: [toFaculty] }
+
+    await loadThenTransition(shown, current)
+
+    expect(transitionsBody()).toMatchObject({ fromStateCode: 'EN_COORDINACION', targetStateCode: 'EN_FACULTAD' })
+  })
 })

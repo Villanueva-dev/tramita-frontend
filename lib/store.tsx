@@ -352,7 +352,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     if (!selected) throw new Error('La transición ya no está disponible para esta solicitud')
     const response = await apiFetch(`/requests/${id}/transitions`, {
       method: 'POST',
-      body: JSON.stringify({ targetStateCode, note: comment || undefined }),
+      // `fromStateCode` es el estado que MOSTRABA la pantalla cuando la persona decidió (H-10):
+      // sale de la copia del store, no de `detail`. `detail` se acaba de pedir y siempre
+      // coincide con el vigente, así que enviarlo anularía la protección del backend.
+      body: JSON.stringify({
+        fromStateCode: request.currentState.code,
+        targetStateCode,
+        note: comment || undefined,
+      }),
     })
     if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo aplicar la transición'))
     const updated = await loadRequest(id)

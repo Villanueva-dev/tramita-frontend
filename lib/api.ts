@@ -385,16 +385,19 @@ export async function getRequestTimeline(id: string): Promise<TimelineEntry[]> {
 export const ADVANCE_REQUEST_422_FIELD = 'note'
 
 /**
- * Avanza o devuelve una solicitud por una transición definida (US2, US5). `note`
- * solo viaja en el body cuando se pasa: es obligatoria únicamente si la
- * transición la exige (devoluciones, FR-014) y el backend valida eso, no el front.
+ * Avanza o devuelve una solicitud por una transición definida (US2, US5).
+ * `fromStateCode` es el estado que mostraba la pantalla cuando la persona decidió: el
+ * backend lo exige y responde 409 si ya no es el vigente (H-10). `note` solo viaja en el
+ * body cuando se pasa: es obligatoria únicamente si la transición la exige (devoluciones,
+ * FR-014) y el backend valida eso, no el front.
  */
 export async function advanceRequest(
   id: string,
+  fromStateCode: string,
   targetStateCode: string,
   note?: string,
 ): Promise<Request> {
-  const body: Record<string, unknown> = { targetStateCode }
+  const body: Record<string, unknown> = { fromStateCode, targetStateCode }
   if (note !== undefined) body.note = note
 
   const res = await apiFetch(`/requests/${encodeURIComponent(id)}/transitions`, {
