@@ -324,6 +324,14 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     setSearchErrors([])
   }, [authLogout])
 
+  const refreshMetrics = useCallback(async () => {
+    try {
+      setMetrics(await fetchRequestMetrics())
+    } catch {
+      setMetrics(null)
+    }
+  }, [])
+
   const getRequest = useCallback((id: string) => requests.find((request) => request.id === id), [requests])
   const refreshRequest = useCallback(async (id: string) => {
     const refreshed = await loadRequest(id)
@@ -358,8 +366,9 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     // recarga al montarse (app/requests/[id]/page.tsx).
     const created = baseRequest(await response.json() as ApiRequest)
     setRequests((previous) => [created, ...previous.filter((request) => request.id !== created.id)])
+    void refreshMetrics()
     return created
-  }, [])
+  }, [refreshMetrics])
 
   const updateRequest = useCallback(async (id: string, input: UpdateRequestInput) => {
     await saveRequest(id, {
@@ -402,7 +411,8 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
       subjects: item.subjects,
       reason: item.reason,
     } : item))
-  }, [getRequest])
+    void refreshMetrics()
+  }, [getRequest, refreshMetrics])
 
   const visibleRequests = useMemo(
     () => isAuthenticated ? requests : [],

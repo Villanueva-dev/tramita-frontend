@@ -14,6 +14,7 @@ import {
   ADVANCE_REQUEST_422_FIELD,
   askAssistant,
   fetchRequestMetrics,
+  fetchDashboardCategory,
   submitPublicRequest,
   getInbox,
   listPublicPrograms,
@@ -159,6 +160,10 @@ describe('fetchRequestMetrics', () => {
       completed: 0,
       averageCycleHours: null,
       returnCount: 0,
+      pending: 1,
+      inProgress: 2,
+      completedSuccessfully: 0,
+      urgent: 1,
     }
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, metrics))
     vi.stubGlobal('fetch', fetchMock)
@@ -167,6 +172,23 @@ describe('fetchRequestMetrics', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/metrics/requests',
       expect.objectContaining({ method: 'GET' }),
+    )
+  })
+})
+
+describe('fetchDashboardCategory', () => {
+  it('consulta la categoría en páginas sin pedir documentos personales', async () => {
+    const result = {
+      content: [], page: 1, size: 25, totalElements: 30, totalPages: 2,
+      hasNext: false, hasPrevious: true,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, result))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchDashboardCategory('URGENT', 1)).resolves.toEqual(result)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/requests/dashboard?category=URGENT&page=1&size=25',
+      expect.objectContaining({ method: 'GET', credentials: 'include' }),
     )
   })
 })

@@ -9,13 +9,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
-import type { AcademicRequest } from '@/lib/types'
-import { isClosed, isReturnedForCorrection, isSuccessfullyClosed } from '@/lib/request-state'
+import type { RequestMetrics } from '@/lib/types'
 
 interface CardDef {
   key: string
   label: string
-  value: number
+  value: number | null
   hint: string
   icon: LucideIcon
   accent: string
@@ -23,31 +22,19 @@ interface CardDef {
 }
 
 export function SummaryCards({
-  requests,
+  metrics,
   active,
   onSelect,
 }: {
-  requests: AcademicRequest[]
+  metrics: RequestMetrics | null
   active: string
   onSelect: (key: string) => void
 }) {
-  const pending = requests.filter((r) => r.status === 'pendiente').length
-  const inProgress = requests.filter(
-    (r) => r.status === 'en_revision' || isReturnedForCorrection(r),
-  ).length
-  // Un rechazo es final, pero no cuenta como cierre exitoso.
-  const completed = requests.filter(
-    (r) => isSuccessfullyClosed(r) || r.status === 'aprobado',
-  ).length
-  const urgent = requests.filter(
-    (r) => r.priority === 'urgente' && !isClosed(r),
-  ).length
-
   const cards: CardDef[] = [
     {
       key: 'pendiente',
       label: 'Pendientes',
-      value: pending,
+      value: metrics?.pending ?? null,
       hint: 'Requieren primer contacto',
       icon: Clock,
       accent: 'text-warning-foreground',
@@ -56,7 +43,7 @@ export function SummaryCards({
     {
       key: 'en_proceso',
       label: 'En proceso',
-      value: inProgress,
+      value: metrics?.inProgress ?? null,
       hint: 'En revisión o devueltas',
       icon: Loader,
       accent: 'text-primary',
@@ -65,7 +52,7 @@ export function SummaryCards({
     {
       key: 'completado',
       label: 'Completadas',
-      value: completed,
+      value: metrics?.completedSuccessfully ?? null,
       hint: 'Aprobadas o finalizadas',
       icon: CheckCircle2,
       accent: 'text-success',
@@ -74,7 +61,7 @@ export function SummaryCards({
     {
       key: 'urgente',
       label: 'Urgentes',
-      value: urgent,
+      value: metrics?.urgent ?? null,
       hint: 'Atención prioritaria',
       icon: AlertTriangle,
       accent: 'text-destructive',
@@ -110,7 +97,7 @@ export function SummaryCards({
                   {c.label}
                 </span>
                 <span className={cn('text-3xl font-bold tracking-tight', c.accent)}>
-                  {c.value}
+                  {c.value ?? '—'}
                 </span>
               </div>
               <span

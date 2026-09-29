@@ -9,6 +9,8 @@
 
 import type {
   InboxEntry,
+  DashboardRequestCategory,
+  DashboardRequestPage,
   PublicReceipt,
   PublicRequestBody,
   PublicSeal,
@@ -244,6 +246,17 @@ export async function fetchRequestMetrics(): Promise<RequestMetrics> {
   const res = await apiFetch('/metrics/requests')
   if (!res.ok) throw await parseProblem(res)
   return (await res.json()) as RequestMetrics
+}
+
+export async function fetchDashboardCategory(
+  category: DashboardRequestCategory,
+  page = 0,
+  size = 25,
+): Promise<DashboardRequestPage> {
+  const params = new URLSearchParams({ category, page: String(page), size: String(size) })
+  const res = await apiFetch(`/requests/dashboard?${params}`)
+  if (!res.ok) throw await parseProblem(res)
+  return (await res.json()) as DashboardRequestPage
 }
 
 // --- Motor de workflow (Fase B) ---

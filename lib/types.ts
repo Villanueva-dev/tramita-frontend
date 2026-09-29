@@ -203,6 +203,31 @@ export interface RequestMetrics {
   completed: number
   averageCycleHours: number | null
   returnCount: number
+  pending: number
+  inProgress: number
+  completedSuccessfully: number
+  urgent: number
+}
+
+export type DashboardRequestCategory = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'URGENT'
+
+export interface DashboardRequestEntry {
+  id: string
+  definition: WorkflowDefinition
+  studentName: string
+  currentState: State
+  createdAt: string
+  priority: 'normal' | 'urgente'
+}
+
+export interface DashboardRequestPage {
+  content: DashboardRequestEntry[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
 }
 
 /** openapi.yaml TimelineEntry (:248-270). `id` es int64 (number), no string. */

@@ -3,11 +3,12 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import DashboardPage from './page'
 import { baseRequest } from '@/lib/store'
 import { INBOX_LIMIT } from '@/lib/use-coordination-inbox'
-import type { AcademicRequest } from '@/lib/types'
+import type { AcademicRequest, DashboardRequestPage } from '@/lib/types'
 import type { InboxState } from '@/lib/use-coordination-inbox'
 
 const useTramita = vi.hoisted(() => vi.fn())
 const useCoordinationInbox = vi.hoisted(() => vi.fn())
+const fetchDashboardCategory = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -25,6 +26,7 @@ vi.mock('@/lib/use-coordination-inbox', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/use-coordination-inbox')>()),
   useCoordinationInbox,
 }))
+vi.mock('@/lib/api', () => ({ fetchDashboardCategory }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/dashboard',
@@ -75,9 +77,14 @@ interface TramitaMock {
 function renderDashboard({
   tramita,
   inbox = DEFAULT_INBOX,
+  categoryPage = {
+    content: [], page: 0, size: 25, totalElements: 0, totalPages: 0,
+    hasNext: false, hasPrevious: false,
+  },
 }: {
   tramita: TramitaMock
   inbox?: InboxState
+  categoryPage?: DashboardRequestPage
 }) {
   useTramita.mockReturnValue({
     metrics: null,
@@ -86,11 +93,13 @@ function renderDashboard({
     ...tramita,
   })
   useCoordinationInbox.mockReturnValue(inbox)
+  fetchDashboardCategory.mockResolvedValue(categoryPage)
   return render(<DashboardPage />)
 }
 
 afterEach(() => {
   cleanup()
+  window.sessionStorage.clear()
   vi.clearAllMocks()
 })
 
@@ -141,30 +150,131 @@ describe('DashboardPage — localización de solicitudes', () => {
 })
 
 describe('DashboardPage', () => {
-  it('excluye los rechazos al filtrar por Completadas', () => {
-    const rejected: AcademicRequest = {
-      ...request,
-      id: 'request-rejected',
-      radicado: 'RAD-REJECTED',
-      studentName: 'Solicitud Rechazada',
-      status: 'finalizado',
-      stateName: 'Rechazada',
-      currentState: { code: 'RECHAZADA', name: 'Rechazada', isFinal: true, isInitial: false },
+  it('muestra conteos globales y carga los trámites al seleccionar una tarjeta', async () => {
+    const categoryPage: DashboardRequestPage = {
+      content: [
+        {
+          id: 'request-pending',
+          definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+          studentName: 'Solicitud pendiente de prueba',
+          currentState: { code: 'EN_COORDINACION', name: 'En coordinación', isFinal: false, isInitial: true },
+          createdAt: '2026-09-28T12:00:00',
+          priority: 'normal',
+        },
+      ],
+      page: 0,
+      size: 25,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
     }
-    const finalized: AcademicRequest = {
-      ...request,
-      id: 'request-finalized',
-      radicado: 'RAD-FINALIZED',
-      studentName: 'Solicitud Finalizada',
-      status: 'finalizado',
-      stateName: 'Finalizada',
-      currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+
+    renderDashboard({
+      tramita: {
+        requests: [],
+        metrics: {
+          pending: 4,
+          inProgress: 7,
+          completedSuccessfully: 2,
+          urgent: 1,
+        },
+        searched: false,
+        searchErrors: [],
+      },
+      categoryPage,
+    })
+
+    expect(screen.getByRole('button', { name: /pendientes\s*4/i })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: /pendientes\s*4/i }))
+
+    expect(await screen.findByText('Solicitud pendiente de prueba')).toBeDefined()
+    expect(fetchDashboardCategory).toHaveBeenCalledWith('PENDING', 0, 25)
+    expect(screen.queryByText(/c\.c\./i)).toBeNull()
+  })
+
+  it('permite avanzar y retroceder entre páginas de una categoría', async () => {
+    const firstPage: DashboardRequestPage = {
+      content: [{
+        id: 'request-page-0',
+        definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+        studentName: 'Solicitud página uno',
+        currentState: { code: 'EN_COORDINACION', name: 'En coordinación', isFinal: false, isInitial: true },
+        createdAt: '2026-09-28T12:00:00',
+        priority: 'normal',
+      }],
+      page: 0, size: 25, totalElements: 26, totalPages: 2,
+      hasNext: true, hasPrevious: false,
     }
-    renderDashboard({ tramita: { requests: [rejected, finalized], searched: true, searchErrors: [] } })
+    const secondPage: DashboardRequestPage = {
+      ...firstPage,
+      content: [{ ...firstPage.content[0], id: 'request-page-1', studentName: 'Solicitud página dos' }],
+      page: 1,
+      hasNext: false,
+      hasPrevious: true,
+    }
+    renderDashboard({ tramita: { requests: [], searched: false, searchErrors: [] }, categoryPage: firstPage })
+    fetchDashboardCategory.mockImplementation(async (_category: string, page: number) =>
+      page === 0 ? firstPage : secondPage,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /pendientes/i }))
+    expect(await screen.findByText('Solicitud página uno')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
+
+    expect(await screen.findByText('Solicitud página dos')).toBeDefined()
+    expect(fetchDashboardCategory).toHaveBeenLastCalledWith('PENDING', 1, 25)
+    expect(screen.getByText(/página 2 de 2/i)).toBeDefined()
+  })
+
+  it('restaura y persiste los filtros operativos al recargar', () => {
+    window.sessionStorage.setItem('tramita-dashboard-filters-v1', JSON.stringify({
+      typeFilter: 'novedad_notas',
+      statusFilter: 'devuelto',
+      responsibleFilter: 'FACULTAD',
+      dateFilter: '30',
+      cardFilter: 'urgente',
+    }))
+
+    renderDashboard({ tramita: { requests: [], searched: false, searchErrors: [] } })
+
+    expect(screen.getByLabelText(/tipo de trámite/i)).toHaveProperty('value', 'novedad_notas')
+    expect(screen.getByLabelText(/^estado$/i)).toHaveProperty('value', 'devuelto')
+    expect(screen.getByLabelText(/responsable/i)).toHaveProperty('value', 'FACULTAD')
+    expect(screen.getByLabelText(/fecha de radicación/i)).toHaveProperty('value', '30')
+    expect(screen.getByRole('button', { name: /urgentes/i }).className).toContain('ring-2')
+
+    fireEvent.change(screen.getByLabelText(/^estado$/i), { target: { value: 'finalizado' } })
+
+    expect(JSON.parse(window.sessionStorage.getItem('tramita-dashboard-filters-v1')!).statusFilter)
+      .toBe('finalizado')
+  })
+
+  it('excluye los rechazos al filtrar por Completadas', async () => {
+    renderDashboard({
+      tramita: { requests: [], searched: false, searchErrors: [] },
+      categoryPage: {
+        content: [{
+          id: 'request-finalized',
+          definition: { code: 'ADICION_CREDITOS', name: 'Adición de créditos', version: 1 },
+          studentName: 'Solicitud Finalizada',
+          currentState: { code: 'FINALIZADA', name: 'Finalizada', isFinal: true, isInitial: false },
+          createdAt: '2026-09-01T12:00:00',
+          priority: 'normal',
+        }],
+        page: 0,
+        size: 25,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      },
+    })
     fireEvent.click(screen.getByRole('button', { name: /completadas/i }))
 
-    expect(screen.getAllByText('Solicitud Finalizada').length).toBeGreaterThan(0)
-    expect(screen.queryAllByText('Solicitud Rechazada')).toHaveLength(0)
+    expect(await screen.findByText('Solicitud Finalizada')).toBeDefined()
+    expect(screen.queryByText('Solicitud Rechazada')).toBeNull()
+    expect(fetchDashboardCategory).toHaveBeenCalledWith('COMPLETED', 0, 25)
   })
 
   it('renderiza los resultados de búsqueda con datos provenientes del store', () => {
