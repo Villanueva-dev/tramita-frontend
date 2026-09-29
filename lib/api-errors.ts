@@ -42,3 +42,16 @@ export function apiErrorMessages(
   }
   return ['Sin conexión con el servidor. Intente más tarde.']
 }
+
+/**
+ * La transición partió de un estado que la solicitud ya no tiene (409 del backend, H-10) o
+ * la opción ya no figura en el detalle vigente. Reintentar desde la misma pantalla no sirve:
+ * hay que refrescar y decidir de nuevo. Vive aquí y no en el store para que el componente de
+ * presentación pueda distinguirlo sin depender del store.
+ */
+export class TransitionConflictError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TransitionConflictError'
+  }
+}

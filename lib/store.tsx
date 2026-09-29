@@ -11,7 +11,7 @@ import {
 } from 'react'
 
 import { apiFetch, problemMessage, searchRequests as fetchRequestsByTerm } from './api'
-import { apiErrorMessages } from './api-errors'
+import { apiErrorMessages, TransitionConflictError } from './api-errors'
 import { isClosed, isInitialState, isReturnedForCorrection } from './request-state'
 import { useAuth } from './auth-store'
 import type {
@@ -349,7 +349,7 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
     const selected = (detail.availableTransitions ?? []).find(
       (item) => item.targetState.code === targetStateCode,
     )
-    if (!selected) throw new Error('La transición ya no está disponible para esta solicitud')
+    if (!selected) throw new TransitionConflictError('La transición ya no está disponible para esta solicitud')
     const response = await apiFetch(`/requests/${id}/transitions`, {
       method: 'POST',
       // `fromStateCode` es el estado que MOSTRABA la pantalla cuando la persona decidió (H-10):
@@ -361,6 +361,11 @@ export function TramitaProvider({ children }: { children: ReactNode }) {
         note: comment || undefined,
       }),
     })
+    if (response.status === 409) {
+      throw new TransitionConflictError(
+        await problemMessage(response, 'La solicitud cambió de estado. Actualice el detalle.'),
+      )
+    }
     if (!response.ok) throw new Error(await problemMessage(response, 'No se pudo aplicar la transición'))
     const updated = await loadRequest(id)
     setRequests((previous) => previous.map((item) => item.id === id ? {

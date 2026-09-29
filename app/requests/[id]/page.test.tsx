@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import RequestDetailPage from './page'
 import { baseRequest } from '@/lib/store'
+import { TransitionConflictError } from '@/lib/api-errors'
 import type { AcademicRequest } from '@/lib/types'
 
 const useTramita = vi.hoisted(() => vi.fn())
@@ -225,6 +226,66 @@ describe('RequestDetailPage', () => {
     const cancelButton = within(dialog).getByRole('button', { name: 'Cancelar' })
     expect(confirmButton.hasAttribute('disabled')).toBe(false)
     expect(cancelButton.hasAttribute('disabled')).toBe(false)
+  })
+
+  // Spec request-transitions, «Conflicto de transición (409)»: se informa el conflicto y se
+  // ofrece refrescar. Confirmar de nuevo repetiría la premisa vieja (H-10), así que el botón de
+  // confirmar se reemplaza por «Actualizar detalle». El error que NO es conflicto (test de
+  // arriba) conserva el reintento.
+  it('ante un conflicto, el diálogo reemplaza Confirmar por «Actualizar detalle», que refresca y cierra', async () => {
+    const transition = vi.fn().mockRejectedValue(new TransitionConflictError('La solicitud cambió de estado.'))
+    const refreshRequest = vi.fn().mockResolvedValue(undefined)
+    useTramita.mockReturnValue({ getRequest: () => request, refreshRequest, transition })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert.textContent).toContain('La solicitud cambió de estado.')
+    expect(within(dialog).queryByRole('button', { name: 'En facultad' })).toBeNull()
+    refreshRequest.mockClear()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar detalle' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(refreshRequest).toHaveBeenCalledWith('request-1')
+    expect(transition).toHaveBeenCalledTimes(1)
+  })
+
+  // Si el refresco de «Actualizar detalle» falla, el diálogo no puede cerrarse (la pantalla
+  // quedaría vieja sin aviso) ni quedar trabado (el defecto que corrigió T4a): informa el fallo
+  // y deja reintentar el refresco o cancelar. El conflicto sigue vigente, así que tampoco vuelve
+  // a ofrecer Confirmar.
+  it('si falla el refresco tras un conflicto, el diálogo sigue abierto, lo informa y permite reintentarlo', async () => {
+    const transition = vi.fn().mockRejectedValue(new TransitionConflictError('La solicitud cambió de estado.'))
+    const refreshRequest = vi.fn().mockResolvedValue(undefined)
+    useTramita.mockReturnValue({ getRequest: () => request, refreshRequest, transition })
+
+    render(<RequestDetailPage />)
+
+    await screen.findByRole('button', { name: 'En facultad' })
+    fireEvent.click(screen.getByRole('button', { name: 'En facultad' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'En facultad' }))
+    await within(dialog).findByRole('alert')
+    // El montaje de la página ya llamó a `refreshRequest` y resolvió: solo falla el del clic.
+    refreshRequest.mockRejectedValueOnce(new Error('Sin conexión'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar detalle' }))
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert').textContent)
+        .toContain('No se pudo actualizar el detalle. Recargue la página.'),
+    )
+    expect(screen.getByRole('dialog')).toBeDefined()
+    const refreshButton = within(dialog).getByRole('button', { name: 'Actualizar detalle' })
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancelar' })
+    expect(refreshButton.hasAttribute('disabled')).toBe(false)
+    expect(cancelButton.hasAttribute('disabled')).toBe(false)
+    expect(within(dialog).queryByRole('button', { name: 'En facultad' })).toBeNull()
+    expect(transition).toHaveBeenCalledTimes(1)
   })
 
   // No hay ventana institucional citable para estos trámites (Tramita#42, abierto). El
