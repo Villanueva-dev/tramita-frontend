@@ -458,6 +458,7 @@ export default function RequestDetailPage() {
         config={dialog}
         onClose={() => setDialog(null)}
         onConfirm={runAction}
+        onRefresh={() => refreshRequest(requestId)}
       />
     </AppShell>
   )

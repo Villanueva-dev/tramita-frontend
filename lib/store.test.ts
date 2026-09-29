@@ -3,6 +3,7 @@ import { renderHook, act, cleanup } from '@testing-library/react'
 
 import { baseRequest, subjectsForApi, TramitaProvider, useTramita } from './store'
 import type { NewRequestInput } from './store'
+import { TransitionConflictError } from './api-errors'
 
 // `vi.mock` se eleva al inicio del archivo, antes de esta declaración: su factory solo
 // puede usar variables creadas con `vi.hoisted` (https://vitest.dev/api/vi#vi-mock).
@@ -410,5 +411,51 @@ describe('transition (TramitaProvider)', () => {
     await loadThenTransition(shown, current)
 
     expect(transitionsBody()).toMatchObject({ fromStateCode: 'EN_COORDINACION', targetStateCode: 'EN_FACULTAD' })
+  })
+  // Un conflicto no se reintenta desde la misma pantalla: repetiría la premisa vieja de H-10.
+  // Por eso se distingue con su propio tipo, que el diálogo usa para ofrecer refrescar.
+  it('un 409 del backend rechaza con TransitionConflictError y el detail como mensaje', async () => {
+    const detailPath = `/requests/${summary.id}`
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === detailPath) return Promise.resolve(jsonResponse(200, { ...summary, availableTransitions: [toFaculty] }))
+      if (path === `${detailPath}/timeline`) return Promise.resolve(jsonResponse(200, []))
+      if (path === `${detailPath}/transitions`) return Promise.resolve(problemResponse(409, 'La solicitud ya no está en el estado indicado'))
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+    await act(async () => {
+      await result.current.refreshRequest(summary.id)
+    })
+
+    let error: unknown
+    await act(async () => {
+      error = await result.current.transition(summary.id, 'EN_FACULTAD').catch((e: unknown) => e)
+    })
+
+    expect(error).toBeInstanceOf(TransitionConflictError)
+    expect((error as Error).message).toBe('La solicitud ya no está en el estado indicado')
+  })
+
+  it('si la opción ya no figura en el detalle vigente, rechaza con TransitionConflictError sin enviar el POST', async () => {
+    const detailPath = `/requests/${summary.id}`
+    let detail: object = { ...summary, availableTransitions: [toFaculty] }
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === detailPath) return Promise.resolve(jsonResponse(200, detail))
+      if (path === `${detailPath}/timeline`) return Promise.resolve(jsonResponse(200, []))
+      return Promise.resolve(problemResponse(500, 'No debería llamarse'))
+    })
+    const { result } = renderHook(() => useTramita(), { wrapper: TramitaProvider })
+    await act(async () => {
+      await result.current.refreshRequest(summary.id)
+    })
+    detail = { ...summary, availableTransitions: [] }
+
+    let error: unknown
+    await act(async () => {
+      error = await result.current.transition(summary.id, 'EN_FACULTAD').catch((e: unknown) => e)
+    })
+
+    expect(error).toBeInstanceOf(TransitionConflictError)
+    expect(apiFetchMock.mock.calls.some(([path]) => path === `${detailPath}/transitions`)).toBe(false)
   })
 })

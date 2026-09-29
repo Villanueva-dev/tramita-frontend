@@ -5,6 +5,7 @@ import { ArrowRight, CircleAlert, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { TransitionConflictError } from '@/lib/api-errors'
 import { cn } from '@/lib/utils'
 
 export interface ActionConfig {
@@ -21,17 +22,24 @@ export function ActionDialog({
   config,
   onClose,
   onConfirm,
+  onRefresh,
 }: {
   config: ActionConfig | null
   onClose: () => void
   // Contrato: resuelve cuando el backend confirmó la transición (y el padre cierra el diálogo)
   // y rechaza con un `Error` cuyo `message` se muestra al usuario dentro del propio diálogo,
-  // que permanece abierto para reintentar.
+  // que permanece abierto para reintentar. Si rechaza con `TransitionConflictError` no se
+  // reintenta: la premisa de la pantalla quedó vieja y solo se ofrece `onRefresh`.
   onConfirm: (comment: string) => Promise<void>
+  // Contrato (opcional): refresca la solicitud mostrada. Tras un conflicto, «Actualizar
+  // detalle» lo llama y cierra el diálogo. Sin él, el conflicto se informa pero no hay
+  // botón de refrescar y Confirmar sigue disponible.
+  onRefresh?: () => Promise<void>
 }) {
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [serverError, setServerError] = useState('')
+  const [conflict, setConflict] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -60,6 +68,19 @@ export function ActionDialog({
       await onConfirm(comment.trim())
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'No se pudo registrar la transición.')
+      setConflict(err instanceof TransitionConflictError)
+      setLoading(false)
+    }
+  }
+
+  async function handleRefresh() {
+    setServerError('')
+    setLoading(true)
+    try {
+      await onRefresh?.()
+      onClose()
+    } catch {
+      setServerError('No se pudo actualizar el detalle. Recargue la página.')
       setLoading(false)
     }
   }
@@ -132,7 +153,8 @@ export function ActionDialog({
 
         {serverError && (
           // Separado del error de validación del comentario: este viene del backend, no del
-          // formulario, y el diálogo debe seguir habilitado para reintentar (T4a).
+          // formulario, y el diálogo debe seguir habilitado para reintentar (T4a), salvo un
+          // conflicto: ahí se ofrece actualizar el detalle, no repetir el envío.
           <p
             role="alert"
             className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2.5 text-base font-medium text-destructive"
@@ -151,15 +173,26 @@ export function ActionDialog({
           >
             Cancelar
           </Button>
-          <Button
-            variant={config.variant}
-            onClick={handleConfirm}
-            disabled={loading}
-            className="h-[52px] gap-2 px-5 text-[17px]"
-          >
-            {loading && <Loader2 className="size-4 animate-spin" />}
-            {config.confirmLabel}
-          </Button>
+          {conflict && onRefresh ? (
+            <Button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="h-[52px] gap-2 px-5 text-[17px]"
+            >
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              Actualizar detalle
+            </Button>
+          ) : (
+            <Button
+              variant={config.variant}
+              onClick={handleConfirm}
+              disabled={loading}
+              className="h-[52px] gap-2 px-5 text-[17px]"
+            >
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              {config.confirmLabel}
+            </Button>
+          )}
         </div>
       </div>
     </div>

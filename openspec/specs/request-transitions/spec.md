@@ -121,4 +121,7 @@ ofrecer refrescar el estado vigente.
 
 - GIVEN una acción visible que el backend ya no admite (otro cambio ganó la carrera)
 - WHEN se envía y el backend responde 409
-- THEN la UI no muestra la transición como aplicada y ofrece refrescar el detalle
+- THEN la UI no muestra la transición como aplicada
+- AND el diálogo muestra el conflicto y NO permite confirmar de nuevo
+- AND ofrece «Actualizar detalle», que refresca la solicitud y cierra el diálogo
+- AND los errores que no son conflicto conservan el reintento desde el mismo diálogo
